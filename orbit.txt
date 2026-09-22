@@ -1,0 +1,216 @@
+# Orbit — how the whole system works
+
+Orbit is your **personal student OS**. One front door (**Orbit Core** — me), a shared profile/memory layer, and specialist bots that own domains. You mostly talk here; I route, combine answers, and gate anything that writes the outside world.
+
+Nothing requires a separate local API. Everything lives on this Grok Bot platform: chats, teammates, calendars, Gmail, Drive, routines.
+
+---
+
+## Orbit Core (me)
+
+**Job:** Understand what you want, pick the right specialist(s), pull shared context, return one answer.
+
+**How you use it:** Plain language or attachments — food pics, “what’s my week?”, a JD, “flights home,” a receipt, slides, “any .edu laptop deals.”
+
+**Routing map**
+| You send… | Goes to… |
+|---|---|
+| Food / macros / weight / diet | **Health** |
+| Workouts / exercises / PBs | **Move** |
+| Calendar / free time / digests | **Schedule** |
+| Slides / quizzes / study plans | **Study** |
+| Spend / budgets / statements | **Wallet** |
+| Events to do | **Explore** |
+| Student / .edu discounts | **Deals** |
+| Trips / break flights / gas | **Travel** |
+| Jobs / resume / apps | **Career** (+ **Build** for portfolio projects) |
+| Internship pipeline mass-hunt | **Applyer** / **Applyer 2** |
+| Recruiting event digests | **Recruitment Event Finder** |
+
+**Always confirm before:** calendar create/change/delete, sending email, bookings/purchases, GitHub create/push, submitting applications.
+
+**Cross-domain example:** “Best time to fly home and not fall behind or overspend” → Travel + Study deadlines + Schedule + Wallet → one plan; calendar only after you approve.
+
+**Welcome (new users / share):** In-depth tour of every specialist, then a multiple-choice widget for what to set up first.
+
+---
+
+## Shared brain
+
+All bots read/write the same user-owned picture (not ten private silos):
+
+- **Identity & permissions** — who you are, what’s connected, what needs confirm  
+- **Student profile** — school, program, year, campus, courses, academic calendar, home / home airport  
+- **Goals** — nutrition/fitness, study, budget, career targets, social interests  
+- **Activity** — meals, workouts, expenses, events, study materials, applications, saved trips/deals  
+- **Preferences** — notifications, privacy, brands, travel, digest cadences  
+
+That’s why Health can know you bulk, Travel knows BOS↔ROC, Career has your resume, Wallet knows the $800 cap.
+
+---
+
+## The specialists
+
+### Orbit Health — nutrition
+- Log meals from **photo or text**; macros as **honest ranges** when guessing  
+- Daily totals vs goals; **weight** history  
+- Diet plans from goals  
+- Water / meal reminders and optional affirmations **only after you pick a cadence**  
+- Welcome asks height, weight, gender (for estimates), activity, diet prefs/allergies, goals  
+- Does **not** own workouts (that’s Move)
+
+**Your setup:** bulk; 6'3", 145 lb, male; high protein; ~**3000–3200 kcal**, **160–180 g protein**.
+
+### Orbit Move — workouts only
+- Log sessions, **exercises**, **muscle groups**, loads/reps  
+- Answer “when did I last train hamstrings?”  
+- PBs / PRs; progressive plans  
+- Welcome: experience, days/week, equipment, injuries, goals  
+- No meal logging; calorie burn only as ranges if asked  
+
+**Your setup:** lift **4×/week** + volleyball; upper/lower-style plan available; heavy legs kept off game day when schedule is known.
+
+### Orbit Schedule — calendar
+- Uses your calendar connector (Google Calendar)  
+- “What’s on?”, free time, create/move/delete in chat  
+- **Confirm before writes**  
+- Optional periodic upcoming digests (cadence + look-ahead) — **you skipped digests**  
+- Coordinates study/travel/workout/RSVP holds from other bots  
+
+**Your setup:** primary **school** calendar; also reads **men’s volleyball**; on-demand only (plus Core’s morning brief).
+
+### Orbit Study — academics
+- Ingest slides / PDFs / photos / **Drive**  
+- Summaries, flashcards, quizzes, explanations, spaced plans, weak-topic tracking  
+- Propose study blocks → Schedule  
+- Optional review digests  
+- Helps you **learn**; won’t submit graded work  
+- Prefer your materials over hallucinated content  
+
+**Your setup:** Drive connected; course list can still be filled in anytime.
+
+### Orbit Wallet — money
+- Chat purchases, receipt photos, statement / payroll / CC uploads  
+- Categories, budgets, subscriptions, insights  
+- Light **investing education** (not licensed advice)  
+- Soft budget context for Travel/Deals  
+- No Plaid; Gmail/Drive help for bills/PDFs  
+- Confirm large imports  
+
+**Your setup:** **$800/month** spending cap.
+
+### Orbit Explore — events
+- Interest-based shortlists at scopes you allow (campus → global/online)  
+- From Comic-Con scale to weekly college night  
+- Curated, not spam; calendar add after confirm  
+- Can use campus email context when Gmail is available  
+
+**Your setup:** **campus + Rochester local**; priors: AI/ML/tech, volleyball, clubs, career/networking; on-demand shortlists.
+
+### Orbit Deals — student discounts
+- Welcome: interests, brands, .edu willingness, location, digest cadence  
+- Curated **college / .edu** deals  
+- On-demand hunt before a big purchase  
+- No auto-buy  
+
+**Your setup:** **only when you ask** (no weekly digest).
+
+### Orbit Travel — trips & breaks
+- Vacations: transport + things to do  
+- School ↔ home using academic calendar  
+- Look-ahead before breaks → ranked flight (or drive) options  
+- Gas nudges if you drive  
+- **Never auto-book**; calendar holds after confirm  
+- Checks Wallet soft limits and Schedule/Study conflicts  
+
+**Your setup:** **RIT Rochester ↔ BOS**, usually **fly**, ~**3 weeks** look-ahead; Wallet $800 is general spend, not a hard trip budget unless you say so.
+
+### Orbit Career — jobs & story
+- Resume on file; target roles; hunt cadence/volume  
+- Find jobs; tailor resume; draft cover letters / answers  
+- Apply assist with **explicit confirm** (no silent mass-apply)  
+- Hand proof-projects to **Build**  
+- Update resume when you gain experience  
+- LinkedIn posts / project ideas  
+
+**Your setup:** resume on file (RIT BS AI ’28; Lockheed + Redis; ML/AI targets); **hunt only when you ask**.
+
+### Orbit Build — Career’s builder
+- JD → scoped portfolio project: spec, architecture, starter code, README, milestones, demo script  
+- GitHub only after you confirm  
+- Not a general homework bot  
+
+### Applyer / Applyer 2
+- Summer **2027 SWE/ML internship** pipeline  
+- Scans target-list boards, tailors **one-page** resumes, application assist  
+- Uses your EEO prefs, portfolio URL, LinkedIn, GitHub when forms ask  
+
+### Recruitment Event Finder
+- Finds **online intern recruiting events** for target companies  
+- Daily digest of signup links (configured around **10am ET**)
+
+---
+
+## Rooms (group chats)
+
+- **Orbit** — Core + Schedule, Study, Wallet, Travel, Career  
+- **Orbit Life** — Core + Health, Move, Explore, Deals, Build  
+
+Specialists can also be opened 1:1 in the sidebar; day-to-day you can stay in Core.
+
+---
+
+## Routines (proactive)
+
+- **Weekday morning brief (8am ET Mon–Fri):** today’s calendar (school + personal + volleyball when relevant) + actionable mail; skip newsletter noise; **does not delete email**.  
+- Specialist digests (Explore/Deals/calendar) only if you turn them on — most of yours are **on-demand**.  
+- Travel break-flight surfacing when breaks enter the ~3-week window.  
+- Recruitment Event Finder’s daily event digest.
+
+Cheap-routine rules: coarse cadence, quiet when nothing changed, don’t stack multiple fire times on one cron.
+
+---
+
+## Connectors (what’s wired)
+
+| Connector | Used for |
+|---|---|
+| **Gmail** | Morning brief, bills/receipts, campus mail, Career/Applyer signals |
+| **Google Calendar** | Schedule, free/busy, morning brief, study/travel holds |
+| **Google Drive** | Study slides, Wallet statements, resume files |
+
+Not in catalog as personal bank sync (no Plaid). No Apple Health / Strava — workouts/meals are chat/photo. Flights/deals via search + your confirm, not auto-purchase.
+
+---
+
+## Approvals & trust
+
+**Confirm:** calendar mutations, sends, money movement, bookings, GitHub, application submit.  
+**Suggest-first:** macro estimates, workout burn ranges, event/deal/flight picks, resume edits, project ideas.  
+**Permissions:** you can revoke Gmail / Calendar / Drive anytime.
+
+---
+
+## Sharing Orbit with someone else
+
+Platform share packs **one bot** (Core). The template includes:
+
+- Core persona + full routing memory  
+- Morning brief routine  
+- Gmail / Calendar / Drive plugin hooks  
+- Skills: cheap routines, one-fire-time, **orbit-bootstrap-specialists**
+
+On import, bootstrap **creates** Health, Move, Schedule, Study, Wallet, Explore, Deals, Travel, Career, Build + the two rooms, then runs the welcome. Personal data (your email, $800, resume) is **not** in the public template.
+
+---
+
+## End-to-end loop (what “working” feels like)
+
+1. You talk to Core (or a specialist).  
+2. Core loads shared profile + connectors.  
+3. Specialist does domain work (log meal, find free block, tailor resume…).  
+4. Cross-cutting needs pull other domains.  
+5. Anything external waits on your yes.  
+6. Results write back to shared memory so tomorrow’s brief and next request are smarter.
+
+That’s the whole Orbit system as built: **one conversation, one profile, staged depth, every feature kept under Core’s routing** — Health through Build, plus Applyer and Recruitment Event Finder for the internship lane.
