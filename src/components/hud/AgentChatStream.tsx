@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChatMessage, SpecialistId } from "@/types/orbit";
 import { SPECIALISTS } from "@/lib/specialists";
-import { PaperPlaneRight, Cpu, Sparkle, CaretDown, CaretUp } from "@phosphor-icons/react";
+import { PaperPlaneRight, Cpu, Sparkle, CaretDown, CaretUp, ArrowSquareOut } from "@phosphor-icons/react";
 import { InStreamAuthCard } from "./InStreamAuthCard";
 import { cosmicAudio } from "@/lib/audio";
 
@@ -134,6 +134,31 @@ export function AgentChatStream({
                 }`}
               >
                 <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
+
+                {/* Live Web Grounding Source Badges (Tavily Search API) */}
+                {msg.tavilySources && msg.tavilySources.length > 0 && (
+                  <div className="mt-3 pt-2.5 border-t border-white/10">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-amber-300 mb-2">
+                      <Sparkle size={12} weight="fill" className="text-amber-400" />
+                      <span>Live Intelligence via Tavily Search:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.tavilySources.map((source, idx) => (
+                        <a
+                          key={idx}
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-950/80 hover:bg-zinc-800 text-[10px] font-mono text-zinc-300 hover:text-white border border-white/10 hover:border-amber-400/40 transition truncate max-w-[260px] group/src"
+                          title={`${source.title}\n${source.snippet}`}
+                        >
+                          <span className="truncate">{source.title}</span>
+                          <ArrowSquareOut size={11} className="shrink-0 text-zinc-500 group-hover/src:text-amber-300 transition" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Sovereign Action Authorization Card */}
                 {msg.approvalRequest && (

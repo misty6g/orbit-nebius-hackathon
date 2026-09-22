@@ -3,6 +3,7 @@ import { SPECIALISTS } from "@/lib/specialists";
 import { SpecialistId, ActionApproval } from "@/types/orbit";
 import { createNebiusCompletion } from "@/lib/nebius";
 import { generateMockResponse } from "@/lib/mockAi";
+import { searchTavily } from "@/lib/tavily";
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,6 +66,33 @@ export async function POST(req: NextRequest) {
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
 
+    // Query Tavily for live external intelligence if relevant
+    let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined = undefined;
+    const isWebQuery =
+      specialistId === "deals" ||
+      specialistId === "travel" ||
+      specialistId === "explore" ||
+      finalTargets.includes("deals") ||
+      finalTargets.includes("travel") ||
+      finalTargets.includes("explore") ||
+      lowerMsg.includes("deal") ||
+      lowerMsg.includes("discount") ||
+      lowerMsg.includes("flight") ||
+      lowerMsg.includes("meetup") ||
+      lowerMsg.includes("event");
+
+    if (isWebQuery) {
+      try {
+        const tavilyKey = process.env.TAVILY_API_KEY;
+        const tavilyRes = await searchTavily(message, tavilyKey);
+        if (tavilyRes?.results && tavilyRes.results.length > 0) {
+          tavilySources = tavilyRes.results.slice(0, 3);
+        }
+      } catch (err) {
+        console.error("Tavily background search error:", err);
+      }
+    }
+
     if (isMock) {
       // Offline / zero-credit simulation
       const mockResult = generateMockResponse({
@@ -74,6 +102,9 @@ export async function POST(req: NextRequest) {
       });
       aiContent = mockResult.content;
       approvalRequest = mockResult.approvalRequest;
+      if (mockResult.tavilySources) {
+        tavilySources = mockResult.tavilySources;
+      }
     } else {
       // Live Nebius Inference Mode
       const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
@@ -109,13 +140,20 @@ Rules:
 4. For health, always provide honest estimated ranges (e.g. 750-850 kcal) rather than false precision.
 5. Em-dash character is forbidden. Use a regular hyphen or clean punctuation.`;
 
+      const userPrompt =
+        tavilySources && tavilySources.length > 0
+          ? `${message}\n\n[Live Web Results from Tavily Search]:\n${tavilySources
+              .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
+              .join("\n")}\nSynthesize these live verified results directly in your response.`
+          : message;
+
       try {
         const completionRes = await createNebiusCompletion({
           apiKey: keyToUse,
           model: process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: message },
+            { role: "user", content: userPrompt },
           ],
           temperature: 0.6,
           maxTokens: 1200,
@@ -209,6 +247,7 @@ Rules:
             }
           : undefined,
         approvalRequest,
+        tavilySources,
       },
     });
   } catch (error: any) {

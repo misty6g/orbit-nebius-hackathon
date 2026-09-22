@@ -6,6 +6,11 @@ export interface MockAiResponse {
   detectedTargets: SpecialistId[];
   approvalRequest?: ActionApproval;
   modelUsed: string;
+  tavilySources?: Array<{
+    title: string;
+    url: string;
+    snippet: string;
+  }>;
 }
 
 export function generateMockResponse({
@@ -66,6 +71,7 @@ export function generateMockResponse({
 
   let content = "";
   let approvalRequest: ActionApproval | undefined = undefined;
+  let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined = undefined;
 
   // 1. Cross-domain query: Flight / Travel + Budget + Schedule
   if (lowerMsg.includes("fly home") || (lowerMsg.includes("travel") && lowerMsg.includes("spend")) || (lowerMsg.includes("flight") && lowerMsg.includes("fall behind"))) {
@@ -325,12 +331,43 @@ Ready to generate starter scaffolding or detailed interface contracts whenever y
 - **NVIDIA Academic Developer Program:** Free access to Jetson development kits and cloud GPU compute credits for university AI coursework.
 - **GitHub Student Developer Pack:** Includes $100 DigitalOcean credits, free JetBrains all-products pack, and free GitHub Copilot.
 - **Delta & JetBlue Student Break Fares:** Up to 15% discount on direct flights from ROC to BOS with valid .edu verification.`;
+
+    tavilySources = [
+      {
+        title: "Apple & NVIDIA Student Developer Hardware Grants",
+        url: "https://developer.nvidia.com/academic-program",
+        snippet: "Eligible .edu students receive exclusive access to NVIDIA Jetson hardware and cloud compute credits for AI coursework.",
+      },
+      {
+        title: "GitHub Student Developer Pack (.edu verified)",
+        url: "https://education.github.com/pack",
+        snippet: "Free access to developer tools, cloud hosting credits, and AI development environments.",
+      },
+      {
+        title: "RIT Student Flight Discounts & ROC Break Fares",
+        url: "https://www.rit.edu/travel/discounts",
+        snippet: "BOS to ROC weekend non-stop direct flights starting at $138 roundtrip on JetBlue and Delta with student verified pricing.",
+      },
+    ];
   } else if (specialistId === "explore" || lowerMsg.includes("meetup") || lowerMsg.includes("rochester") || lowerMsg.includes("friday")) {
     content = `### Rochester & RIT Tech Events This Week
 
 - **RIT AI Club Workshop:** "Fine-Tuning Open Source LLMs on University Clusters" (Thursday 7:00 PM, Golisano Hall Room 2400).
 - **Rochester Tech & Founders Meetup:** Friday 6:30 PM, Downtown Rochester Innovation Hub.
 - **RIT Hackathon Hack Night:** Saturday 12:00 PM, Student Alumni Union.`;
+
+    tavilySources = [
+      {
+        title: "Rochester AI & Tech Meetups (Downtown & Henrietta)",
+        url: "https://meetup.com/rochester-ai",
+        snippet: "Weekly collaborative workshops on open source LLMs, computer vision, and robotics held near RIT campus.",
+      },
+      {
+        title: "RIT Center for Student Innovation & AI Workshops",
+        url: "https://www.rit.edu/innovate",
+        snippet: "Upcoming campus presentations, GPU cluster hackathons, and hardware demonstrations.",
+      },
+    ];
   }
   // 10. Default Core response
   else {
@@ -351,5 +388,6 @@ Ask me to coordinate travel, log meals, draft project specs, or check your sched
     detectedTargets: finalTargets,
     approvalRequest,
     modelUsed: "nvidia/llama-3.1-nemotron-70b-instruct (Mock / Zero Credits)",
+    tavilySources,
   };
 }

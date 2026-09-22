@@ -237,9 +237,30 @@ export function CockpitHUD({
             onActiveTargetsChange([]);
           }, 4500);
         }
+      } else if (data.error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            sender: specialistId,
+            senderName: "Orbit System",
+            content: `⚠️ **Notice:** ${data.details || data.message || "Nebius inference returned an error."}\n\n*Tip: You can toggle **Mock AI (0 Credits)** in the top right to test the full system offline.*`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Chat error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          sender: specialistId,
+          senderName: "Orbit System",
+          content: `⚠️ **Network Notice:** Could not reach the API endpoint. You can toggle **Mock AI (0 Credits)** in the top right to test without API connection.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
