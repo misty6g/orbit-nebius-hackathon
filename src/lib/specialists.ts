@@ -25,8 +25,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Honest macro ranges, daily totals, bulk tracking.",
     color: "#10b981", // Emerald Gaia
     glowColor: "rgba(16, 185, 129, 0.5)",
-    orbitRadius: 4.6,
-    orbitSpeed: 0.55,
+    orbitRadius: 6.2,
+    orbitSpeed: 0.52,
     size: 0.95,
     features: [
       "Honest macro range estimation (calories & protein)",
@@ -42,8 +42,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Lifting progression, PR tracking, volleyball coordination.",
     color: "#f97316", // Rust Mars
     glowColor: "rgba(249, 115, 22, 0.5)",
-    orbitRadius: 6.8,
-    orbitSpeed: 0.45,
+    orbitRadius: 9.8,
+    orbitSpeed: 0.42,
     size: 0.9,
     features: [
       "4x/week lifting split tracking",
@@ -59,8 +59,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Google Calendar connector, free blocks, confirmed holds.",
     color: "#06b6d4", // Chrono Cyan
     glowColor: "rgba(6, 182, 212, 0.5)",
-    orbitRadius: 9.2,
-    orbitSpeed: 0.38,
+    orbitRadius: 13.8,
+    orbitSpeed: 0.35,
     size: 0.95,
     features: [
       "Primary school + volleyball schedule sync",
@@ -76,8 +76,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Slide ingest, Nemotron flashcards, quiz engine.",
     color: "#38bdf8", // Sapphire Ice Giant
     glowColor: "rgba(56, 189, 248, 0.5)",
-    orbitRadius: 11.8,
-    orbitSpeed: 0.32,
+    orbitRadius: 18.2,
+    orbitSpeed: 0.29,
     size: 1.15,
     features: [
       "Slide and PDF document synthesis",
@@ -93,8 +93,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Monthly spending meter, expense audits, soft limits.",
     color: "#eab308", // Ringed Saturn
     glowColor: "rgba(234, 179, 8, 0.5)",
-    orbitRadius: 14.6,
-    orbitSpeed: 0.26,
+    orbitRadius: 23.0,
+    orbitSpeed: 0.24,
     size: 1.35,
     features: [
       "Strict $800/month spending cap pacing",
@@ -110,7 +110,7 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Curated .edu offers and tech hardware discounts.",
     color: "#34d399", // Emerald Moonlet
     glowColor: "rgba(52, 211, 153, 0.5)",
-    orbitRadius: 16.5,
+    orbitRadius: 2.8,
     orbitSpeed: 0.24,
     size: 0.65,
     features: [
@@ -127,8 +127,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Rochester local scene, tech meetups, hackathons.",
     color: "#a855f7", // Amethyst Aurora
     glowColor: "rgba(168, 85, 247, 0.5)",
-    orbitRadius: 17.5,
-    orbitSpeed: 0.2,
+    orbitRadius: 28.2,
+    orbitSpeed: 0.19,
     size: 1.05,
     features: [
       "Curated Rochester and RIT campus shortlists",
@@ -144,8 +144,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "BOS to ROC break flight hunter, academic look-ahead.",
     color: "#0ea5e9", // Oceanic Atmosphere
     glowColor: "rgba(14, 165, 233, 0.5)",
-    orbitRadius: 20.2,
-    orbitSpeed: 0.17,
+    orbitRadius: 33.6,
+    orbitSpeed: 0.16,
     size: 0.95,
     features: [
       "RIT Rochester to Boston route monitoring",
@@ -161,8 +161,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Summer 2027 SWE/ML hunt, resume tailoring, strategy.",
     color: "#818cf8", // Cyber Carbon
     glowColor: "rgba(129, 140, 248, 0.5)",
-    orbitRadius: 23.0,
-    orbitSpeed: 0.14,
+    orbitRadius: 39.2,
+    orbitSpeed: 0.13,
     size: 1.15,
     features: [
       "Summer 2027 SWE and ML internship pipeline",
@@ -178,7 +178,7 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "JD to scoped technical spec, architecture, and starter code.",
     color: "#6366f1", // Cyber Moonlet
     glowColor: "rgba(99, 102, 241, 0.5)",
-    orbitRadius: 25.0,
+    orbitRadius: 2.8,
     orbitSpeed: 0.12,
     size: 0.65,
     features: [

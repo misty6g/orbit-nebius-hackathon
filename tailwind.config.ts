@@ -10,23 +10,23 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ["var(--font-space-grotesk)", "system-ui", "sans-serif"],
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "monospace"],
+        display: ["system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
       },
       colors: {
         space: {
           950: "#07080a", // Deep obsidian Zen void
           900: "#0c0e12", // Soft dark slate
           850: "#11141b",
-          800: "#171b24",
-          700: "#222836",
-          600: "#343d52",
+          800: "#161a23",
+          700: "#202532",
+          600: "#2f3647",
         },
         solar: {
           gold: "#fbbf24",
           amber: "#f59e0b",
-          flare: "#ff7a00",
+          flare: "#d97706",
         },
         celestial: {
           health: "#10b981",
@@ -42,14 +42,14 @@ const config: Config = {
         },
       },
       backgroundImage: {
-        "radial-solar": "radial-gradient(circle at center, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.04) 50%, transparent 70%)",
-        "radial-nebula": "radial-gradient(circle at 50% 30%, rgba(79, 70, 229, 0.1) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)",
+        "radial-solar": "radial-gradient(circle at center, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.02) 50%, transparent 70%)",
+        "radial-nebula": "radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.06) 0%, rgba(6, 182, 212, 0.03) 40%, transparent 70%)",
       },
       boxShadow: {
-        "glass-sm": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 20px rgba(0, 0, 0, 0.5)",
-        "glass-md": "inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.6)",
-        "glass-lg": "inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 48px rgba(0, 0, 0, 0.7)",
-        "solar-glow": "0 0 50px rgba(251, 191, 36, 0.3)",
+        "glass-sm": "inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 10px rgba(0, 0, 0, 0.4)",
+        "glass-md": "inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 30px rgba(0, 0, 0, 0.5)",
+        "glass-lg": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 40px rgba(0, 0, 0, 0.6)",
+        "zen-dock": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.6)",
       },
     },
   },

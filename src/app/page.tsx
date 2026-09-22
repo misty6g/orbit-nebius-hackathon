@@ -1,16 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { SpecialistId, SharedBrainProfile, MorningBriefData } from "@/types/orbit";
+import { SpecialistId, SharedBrainProfile, MorningBriefData, PlanetCustomization, DEFAULT_PLANET_CUSTOMIZATIONS } from "@/types/orbit";
 import { INITIAL_DEMO_BRAIN, SPECIALISTS } from "@/lib/specialists";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
 import { CosmicAwakeningModal } from "@/components/onboarding/CosmicAwakeningModal";
 import { ApiKeyGateModal } from "@/components/shared/ApiKeyGateModal";
 import { BrainInspectorModal } from "@/components/shared/BrainInspectorModal";
+import { PlanetCustomizerModal } from "@/components/cosmos/PlanetCustomizerModal";
 import {
   SpeakerHigh,
   SpeakerSlash,
+  SpeakerLow,
   Key,
   Brain,
   Sparkle,
@@ -22,8 +24,9 @@ import {
   Play,
   MagnifyingGlass,
   PaperPlaneRight,
+  SlidersHorizontal,
 } from "@phosphor-icons/react";
-import { cosmicAudio } from "@/lib/audio";
+import { cosmicAudio, AudioEngineState } from "@/lib/audio";
 
 export default function OrbitHome() {
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<SpecialistId | null>(null);
@@ -35,14 +38,20 @@ export default function OrbitHome() {
   const [showAwakening, setShowAwakening] = useState<boolean>(false);
   const [showApiKeyGate, setShowApiKeyGate] = useState<boolean>(false);
   const [showBrainInspector, setShowBrainInspector] = useState<boolean>(false);
+  const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
+  const [customizerPlanetId, setCustomizerPlanetId] = useState<SpecialistId | null>(null);
+
+  // Exoplanet Customization State
+  const [planetCustomizations, setPlanetCustomizations] = useState<Record<string, PlanetCustomization>>(DEFAULT_PLANET_CUSTOMIZATIONS);
 
   // Credentials & Mode
   const [nebiusKey, setNebiusKey] = useState<string>("");
   const [tavilyKey, setTavilyKey] = useState<string>("");
   const [mockMode, setMockMode] = useState<boolean>(true);
 
-  // Audio State
-  const [isMuted, setIsMuted] = useState<boolean>(true);
+  // Zen Ambient Audio State
+  const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
+  const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
 
   // Solar Dawn 3D Fly-Through Tour State
   const [isTouring, setIsTouring] = useState<boolean>(false);
@@ -105,6 +114,13 @@ export default function OrbitHome() {
       setShowAwakening(true);
     }
 
+    const savedCustom = localStorage.getItem("orbit_planet_customizations");
+    if (savedCustom) {
+      try {
+        setPlanetCustomizations((prev) => ({ ...prev, ...JSON.parse(savedCustom) }));
+      } catch {}
+    }
+
     // Fetch morning brief
     fetch("/api/brief")
       .then((res) => res.json())
@@ -140,6 +156,12 @@ export default function OrbitHome() {
     localStorage.setItem("orbit_tavily_key", newTavily);
   };
 
+  useEffect(() => {
+    return cosmicAudio.subscribe((state) => {
+      setAudioState(state);
+    });
+  }, []);
+
   const handleToggleMockMode = () => {
     cosmicAudio.playClick();
     setMockMode((prev) => {
@@ -150,8 +172,39 @@ export default function OrbitHome() {
   };
 
   const toggleAudio = () => {
-    const nextMuted = cosmicAudio.toggleMute();
-    setIsMuted(nextMuted);
+    cosmicAudio.toggleMusic();
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    if (audioState.isMuted) {
+      cosmicAudio.setMuted(false);
+    }
+    cosmicAudio.setVolume(newVol);
+  };
+
+  const toggleMute = () => {
+    cosmicAudio.toggleMute();
+  };
+
+  const handleUpdateCustomization = (id: SpecialistId, updated: PlanetCustomization) => {
+    setPlanetCustomizations((prev) => {
+      const next = { ...prev, [id]: updated };
+      localStorage.setItem("orbit_planet_customizations", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleResetAllCustomizations = () => {
+    setPlanetCustomizations(DEFAULT_PLANET_CUSTOMIZATIONS);
+    localStorage.removeItem("orbit_planet_customizations");
+  };
+
+  const handleOpenCustomizer = (id?: SpecialistId) => {
+    cosmicAudio.playClick();
+    if (id) {
+      setCustomizerPlanetId(id);
+    }
+    setShowCustomizer(true);
   };
 
   const handleSelectSpecialist = (id: SpecialistId) => {
@@ -209,48 +262,64 @@ export default function OrbitHome() {
         activeConstellationTargets={activeConstellationTargets}
         isTouring={isTouring}
         tourStep={tourStep}
+        planetCustomizations={planetCustomizations}
       />
 
-      {/* Top Left Zen Brand Glyph (Matching reference screenshot) */}
+      {/* Top Left Zen Brand Glyph */}
       {!selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 left-6 z-10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-zinc-950/60 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-glass-sm hover:border-white/20 transition cursor-pointer">
+          <div className="w-8 h-8 rounded-full bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-glass-sm hover:border-white/20 transition cursor-pointer active:scale-[0.96]">
             <svg
               viewBox="0 0 24 24"
-              className="w-4 h-4 text-zinc-300 fill-none stroke-current stroke-[1.5]"
+              className="w-4 h-4 text-amber-400 fill-none stroke-current stroke-[1.75]"
             >
               <circle cx="12" cy="12" r="9" strokeDasharray="3 3" />
-              <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.3" />
+              <circle cx="12" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
               <path d="M12 3a9 9 0 0 1 9 9" />
             </svg>
           </div>
-          <span className="text-xs font-display font-medium text-zinc-300 tracking-wider">
-            ORBIT
-          </span>
+          <div className="flex flex-col">
+            <span className="text-xs font-mono font-semibold text-zinc-200 tracking-wider">
+              ORBIT
+            </span>
+            <span className="text-[10px] font-mono text-zinc-500">
+              Sovereign Student OS
+            </span>
+          </div>
         </div>
       )}
 
       {/* Top Right Zen Controls */}
       {!selectedSpecialistId && !isTouring && (
-        <div className="absolute top-6 right-6 z-10 flex items-center gap-2.5">
+        <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
           {/* Zero-Credit Testing Mode Pill */}
           <button
             onClick={handleToggleMockMode}
-            title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
+            title={mockMode ? "Mock AI Active (Zero Credits) - Click to toggle Live Nebius" : "Live Nebius Active - Click to switch to Mock AI"}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono backdrop-blur-xl transition active:scale-[0.98] border ${
               mockMode
-                ? "bg-emerald-950/70 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/60 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
-                : "bg-amber-950/70 border-amber-500/30 text-amber-300 hover:bg-amber-900/60 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+                ? "bg-zinc-900/90 border-emerald-500/40 text-emerald-300 hover:bg-zinc-800/90"
+                : "bg-zinc-900/90 border-amber-500/40 text-amber-300 hover:bg-zinc-800/90"
             }`}
           >
-            <Lightning size={12} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
+            <Lightning size={12} weight="fill" className={mockMode ? "text-emerald-400" : "text-amber-400"} />
             <span>{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
+          </button>
+
+          {/* Planet Studio Customizer Button */}
+          <button
+            onClick={() => handleOpenCustomizer()}
+            title="Open Exoplanet Customization Studio"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 border border-white/10 text-xs font-medium backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
+          >
+            <SlidersHorizontal size={14} weight="bold" className="text-amber-400" />
+            <span>Planet Studio</span>
           </button>
 
           {/* Quick Play Brief Button */}
           <button
             onClick={startMorningTour}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 text-zinc-200 border border-white/10 text-xs font-display backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 border border-white/10 text-xs font-medium backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
           >
             <PlayCircle size={15} weight="duotone" className="text-amber-400" />
             <span>Solar Dawn Tour</span>
@@ -263,7 +332,7 @@ export default function OrbitHome() {
               setShowBrainInspector(true);
             }}
             title="Inspect Sovereign Shared Brain"
-            className="p-2 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl transition active:scale-[0.98]"
+            className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
           >
             <Brain size={15} weight="duotone" />
           </button>
@@ -275,114 +344,170 @@ export default function OrbitHome() {
               setShowApiKeyGate(true);
             }}
             title="Configure Nebius & Tavily Keys"
-            className="p-2 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl transition active:scale-[0.98]"
+            className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
           >
             <Key size={15} weight="duotone" />
           </button>
         </div>
       )}
 
-      {/* Bottom Left Audio Waveform Pill (Matching user's reference screenshot) */}
+      {/* Bottom Left Zen Ambient Music Player with Volume Control */}
       {!selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-6 z-10 flex items-center gap-2">
+          {/* Circular Play / Pause Button */}
           <button
             onClick={toggleAudio}
-            title={isMuted ? "Resume Cosmic Soundscape" : "Pause Cosmic Soundscape"}
-            className="w-8 h-8 rounded-full bg-zinc-950/80 hover:bg-zinc-900 border border-white/10 backdrop-blur-xl flex items-center justify-center text-zinc-300 hover:text-white transition active:scale-[0.96] shadow-glass-sm"
+            title={audioState.isPlaying ? "Pause Zen Ambient Music" : "Play Zen Ambient Music"}
+            className="w-9 h-9 rounded-full bg-zinc-950/90 hover:bg-zinc-900 border border-white/10 hover:border-amber-400/40 backdrop-blur-xl flex items-center justify-center text-zinc-300 hover:text-white transition active:scale-[0.96] shadow-glass-sm group"
           >
-            {isMuted ? <Play size={12} weight="fill" /> : <Pause size={12} weight="fill" />}
+            {audioState.isPlaying ? (
+              <Pause size={14} weight="fill" className="text-amber-400" />
+            ) : (
+              <Play size={14} weight="fill" className="text-zinc-300 ml-0.5 group-hover:text-amber-300 transition-colors" />
+            )}
           </button>
 
-          {/* Waveform Pill */}
-          <div
+          {/* Equalizer Waveform Pill with Track Info */}
+          <button
             onClick={toggleAudio}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-950/80 border border-white/10 backdrop-blur-xl cursor-pointer hover:border-white/20 transition shadow-glass-sm"
+            title={audioState.isPlaying ? "Pause Deep Space Soundscape (Astrovia - Brown Dwarf)" : "Play Deep Space Soundscape (Astrovia - Brown Dwarf)"}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-950/90 border border-white/10 hover:border-white/20 backdrop-blur-xl cursor-pointer transition shadow-glass-sm active:scale-[0.98] group"
           >
-            <span
-              className={`w-0.5 rounded-full bg-zinc-400 transition-all ${
-                isMuted ? "h-1.5 opacity-40" : "h-3.5 animate-pulse"
+            <div className="flex items-end gap-1 h-4">
+              <span
+                className={`w-0.5 rounded-full transition-all ${
+                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-1 bg-amber-400" : "h-1.5 bg-zinc-500 opacity-40"
+                }`}
+              />
+              <span
+                className={`w-0.5 rounded-full transition-all ${
+                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-2 bg-amber-300" : "h-2.5 bg-zinc-400 opacity-40"
+                }`}
+              />
+              <span
+                className={`w-0.5 rounded-full transition-all ${
+                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-3 bg-amber-400" : "h-3.5 bg-amber-400/50 opacity-40"
+                }`}
+              />
+              <span
+                className={`w-0.5 rounded-full transition-all ${
+                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-4 bg-amber-300" : "h-2 bg-zinc-400 opacity-40"
+                }`}
+              />
+              <span
+                className={`w-0.5 rounded-full transition-all ${
+                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-5 bg-amber-400" : "h-1.5 bg-zinc-500 opacity-40"
+                }`}
+              />
+            </div>
+            <span className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-200 transition">
+              {audioState.isPlaying ? "Deep Space Ambient" : "Cosmic Audio"}
+            </span>
+          </button>
+
+          {/* Volume Control Pill with Hover/Click Slider */}
+          <div
+            onMouseEnter={() => setShowVolumeSlider(true)}
+            onMouseLeave={() => setShowVolumeSlider(false)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-zinc-950/90 border border-white/10 hover:border-white/20 backdrop-blur-xl transition shadow-glass-sm"
+          >
+            <button
+              onClick={toggleMute}
+              title={audioState.isMuted ? "Unmute Volume" : "Mute Volume"}
+              className="text-zinc-400 hover:text-white transition active:scale-[0.96]"
+            >
+              {audioState.isMuted || audioState.volume === 0 ? (
+                <SpeakerSlash size={14} weight="bold" className="text-zinc-500" />
+              ) : audioState.volume < 0.4 ? (
+                <SpeakerLow size={14} weight="bold" className="text-zinc-300" />
+              ) : (
+                <SpeakerHigh size={14} weight="bold" className="text-amber-400" />
+              )}
+            </button>
+
+            {/* Expandable Slider */}
+            <div
+              className={`flex items-center gap-1.5 overflow-hidden transition-all duration-200 ${
+                showVolumeSlider ? "w-24 opacity-100" : "w-0 opacity-0 pointer-events-none"
               }`}
-            />
-            <span
-              className={`w-0.5 rounded-full bg-zinc-300 transition-all ${
-                isMuted ? "h-2 opacity-40" : "h-5 animate-pulse delay-75"
-              }`}
-            />
-            <span
-              className={`w-0.5 rounded-full bg-amber-400 transition-all ${
-                isMuted ? "h-3 opacity-40" : "h-2.5 animate-pulse delay-150"
-              }`}
-            />
-            <span
-              className={`w-0.5 rounded-full bg-zinc-300 transition-all ${
-                isMuted ? "h-1.5 opacity-40" : "h-4 animate-pulse delay-100"
-              }`}
-            />
-            <span
-              className={`w-0.5 rounded-full bg-zinc-400 transition-all ${
-                isMuted ? "h-2 opacity-40" : "h-2 animate-pulse delay-200"
-              }`}
-            />
+            >
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={audioState.isMuted ? 0 : audioState.volume}
+                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                className="w-16 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                title={`Volume: ${Math.round((audioState.isMuted ? 0 : audioState.volume) * 100)}%`}
+              />
+              <span className="text-[10px] font-mono text-zinc-400 select-none">
+                {Math.round((audioState.isMuted ? 0 : audioState.volume) * 100)}%
+              </span>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Center Bottom Zen Command Bar & Planet Warp Strip (Perplexity Zen style) */}
+      {/* Center Bottom Integrated Zen Command Dock (Perplexity Zen style) */}
       {!selectedSpecialistId && !isTouring && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-lg px-4 flex flex-col items-center gap-2.5">
-          {/* Zen Command Bar Input */}
-          <form
-            onSubmit={handleQuickSubmit}
-            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-950/80 hover:bg-zinc-950/95 border border-white/10 hover:border-white/20 backdrop-blur-2xl shadow-2xl transition group"
-          >
-            <Sparkle size={15} weight="duotone" className="text-amber-400 shrink-0" />
-            <input
-              type="text"
-              value={quickInput}
-              onChange={(e) => setQuickInput(e.target.value)}
-              placeholder="Ask Orbit Core anything or select a planet..."
-              className="flex-1 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none font-sans"
-            />
-            <button
-              type="submit"
-              disabled={!quickInput.trim()}
-              className="p-1 rounded-full text-zinc-400 group-hover:text-white disabled:opacity-30 transition"
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-4 flex flex-col items-center">
+          <div className="w-full p-2 rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-2xl shadow-zen-dock space-y-2">
+            {/* Zen Command Bar Input */}
+            <form
+              onSubmit={handleQuickSubmit}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-zinc-900/60 border border-white/5 hover:border-white/10 transition group"
             >
-              <PaperPlaneRight size={14} weight="bold" />
-            </button>
-          </form>
-
-          {/* Minimalist Planet Warp Pills */}
-          <div className="flex items-center gap-1.5 p-1 rounded-full bg-zinc-950/60 border border-white/5 backdrop-blur-xl overflow-x-auto max-w-full">
-            <button
-              onClick={() => handleSelectSpecialist("core")}
-              className="px-2.5 py-1 rounded-full text-[10px] font-mono text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition whitespace-nowrap"
-            >
-              Orbit Core
-            </button>
-            {planetList.map((p) => (
+              <Sparkle size={15} weight="duotone" className="text-amber-400 shrink-0" />
+              <input
+                type="text"
+                value={quickInput}
+                onChange={(e) => setQuickInput(e.target.value)}
+                placeholder="Ask Orbit Core anything or select a domain below..."
+                className="flex-1 bg-transparent text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none font-sans"
+              />
               <button
-                key={p.id}
-                onClick={() => handleSelectSpecialist(p.id)}
-                title={`${p.name} (${p.domain})`}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-white/5 transition whitespace-nowrap"
+                type="submit"
+                disabled={!quickInput.trim()}
+                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white disabled:opacity-20 text-[11px] font-mono transition flex items-center gap-1 active:scale-[0.98]"
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
-                <span>{p.name.replace("Orbit ", "")}</span>
+                <span>Ask</span>
+                <PaperPlaneRight size={11} weight="bold" />
               </button>
-            ))}
+            </form>
+
+            {/* Planet Domain Quick Warp Pills */}
+            <div className="flex items-center gap-1 px-1 overflow-x-auto max-w-full">
+              <button
+                onClick={() => handleSelectSpecialist("core")}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-mono text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition whitespace-nowrap active:scale-[0.98]"
+              >
+                Orbit Core
+              </button>
+              {planetList.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectSpecialist(p.id)}
+                  title={`${p.name} (${p.domain})`}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-mono text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition whitespace-nowrap active:scale-[0.98]"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                  <span>{p.name.replace("Orbit ", "")}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Floating Solar Dawn Tour Projection Card */}
       {isTouring && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-md p-5 rounded-2xl bg-zinc-950/90 border border-amber-400/30 backdrop-blur-2xl shadow-solar-glow text-white">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-md p-5 rounded-2xl bg-zinc-950/95 border border-white/15 backdrop-blur-2xl shadow-glass-lg text-white">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs font-mono">
-            <span className="text-amber-300 font-semibold">
+            <span className="text-amber-300 font-medium">
               {tourNarrations[tourStep]?.title}
             </span>
-            <span className="text-gray-400">
+            <span className="text-zinc-500">
               {tourStep + 1} / {tourNarrations.length}
             </span>
           </div>
@@ -390,20 +515,20 @@ export default function OrbitHome() {
           <div className="text-[11px] font-mono text-cyan-300 mb-1">
             {tourNarrations[tourStep]?.subtitle}
           </div>
-          <p className="text-xs text-gray-200 leading-relaxed mb-4">
+          <p className="text-xs text-zinc-300 leading-relaxed mb-4">
             {tourNarrations[tourStep]?.content}
           </p>
 
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={skipTour}
-              className="px-3 py-1.5 rounded-lg text-xs font-display text-gray-400 hover:text-white transition"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-white transition"
             >
               Skip Tour
             </button>
             <button
               onClick={nextTourStep}
-              className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-semibold text-xs transition active:scale-[0.98]"
+              className="px-4 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-semibold text-xs transition active:scale-[0.98]"
             >
               {tourStep < tourNarrations.length - 1 ? "Next Waypoint" : "Enter Orbit Core"}
             </button>
@@ -423,6 +548,7 @@ export default function OrbitHome() {
           onOpenBrainInspector={() => setShowBrainInspector(true)}
           onTriggerApiKeyModal={() => setShowApiKeyGate(true)}
           onActiveTargetsChange={setActiveConstellationTargets}
+          onOpenCustomizer={handleOpenCustomizer}
           apiKey={nebiusKey}
           mockMode={mockMode}
           onToggleMockMode={handleToggleMockMode}
@@ -453,6 +579,16 @@ export default function OrbitHome() {
         isOpen={showBrainInspector}
         onClose={() => setShowBrainInspector(false)}
         brain={brain}
+      />
+
+      {/* Exoplanet Studio Customizer Modal */}
+      <PlanetCustomizerModal
+        isOpen={showCustomizer}
+        onClose={() => setShowCustomizer(false)}
+        customizations={planetCustomizations}
+        onUpdateCustomization={handleUpdateCustomization}
+        onResetAll={handleResetAllCustomizations}
+        initialPlanetId={customizerPlanetId}
       />
     </main>
   );

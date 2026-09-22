@@ -59,97 +59,97 @@ export function HealthMacroRings({ brain, onUpdateBrain }: HealthMacroRingsProps
   return (
     <div className="space-y-4">
       {/* Target and Ring Progress Card */}
-      <div className="p-4 rounded-xl bg-space-900/80 border border-emerald-500/20 backdrop-blur-md shadow-glass-sm">
+      <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 shadow-glass-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Fire size={18} weight="duotone" className="text-emerald-400" />
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-emerald-300">
+            <h4 className="text-xs font-mono font-medium text-emerald-300">
               Bulk Target Pacing (3,100 kcal)
             </h4>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-zinc-900 text-zinc-300 border border-white/10">
             Honest Ranges Active
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="p-3 rounded-lg bg-space-950/60 border border-white/5">
-            <div className="text-[11px] font-mono text-gray-400 mb-1">Calories Pacing</div>
-            <div className="text-lg font-display font-semibold text-white">
-              {totalCalsMin}-{totalCalsMax} <span className="text-xs font-normal text-gray-400">kcal</span>
+          <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/5">
+            <div className="text-[11px] font-mono text-zinc-400 mb-1">Calories Pacing</div>
+            <div className="text-lg font-semibold text-zinc-100">
+              {totalCalsMin}-{totalCalsMax} <span className="text-xs font-normal text-zinc-400">kcal</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+            <div className="w-full bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
+                className="bg-emerald-400 h-full rounded-full transition-all duration-500"
                 style={{ width: `${calPct}%` }}
               />
             </div>
-            <div className="text-[10px] font-mono text-gray-400 mt-1 text-right">
+            <div className="text-[10px] font-mono text-zinc-400 mt-1 text-right">
               {calPct}% of {calTarget}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-space-950/60 border border-white/5">
-            <div className="text-[11px] font-mono text-gray-400 mb-1">Protein Intake</div>
-            <div className="text-lg font-display font-semibold text-white">
-              {totalProtein} <span className="text-xs font-normal text-gray-400">/ {proteinTarget}g</span>
+          <div className="p-3 rounded-xl bg-zinc-900/60 border border-white/5">
+            <div className="text-[11px] font-mono text-zinc-400 mb-1">Protein Intake</div>
+            <div className="text-lg font-semibold text-zinc-100">
+              {totalProtein} <span className="text-xs font-normal text-zinc-400">/ {proteinTarget}g</span>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+            <div className="w-full bg-zinc-800 rounded-full h-1.5 mt-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-teal-400 to-cyan-400 h-full rounded-full transition-all duration-500"
+                className="bg-teal-400 h-full rounded-full transition-all duration-500"
                 style={{ width: `${proteinPct}%` }}
               />
             </div>
-            <div className="text-[10px] font-mono text-gray-400 mt-1 text-right">
+            <div className="text-[10px] font-mono text-zinc-400 mt-1 text-right">
               {proteinPct}% of {proteinTarget}g
             </div>
           </div>
         </div>
 
         {/* Quick Food Log Bar */}
-        <form onSubmit={handleAddMeal} className="space-y-2">
+        <form onSubmit={handleAddMeal} className="space-y-2.5">
           <div className="flex gap-2">
             <input
               type="text"
               value={foodName}
               onChange={(e) => setFoodName(e.target.value)}
               placeholder="Log meal (e.g. Chipotle chicken bowl + guac)"
-              className="flex-1 px-3 py-2 rounded-lg bg-space-950/80 border border-white/10 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-emerald-400 transition"
+              className="flex-1 px-3.5 py-2 rounded-xl bg-zinc-900 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400/50 transition font-sans"
             />
             <button
               type="submit"
-              className="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-display font-semibold text-xs transition active:scale-[0.98] flex items-center gap-1 shrink-0"
+              className="px-4 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-semibold text-xs transition active:scale-[0.98] flex items-center gap-1 shrink-0"
             >
               <Plus size={14} weight="bold" />
               <span>Log</span>
             </button>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono text-gray-400">
+          <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-400">
             <span>Est. Calories:</span>
             <input
               type="number"
               value={estCalories}
               onChange={(e) => setEstCalories(e.target.value)}
-              className="w-16 px-1.5 py-0.5 rounded bg-space-950 border border-white/10 text-white text-center"
+              className="w-16 px-2 py-0.5 rounded-lg bg-zinc-900 border border-white/10 text-white text-center"
             />
             <span>Protein (g):</span>
             <input
               type="number"
               value={estProtein}
               onChange={(e) => setEstProtein(e.target.value)}
-              className="w-14 px-1.5 py-0.5 rounded bg-space-950 border border-white/10 text-white text-center"
+              className="w-14 px-2 py-0.5 rounded-lg bg-zinc-900 border border-white/10 text-white text-center"
             />
           </div>
         </form>
       </div>
 
       {/* Logged Meals List */}
-      <div className="p-4 rounded-xl bg-space-900/80 border border-white/10 backdrop-blur-md">
+      <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/10 shadow-glass-sm">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-mono font-medium text-gray-400 uppercase">
+          <span className="text-xs font-mono text-zinc-400">
             Today's Logged Nutrition
           </span>
-          <span className="text-[10px] font-mono text-gray-400">
+          <span className="text-[10px] font-mono text-zinc-500">
             {meals.length} entries
           </span>
         </div>
@@ -158,11 +158,11 @@ export function HealthMacroRings({ brain, onUpdateBrain }: HealthMacroRingsProps
           {meals.map((meal) => (
             <div
               key={meal.id}
-              className="p-2.5 rounded-lg bg-space-950/50 border border-white/5 flex items-center justify-between text-xs"
+              className="p-2.5 rounded-xl bg-zinc-900/50 border border-white/5 flex items-center justify-between text-xs"
             >
               <div>
-                <div className="font-display font-medium text-white">{meal.name}</div>
-                <div className="text-[10px] font-mono text-gray-400">{meal.time}</div>
+                <div className="font-medium text-zinc-200">{meal.name}</div>
+                <div className="text-[10px] font-mono text-zinc-500">{meal.time}</div>
               </div>
               <div className="text-right">
                 <div className="font-mono text-emerald-300">

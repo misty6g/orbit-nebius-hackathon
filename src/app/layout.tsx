@@ -14,15 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="font-sans antialiased min-h-[100dvh] bg-space-950 text-white selection:bg-amber-400 selection:text-slate-950">
+      <body className="font-sans antialiased min-h-[100dvh] bg-[#07080a] text-zinc-100 selection:bg-amber-400 selection:text-zinc-950">
         {children}
       </body>
     </html>

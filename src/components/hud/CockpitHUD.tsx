@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SpecialistId, SharedBrainProfile, MorningBriefData, ChatMessage } from "@/types/orbit";
 import { SPECIALISTS } from "@/lib/specialists";
 import { RoomTabs, RoomId } from "./RoomTabs";
@@ -13,8 +13,19 @@ import { StudyFlashcards } from "./widgets/StudyFlashcards";
 import { WalletBudgetMeter } from "./widgets/WalletBudgetMeter";
 import { CareerPipelineBoard } from "./widgets/CareerPipelineBoard";
 import { TavilySearchWidget } from "./widgets/TavilySearchWidget";
-import { ArrowLeft, SpeakerHigh, SpeakerSlash, Key, Sparkle, ShieldCheck, Lightning } from "@phosphor-icons/react";
-import { cosmicAudio } from "@/lib/audio";
+import {
+  ArrowLeft,
+  SpeakerHigh,
+  SpeakerSlash,
+  Key,
+  Sparkle,
+  Lightning,
+  X,
+  SlidersHorizontal,
+  Pause,
+  Play,
+} from "@phosphor-icons/react";
+import { cosmicAudio, AudioEngineState } from "@/lib/audio";
 
 interface CockpitHUDProps {
   specialistId: SpecialistId;
@@ -26,6 +37,7 @@ interface CockpitHUDProps {
   onOpenBrainInspector: () => void;
   onTriggerApiKeyModal: () => void;
   onActiveTargetsChange?: (targets: SpecialistId[]) => void;
+  onOpenCustomizer?: (id: SpecialistId) => void;
   apiKey?: string;
   mockMode?: boolean;
   onToggleMockMode?: () => void;
@@ -41,13 +53,20 @@ export function CockpitHUD({
   onOpenBrainInspector,
   onTriggerApiKeyModal,
   onActiveTargetsChange,
+  onOpenCustomizer,
   apiKey,
   mockMode = false,
   onToggleMockMode,
 }: CockpitHUDProps) {
   const [activeRoom, setActiveRoom] = useState<RoomId>("general");
-  const [isMuted, setIsMuted] = useState(cosmicAudio.getMuted());
+  const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    return cosmicAudio.subscribe((state) => {
+      setAudioState(state);
+    });
+  }, []);
 
   const spec = SPECIALISTS[specialistId] || SPECIALISTS.core;
 
@@ -158,9 +177,20 @@ export function CockpitHUD({
     initialMessages[specialistId] || initialMessages.core
   );
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        cosmicAudio.playClick();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const toggleAudio = () => {
-    const nextMuted = cosmicAudio.toggleMute();
-    setIsMuted(nextMuted);
+    cosmicAudio.toggleMusic();
   };
 
   const handleSendMessage = async (text: string) => {
@@ -216,7 +246,6 @@ export function CockpitHUD({
   };
 
   const handleAuthorizeAction = (id: string) => {
-    // Mark approval in brain
     const updated = {
       ...brain,
       pendingApprovals: brain.pendingApprovals.map((a) =>
@@ -304,111 +333,164 @@ export function CockpitHUD({
   };
 
   return (
-    <div className="absolute inset-0 z-20 flex flex-col p-4 md:p-6 bg-slate-950/75 backdrop-blur-xl pointer-events-auto transition-all">
-      {/* Top Header Bar */}
-      <header className="flex items-center justify-between pb-4 mb-4 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              cosmicAudio.playClick();
-              onClose();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-gray-200 hover:text-white border border-white/10 text-xs font-display transition active:scale-[0.98]"
-          >
-            <ArrowLeft size={14} weight="bold" />
-            <span>Return to Orbit</span>
-          </button>
+    <>
+      {/* Ambient Cosmos Backdrop Scrim */}
+      <div
+        onClick={() => {
+          cosmicAudio.playClick();
+          onClose();
+        }}
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
+      />
 
+      {/* Main Centered Spacious Cockpit Console */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${spec.name} Cockpit Console`}
+        className="fixed inset-3 sm:inset-5 md:inset-8 z-50 max-w-5xl xl:max-w-6xl mx-auto my-auto h-[90vh] max-h-[880px] flex flex-col p-4 sm:p-5 md:p-6 bg-[#07080a]/94 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-zen-dock pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-250"
+      >
+        {/* Top Header Bar */}
+        <header className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                cosmicAudio.playClick();
+                onClose();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/10 text-xs font-mono transition active:scale-[0.98]"
+            >
+              <ArrowLeft size={14} weight="bold" />
+              <span>Orbit Overview</span>
+              <kbd className="hidden sm:inline-block ml-1 px-1.5 py-0.5 text-[9px] bg-zinc-800 border border-white/10 rounded text-zinc-400">
+                ESC
+              </kbd>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                style={{ backgroundColor: spec.color }}
+              />
+              <h2 className="text-base font-semibold text-zinc-100 tracking-tight">
+                {spec.name}
+              </h2>
+              <span className="hidden sm:inline-block text-xs font-mono text-zinc-400">
+                / {spec.domain}
+              </span>
+            </div>
+          </div>
+
+          {/* Action Controls and Telemetry */}
           <div className="flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded-full shadow-sm animate-pulse"
-              style={{ backgroundColor: spec.color }}
-            />
-            <h2 className="text-base md:text-lg font-display font-semibold text-white tracking-wide">
-              {spec.name}
-            </h2>
-            <span className="hidden sm:inline-block text-xs font-mono text-gray-400">
-              • {spec.domain}
-            </span>
-          </div>
-        </div>
+            {/* Model Inference Badge / Mock Mode Toggle */}
+            <button
+              onClick={onToggleMockMode}
+              title={mockMode ? "Mock AI Active (Zero Credits) - Click to toggle Live Nebius" : "Live Nebius Active - Click to switch to Mock AI"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono transition active:scale-[0.98] ${
+                mockMode
+                  ? "bg-zinc-900/90 border-emerald-500/40 text-emerald-300 hover:bg-zinc-800/90"
+                  : "bg-zinc-900/90 border-amber-500/40 text-amber-300 hover:bg-zinc-800/90"
+              }`}
+            >
+              {mockMode ? (
+                <>
+                  <Lightning size={12} weight="fill" className="text-emerald-400" />
+                  <span>Simulated Nemotron (0 Credits)</span>
+                </>
+              ) : (
+                <>
+                  <Sparkle size={12} weight="fill" className="text-amber-400" />
+                  <span>NVIDIA Nemotron via Nebius</span>
+                </>
+              )}
+            </button>
 
-        {/* Action Controls and Telemetry */}
-        <div className="flex items-center gap-2">
-          {/* Model Inference Badge / Mock Mode Toggle */}
-          <button
-            onClick={onToggleMockMode}
-            title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono transition active:scale-[0.98] ${
-              mockMode
-                ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
-                : "bg-slate-900/90 border-amber-400/20 text-amber-300 hover:bg-slate-800"
-            }`}
-          >
-            {mockMode ? (
-              <>
-                <Lightning size={12} weight="fill" className="text-emerald-400 animate-pulse" />
-                <span>Simulated Nemotron (0 Credits)</span>
-              </>
-            ) : (
-              <>
-                <Sparkle size={12} weight="fill" className="text-amber-400" />
-                <span>NVIDIA Nemotron via Nebius</span>
-              </>
+            {/* Customize Planet Button */}
+            {onOpenCustomizer && specialistId !== "core" && (
+              <button
+                onClick={() => {
+                  cosmicAudio.playClick();
+                  onOpenCustomizer(specialistId);
+                }}
+                title={`Customize ${spec.name} Design & Moons`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-amber-400/40 text-zinc-300 hover:text-white backdrop-blur-xl text-xs font-mono transition active:scale-[0.96]"
+              >
+                <SlidersHorizontal size={13} weight="bold" className="text-amber-400" />
+                <span className="hidden sm:inline">Customize</span>
+              </button>
             )}
-          </button>
 
-          {/* Key Settings Button */}
-          <button
-            onClick={() => {
-              cosmicAudio.playClick();
-              onTriggerApiKeyModal();
-            }}
-            title="Configure Nebius & Tavily API Keys"
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-gray-300 hover:text-white border border-white/10 transition active:scale-[0.98]"
-          >
-            <Key size={15} weight="duotone" />
-          </button>
+            {/* Key Settings Button */}
+            <button
+              onClick={() => {
+                cosmicAudio.playClick();
+                onTriggerApiKeyModal();
+              }}
+              title="Configure Nebius and Tavily API Keys"
+              className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
+            >
+              <Key size={15} weight="duotone" />
+            </button>
 
-          {/* Audio Mute Toggle */}
-          <button
-            onClick={toggleAudio}
-            title={isMuted ? "Unmute Cosmic Audio" : "Mute Cosmic Audio"}
-            className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-gray-300 hover:text-white border border-white/10 transition active:scale-[0.98]"
-          >
-            {isMuted ? (
-              <SpeakerSlash size={15} weight="duotone" className="text-gray-400" />
-            ) : (
-              <SpeakerHigh size={15} weight="duotone" className="text-amber-400" />
-            )}
-          </button>
-        </div>
-      </header>
+            {/* Audio Play / Pause Toggle with Equalizer */}
+            <button
+              onClick={toggleAudio}
+              title={audioState.isPlaying ? "Pause Deep Space Soundscape (Astrovia - Brown Dwarf)" : "Play Deep Space Soundscape"}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-amber-400/30 text-zinc-300 hover:text-white backdrop-blur-xl text-xs font-mono transition active:scale-[0.96]"
+            >
+              {audioState.isPlaying ? (
+                <>
+                  <Pause size={13} weight="fill" className="text-amber-400" />
+                  <span className="text-amber-300 hidden sm:inline">Cosmic Audio</span>
+                </>
+              ) : (
+                <>
+                  <Play size={13} weight="fill" className="text-zinc-400" />
+                  <span className="text-zinc-400 hidden sm:inline">Play Audio</span>
+                </>
+              )}
+            </button>
 
-      {/* Main Two-Column Cockpit Interior */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-hidden min-h-0">
-        {/* Left/Center Column: Conversational Routing Stream */}
-        <div className="lg:col-span-7 flex flex-col h-full overflow-hidden">
-          {specialistId === "core" && (
-            <RoomTabs activeRoom={activeRoom} onSelectRoom={setActiveRoom} />
-          )}
-          <div className="flex-1 min-h-0">
-            <AgentChatStream
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              onAuthorizeAction={handleAuthorizeAction}
-              onRejectAction={handleRejectAction}
-              isLoading={isLoading}
-              activeSpecialistId={specialistId}
-            />
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                cosmicAudio.playClick();
+                onClose();
+              }}
+              title="Close Cockpit"
+              className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
+            >
+              <X size={15} weight="bold" />
+            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Right Column: Contextual Specialist Domain Tools */}
-        <div className="lg:col-span-5 h-full overflow-y-auto pr-1">
-          {renderDomainWidget()}
+        {/* Main Two-Column Spacious Cockpit Interior */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden min-h-0">
+          {/* Left/Center Column: Conversational Routing Stream (Spacious) */}
+          <div className="lg:col-span-7 flex flex-col h-full overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5 pb-4 lg:pb-0 lg:pr-4">
+            {specialistId === "core" && (
+              <RoomTabs activeRoom={activeRoom} onSelectRoom={setActiveRoom} />
+            )}
+            <div className="flex-1 min-h-0">
+              <AgentChatStream
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onAuthorizeAction={handleAuthorizeAction}
+                onRejectAction={handleRejectAction}
+                isLoading={isLoading}
+                activeSpecialistId={specialistId}
+              />
+            </div>
+          </div>
+
+          {/* Right Column: Contextual Specialist Domain Tools */}
+          <div className="lg:col-span-5 h-full overflow-y-auto pr-1">
+            {renderDomainWidget()}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

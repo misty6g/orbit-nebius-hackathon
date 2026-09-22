@@ -31,7 +31,7 @@ export function RoomTabs({ activeRoom, onSelectRoom }: RoomTabsProps) {
   ];
 
   return (
-    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-space-950/80 border border-white/10 mb-3 overflow-x-auto">
+    <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950/80 border border-white/10 mb-3 overflow-x-auto">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -39,10 +39,10 @@ export function RoomTabs({ activeRoom, onSelectRoom }: RoomTabsProps) {
             cosmicAudio.playClick();
             onSelectRoom(tab.id);
           }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-display whitespace-nowrap transition active:scale-[0.98] ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition active:scale-[0.98] ${
             activeRoom === tab.id
-              ? "bg-slate-800 text-white font-medium border border-white/15 shadow-sm"
-              : "text-gray-400 hover:text-gray-200"
+              ? "bg-zinc-800 text-zinc-100 font-medium border border-white/15 shadow-sm"
+              : "text-zinc-400 hover:text-zinc-200"
           }`}
         >
           {tab.icon}

@@ -5,28 +5,54 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 export function StarryBackground() {
-  const pointsRef = useRef<THREE.Points>(null);
-  const nebulaRef = useRef<THREE.Group>(null);
+  const microStarsRef = useRef<THREE.Points>(null);
+  const brightStarsRef = useRef<THREE.Points>(null);
+  const clusterStarsRef = useRef<THREE.Points>(null);
 
-  // Generate 6,500 pinpoint stars with fine astronomical scale
-  const [starPositions, starColors, starSizes] = useMemo(() => {
-    const count = 6500;
+  // Circular star texture with soft optical glow
+  const starGlowTexture = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+    grad.addColorStop(0.12, "rgba(240, 248, 255, 0.95)");
+    grad.addColorStop(0.35, "rgba(200, 225, 255, 0.4)");
+    grad.addColorStop(0.7, "rgba(180, 210, 255, 0.08)");
+    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
+  // 1. Vast dense starry field (14,000 brilliant diamond stars)
+  const [microPositions, microColors, microSizes] = useMemo(() => {
+    const count = 14000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
 
-    const tempPalettes = [
-      new THREE.Color("#ffffff"), // Pure white
-      new THREE.Color("#dbeafe"), // Subtle cool white
-      new THREE.Color("#fed7aa"), // Warm star
-      new THREE.Color("#e2e8f0"), // Slate white
-      new THREE.Color("#f1f5f9"), // Bright point
+    // Realistic stellar spectral temperatures (brilliant, crisp, luminous)
+    const spectralColors = [
+      new THREE.Color("#ffffff"), // Pure radiant white
+      new THREE.Color("#f0f9ff"), // Crisp ice-white
+      new THREE.Color("#e0f2fe"), // Brilliant azure
+      new THREE.Color("#fef9c3"), // Warm solar yellow
+      new THREE.Color("#ffedd5"), // Light starlight amber
+      new THREE.Color("#bae6fd"), // Vibrant cyan star
     ];
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      // Distribute stars on a wide spherical shell
-      const radius = 100 + Math.random() * 150;
+      const radius = 100 + Math.random() * 160;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
 
@@ -34,146 +60,225 @@ export function StarryBackground() {
       positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i3 + 2] = radius * Math.cos(phi);
 
-      const color = tempPalettes[Math.floor(Math.random() * tempPalettes.length)];
-      colors[i3] = color.r;
-      colors[i3 + 1] = color.g;
-      colors[i3 + 2] = color.b;
+      const col = spectralColors[Math.floor(Math.random() * spectralColors.length)];
+      colors[i3] = col.r;
+      colors[i3 + 1] = col.g;
+      colors[i3 + 2] = col.b;
 
-      // Fine pinprick stars matching the user's reference image
-      sizes[i] = Math.random() * 1.3 + 0.3;
+      // Varied star brightness
+      sizes[i] = 0.5 + Math.random() * 1.0;
     }
 
     return [positions, colors, sizes];
   }, []);
 
-  useFrame((state, delta) => {
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y += delta * 0.003;
-      pointsRef.current.rotation.x += delta * 0.0008;
+  // 2. Dense star cluster clouds (Milky Way stellar river, 3,500 stars along a galactic arch)
+  const [clusterPositions, clusterColors, clusterSizes] = useMemo(() => {
+    const count = 3500;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
+    const clusterPalette = [
+      new THREE.Color("#ffffff"),
+      new THREE.Color("#e0f2fe"),
+      new THREE.Color("#fef08a"),
+      new THREE.Color("#bae6fd"),
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      // Clustered along an inclined galactic plane
+      const t = (Math.random() - 0.5) * Math.PI * 2;
+      const radius = 110 + Math.random() * 90;
+      const diskSpread = (Math.random() - 0.5) * 35;
+
+      const cosInc = Math.cos(0.45);
+      const sinInc = Math.sin(0.45);
+
+      const px = Math.cos(t) * radius;
+      const py = diskSpread;
+      const pz = Math.sin(t) * radius;
+
+      positions[i3] = px;
+      positions[i3 + 1] = py * cosInc - pz * sinInc;
+      positions[i3 + 2] = py * sinInc + pz * cosInc;
+
+      const col = clusterPalette[Math.floor(Math.random() * clusterPalette.length)];
+      colors[i3] = col.r;
+      colors[i3 + 1] = col.g;
+      colors[i3 + 2] = col.b;
+
+      sizes[i] = 0.8 + Math.random() * 1.2;
     }
-    if (nebulaRef.current) {
-      nebulaRef.current.rotation.y -= delta * 0.0015;
+
+    return [positions, colors, sizes];
+  }, []);
+
+  // 3. Bright twinkling anchor beacons (350 prominent sparkling stars)
+  const [brightPositions, brightColors, brightSizes, twinklePhases] = useMemo(() => {
+    const count = 350;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    const phases = new Float32Array(count);
+
+    const anchorColors = [
+      new THREE.Color("#ffffff"), // Pure radiant diamond
+      new THREE.Color("#7dd3fc"), // Vivid sapphire beacon
+      new THREE.Color("#fef08a"), // Brilliant solar beacon
+      new THREE.Color("#fed7aa"), // Warm amber beacon
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const radius = 95 + Math.random() * 120;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+
+      positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[i3 + 2] = radius * Math.cos(phi);
+
+      const col = anchorColors[Math.floor(Math.random() * anchorColors.length)];
+      colors[i3] = col.r;
+      colors[i3 + 1] = col.g;
+      colors[i3 + 2] = col.b;
+
+      sizes[i] = 2.2 + Math.random() * 2.0;
+      phases[i] = Math.random() * Math.PI * 2;
+    }
+
+    return [positions, colors, sizes, phases];
+  }, []);
+
+  useFrame((_, delta) => {
+    // Subtle cosmic rotation
+    if (microStarsRef.current) {
+      microStarsRef.current.rotation.y += delta * 0.002;
+    }
+    if (clusterStarsRef.current) {
+      clusterStarsRef.current.rotation.y += delta * 0.0025;
+    }
+
+    // Dynamic stellar twinkle for prominent anchor stars
+    if (brightStarsRef.current) {
+      const time = performance.now() * 0.001;
+      const sizeAttr = brightStarsRef.current.geometry.attributes.size;
+      if (sizeAttr) {
+        for (let i = 0; i < brightSizes.length; i++) {
+          const phase = twinklePhases[i];
+          const twinkle = 0.8 + 0.45 * Math.sin(time * 2.8 + phase);
+          sizeAttr.setX(i, brightSizes[i] * twinkle);
+        }
+        sizeAttr.needsUpdate = true;
+      }
     }
   });
 
   return (
     <group>
-      {/* Distant Pinprick Starfield */}
-      <points ref={pointsRef}>
+      {/* 1. Vast Brilliant Diamond Starfield (14,000 stars) */}
+      <points ref={microStarsRef}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={starPositions.length / 3}
-            array={starPositions}
+            count={microPositions.length / 3}
+            array={microPositions}
             itemSize={3}
           />
           <bufferAttribute
             attach="attributes-color"
-            count={starColors.length / 3}
-            array={starColors}
+            count={microColors.length / 3}
+            array={microColors}
             itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-size"
+            count={microSizes.length}
+            array={microSizes}
+            itemSize={1}
           />
         </bufferGeometry>
         <pointsMaterial
-          size={1.0}
+          size={1.1}
+          sizeAttenuation
           vertexColors
           transparent
-          opacity={0.8}
-          sizeAttenuation
-          depthWrite={false}
+          opacity={0.95}
+          map={starGlowTexture || undefined}
           blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
       </points>
 
-      {/* Muted Atmospheric Nebula Smoke Clouds (Organic billowy puffs matching reference placement, desaturated per user request) */}
-      <group ref={nebulaRef}>
-        {/* Soft Muted Teal Smoke Cloud Cluster (Lower left) */}
-        <group position={[-38, -18, -65]}>
-          <mesh position={[0, 0, 0]}>
-            <sphereGeometry args={[42, 24, 24]} />
-            <meshBasicMaterial
-              color="#0c2624"
-              transparent
-              opacity={0.032}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh position={[-12, 8, -10]}>
-            <sphereGeometry args={[30, 20, 20]} />
-            <meshBasicMaterial
-              color="#082020"
-              transparent
-              opacity={0.025}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh position={[10, -6, 8]}>
-            <sphereGeometry args={[26, 20, 20]} />
-            <meshBasicMaterial
-              color="#0a2a26"
-              transparent
-              opacity={0.022}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-        </group>
-
-        {/* Soft Muted Rust/Maroon Smoke Cloud Cluster (Upper right) */}
-        <group position={[42, 24, -75]}>
-          <mesh position={[0, 0, 0]}>
-            <sphereGeometry args={[52, 24, 24]} />
-            <meshBasicMaterial
-              color="#2a1411"
-              transparent
-              opacity={0.03}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh position={[12, -10, -8]}>
-            <sphereGeometry args={[38, 20, 20]} />
-            <meshBasicMaterial
-              color="#22100e"
-              transparent
-              opacity={0.024}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh position={[-8, 14, 10]}>
-            <sphereGeometry args={[32, 20, 20]} />
-            <meshBasicMaterial
-              color="#321814"
-              transparent
-              opacity={0.02}
-              side={THREE.BackSide}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </mesh>
-        </group>
-
-        {/* Deep Slate Space Ambient Fill */}
-        <mesh position={[0, 0, -105]}>
-          <sphereGeometry args={[85, 20, 20]} />
-          <meshBasicMaterial
-            color="#090d14"
-            transparent
-            opacity={0.02}
-            side={THREE.BackSide}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
+      {/* 2. Galactic Star River / Clusters (3,500 dense stars) */}
+      <points ref={clusterStarsRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={clusterPositions.length / 3}
+            array={clusterPositions}
+            itemSize={3}
           />
-        </mesh>
-      </group>
+          <bufferAttribute
+            attach="attributes-color"
+            count={clusterColors.length / 3}
+            array={clusterColors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-size"
+            count={clusterSizes.length}
+            array={clusterSizes}
+            itemSize={1}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          size={1.4}
+          sizeAttenuation
+          vertexColors
+          transparent
+          opacity={0.9}
+          map={starGlowTexture || undefined}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </points>
+
+      {/* 3. Prominent Twinkling Diamond Anchor Stars (350 stars) */}
+      <points ref={brightStarsRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={brightPositions.length / 3}
+            array={brightPositions}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-color"
+            count={brightColors.length / 3}
+            array={brightColors}
+            itemSize={3}
+          />
+          <bufferAttribute
+            attach="attributes-size"
+            count={brightSizes.length}
+            array={brightSizes}
+            itemSize={1}
+          />
+        </bufferGeometry>
+        <pointsMaterial
+          size={2.4}
+          sizeAttenuation
+          vertexColors
+          transparent
+          opacity={1.0}
+          map={starGlowTexture || undefined}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </points>
     </group>
   );
 }
