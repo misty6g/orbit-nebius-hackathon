@@ -13,7 +13,7 @@ import { StudyFlashcards } from "./widgets/StudyFlashcards";
 import { WalletBudgetMeter } from "./widgets/WalletBudgetMeter";
 import { CareerPipelineBoard } from "./widgets/CareerPipelineBoard";
 import { TavilySearchWidget } from "./widgets/TavilySearchWidget";
-import { ArrowLeft, SpeakerHigh, SpeakerSlash, Key, Sparkle, ShieldCheck } from "@phosphor-icons/react";
+import { ArrowLeft, SpeakerHigh, SpeakerSlash, Key, Sparkle, ShieldCheck, Lightning } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
 interface CockpitHUDProps {
@@ -27,6 +27,8 @@ interface CockpitHUDProps {
   onTriggerApiKeyModal: () => void;
   onActiveTargetsChange?: (targets: SpecialistId[]) => void;
   apiKey?: string;
+  mockMode?: boolean;
+  onToggleMockMode?: () => void;
 }
 
 export function CockpitHUD({
@@ -40,6 +42,8 @@ export function CockpitHUD({
   onTriggerApiKeyModal,
   onActiveTargetsChange,
   apiKey,
+  mockMode = false,
+  onToggleMockMode,
 }: CockpitHUDProps) {
   const [activeRoom, setActiveRoom] = useState<RoomId>("general");
   const [isMuted, setIsMuted] = useState(cosmicAudio.getMuted());
@@ -180,6 +184,7 @@ export function CockpitHUD({
           specialistId,
           brain,
           apiKey,
+          mockMode,
         }),
       });
 
@@ -330,11 +335,28 @@ export function CockpitHUD({
 
         {/* Action Controls and Telemetry */}
         <div className="flex items-center gap-2">
-          {/* Model Inference Badge */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 border border-amber-400/20 text-[11px] font-mono text-amber-300">
-            <Sparkle size={12} weight="fill" className="text-amber-400" />
-            <span>NVIDIA Nemotron via Nebius Token Factory</span>
-          </div>
+          {/* Model Inference Badge / Mock Mode Toggle */}
+          <button
+            onClick={onToggleMockMode}
+            title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono transition active:scale-[0.98] ${
+              mockMode
+                ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                : "bg-slate-900/90 border-amber-400/20 text-amber-300 hover:bg-slate-800"
+            }`}
+          >
+            {mockMode ? (
+              <>
+                <Lightning size={12} weight="fill" className="text-emerald-400 animate-pulse" />
+                <span>Simulated Nemotron (0 Credits)</span>
+              </>
+            ) : (
+              <>
+                <Sparkle size={12} weight="fill" className="text-amber-400" />
+                <span>NVIDIA Nemotron via Nebius</span>
+              </>
+            )}
+          </button>
 
           {/* Key Settings Button */}
           <button

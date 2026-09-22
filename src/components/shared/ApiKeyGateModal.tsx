@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Key, ShieldCheck, X, Sparkle, GlobeHemisphereWest } from "@phosphor-icons/react";
+import { Key, ShieldCheck, X, Sparkle, GlobeHemisphereWest, Lightning } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
 interface ApiKeyGateModalProps {
@@ -10,6 +10,8 @@ interface ApiKeyGateModalProps {
   onSaveKeys: (nebiusKey: string, tavilyKey: string) => void;
   currentNebiusKey: string;
   currentTavilyKey: string;
+  mockMode?: boolean;
+  onToggleMockMode?: () => void;
 }
 
 export function ApiKeyGateModal({
@@ -18,6 +20,8 @@ export function ApiKeyGateModal({
   onSaveKeys,
   currentNebiusKey,
   currentTavilyKey,
+  mockMode = false,
+  onToggleMockMode,
 }: ApiKeyGateModalProps) {
   const [nebiusKey, setNebiusKey] = useState(currentNebiusKey);
   const [tavilyKey, setTavilyKey] = useState(currentTavilyKey);
@@ -49,6 +53,34 @@ export function ApiKeyGateModal({
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Inference Mode Toggle Card */}
+        <div className="mb-4 p-3 rounded-xl bg-space-950/80 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-display font-semibold text-gray-200">
+              Testing Mode
+            </span>
+            {onToggleMockMode && (
+              <button
+                type="button"
+                onClick={onToggleMockMode}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono transition border ${
+                  mockMode
+                    ? "bg-emerald-950/80 border-emerald-500/50 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                    : "bg-amber-950/80 border-amber-500/50 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                }`}
+              >
+                <Lightning size={11} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
+                <span>{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            {mockMode
+              ? "⚡ Mock Mode Active: Perfect for client-side frontend development. All chat streams, quick prompts, and action approvals run locally with zero credit consumption."
+              : "✨ Live Cloud Mode: Live inference calls to NVIDIA Nemotron-70B on Nebius Token Factory."}
+          </p>
         </div>
 
         <form onSubmit={handleSave} className="space-y-4 text-xs">

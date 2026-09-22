@@ -17,6 +17,7 @@ import {
   FastForward,
   X,
   PlayCircle,
+  Lightning,
 } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
@@ -31,9 +32,10 @@ export default function OrbitHome() {
   const [showApiKeyGate, setShowApiKeyGate] = useState<boolean>(false);
   const [showBrainInspector, setShowBrainInspector] = useState<boolean>(false);
 
-  // Credentials
+  // Credentials & Mode
   const [nebiusKey, setNebiusKey] = useState<string>("");
   const [tavilyKey, setTavilyKey] = useState<string>("");
+  const [mockMode, setMockMode] = useState<boolean>(true);
 
   // Audio State
   const [isMuted, setIsMuted] = useState<boolean>(true);
@@ -81,6 +83,14 @@ export default function OrbitHome() {
     if (savedNebiusKey) setNebiusKey(savedNebiusKey);
     if (savedTavilyKey) setTavilyKey(savedTavilyKey);
 
+    const savedMockMode = localStorage.getItem("orbit_mock_mode");
+    if (savedMockMode !== null) {
+      setMockMode(savedMockMode === "true");
+    } else {
+      // Default to mock mode for zero-credit testing
+      setMockMode(true);
+    }
+
     if (savedBrain) {
       try {
         setBrain(JSON.parse(savedBrain));
@@ -122,6 +132,15 @@ export default function OrbitHome() {
     setTavilyKey(newTavily);
     localStorage.setItem("orbit_nebius_key", newNebius);
     localStorage.setItem("orbit_tavily_key", newTavily);
+  };
+
+  const handleToggleMockMode = () => {
+    cosmicAudio.playClick();
+    setMockMode((prev) => {
+      const next = !prev;
+      localStorage.setItem("orbit_mock_mode", String(next));
+      return next;
+    });
   };
 
   const toggleAudio = () => {
@@ -188,6 +207,20 @@ export default function OrbitHome() {
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
+            {/* Zero-Credit Testing Mode Pill */}
+            <button
+              onClick={handleToggleMockMode}
+              title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono backdrop-blur-md transition active:scale-[0.98] border ${
+                mockMode
+                  ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                  : "bg-amber-950/80 border-amber-500/40 text-amber-300 hover:bg-amber-900/70 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+              }`}
+            >
+              <Lightning size={13} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
+              <span className="font-semibold tracking-tight">{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
+            </button>
+
             {/* Quick Play Brief Button */}
             <button
               onClick={startMorningTour}
@@ -286,6 +319,8 @@ export default function OrbitHome() {
           onTriggerApiKeyModal={() => setShowApiKeyGate(true)}
           onActiveTargetsChange={setActiveConstellationTargets}
           apiKey={nebiusKey}
+          mockMode={mockMode}
+          onToggleMockMode={handleToggleMockMode}
         />
       )}
 
@@ -304,6 +339,8 @@ export default function OrbitHome() {
         onSaveKeys={handleSaveKeys}
         currentNebiusKey={nebiusKey}
         currentTavilyKey={tavilyKey}
+        mockMode={mockMode}
+        onToggleMockMode={handleToggleMockMode}
       />
 
       {/* Shared Brain Inspector Modal */}
