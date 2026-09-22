@@ -4,7 +4,8 @@ import React, { useRef, useState, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { SpecialistConfig, SpecialistId } from "@/types/orbit";
+import { SpecialistConfig, SpecialistId, PlanetCustomization, DEFAULT_PLANET_CUSTOMIZATIONS } from "@/types/orbit";
+import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/exoplanetTextures";
 
 interface PlanetBodyProps {
   config: SpecialistConfig;
@@ -12,6 +13,7 @@ interface PlanetBodyProps {
   onSelect: (id: SpecialistId) => void;
   isSelected: boolean;
   onPositionUpdate?: (id: SpecialistId, pos: THREE.Vector3) => void;
+  customization?: PlanetCustomization;
 }
 
 export function PlanetBody({
@@ -20,21 +22,55 @@ export function PlanetBody({
   onSelect,
   isSelected,
   onPositionUpdate,
+  customization,
 }: PlanetBodyProps) {
   const groupRef = useRef<THREE.Group>(null);
   const planetMeshRef = useRef<THREE.Mesh>(null);
-  const cloudsMeshRef = useRef<THREE.Mesh>(null);
-  const moonGroupRef = useRef<THREE.Group>(null);
+  const atmosphereMeshRef = useRef<THREE.Mesh>(null);
+  const moonRefs = useRef<Array<THREE.Group | null>>([]);
 
   const [hovered, setHovered] = useState(false);
   const angleRef = useRef(initialAngle);
-
-  // Position vector for parent notification
+  const currentScaleRef = useRef(1.0);
   const tempVec = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame((state, delta) => {
-    // Orbital motion
-    const speedMult = hovered ? 0.08 : 0.4;
+  // Effective customization config
+  const custom = useMemo(() => {
+    return customization || DEFAULT_PLANET_CUSTOMIZATIONS[config.id] || {
+      id: config.id,
+      archetype: "gas_giant" as const,
+      primaryColor: config.color,
+      secondaryColor: config.glowColor,
+      accentColor: "#ffffff",
+      bumpScale: 0.1,
+      roughness: 0.35,
+      hasRings: false,
+      ringStyle: "none" as const,
+      ringColor: config.color,
+      ringTilt: 0.2,
+      moons: [],
+    };
+  }, [customization, config.id, config.color, config.glowColor]);
+
+  // Procedural exoplanet textures matching the Sketchfab exoplanet reference
+  const textures = useMemo(() => {
+    return generateExoplanetTextures(custom);
+  }, [custom]);
+
+  // Dynamic concentric ring texture
+  const ringTexture = useMemo(() => {
+    if (custom.hasRings && custom.ringStyle !== "none") {
+      return generateExoplanetRingTexture(custom.ringStyle, custom.ringColor);
+    }
+    return null;
+  }, [custom.hasRings, custom.ringStyle, custom.ringColor]);
+
+  // Track moon angles
+  const moonAngles = useRef<number[]>(custom.moons.map((_, i) => (i * Math.PI * 2) / Math.max(1, custom.moons.length)));
+
+  useFrame((_, delta) => {
+    // Orbital revolution around central Sun
+    const speedMult = hovered ? 0.08 : 0.32;
     angleRef.current += delta * config.orbitSpeed * speedMult;
 
     const x = Math.cos(angleRef.current) * config.orbitRadius;
@@ -49,106 +85,49 @@ export function PlanetBody({
       }
     }
 
-    // Axial rotation
+    // Smooth axial rotation
     if (planetMeshRef.current) {
-      planetMeshRef.current.rotation.y += delta * 0.6;
+      planetMeshRef.current.rotation.y += delta * 0.28;
     }
 
-    // Secondary atmosphere / cloud rotation for Earth-like planets
-    if (cloudsMeshRef.current) {
-      cloudsMeshRef.current.rotation.y += delta * 0.75;
+    // Silky smooth scale interpolation
+    const targetScale = hovered ? 1.12 : isSelected ? 1.18 : 1.0;
+    currentScaleRef.current = THREE.MathUtils.damp(
+      currentScaleRef.current,
+      targetScale,
+      4.5,
+      delta
+    );
+
+    const s = currentScaleRef.current;
+    if (planetMeshRef.current) {
+      planetMeshRef.current.scale.set(s, s, s);
     }
 
-    // Satellite moon orbit
-    if (moonGroupRef.current) {
-      moonGroupRef.current.rotation.y += delta * 1.8;
+    if (atmosphereMeshRef.current) {
+      const atmoScale = s * 1.035;
+      atmosphereMeshRef.current.scale.set(atmoScale, atmoScale, atmoScale);
     }
+
+    // Dynamic satellite moon orbits
+    custom.moons.forEach((moon, idx) => {
+      if (!moonAngles.current[idx]) moonAngles.current[idx] = 0;
+      moonAngles.current[idx] += delta * moon.speed * 0.8;
+
+      const moonEl = moonRefs.current[idx];
+      if (moonEl) {
+        const mx = Math.cos(moonAngles.current[idx]) * (config.size * moon.distance);
+        const mz = Math.sin(moonAngles.current[idx]) * (config.size * moon.distance);
+        moonEl.position.set(mx, 0.1, mz);
+      }
+    });
   });
-
-  // Unique planet textures and visuals per domain
-  const planetMaterial = useMemo(() => {
-    switch (config.id) {
-      case "health":
-        return new THREE.MeshStandardMaterial({
-          color: "#059669",
-          roughness: 0.5,
-          metalness: 0.1,
-          emissive: "#047857",
-          emissiveIntensity: 0.25,
-        });
-      case "move":
-        return new THREE.MeshStandardMaterial({
-          color: "#ea580c",
-          roughness: 0.8,
-          metalness: 0.2,
-          emissive: "#c2410c",
-          emissiveIntensity: 0.35,
-        });
-      case "schedule":
-        return new THREE.MeshStandardMaterial({
-          color: "#0891b2",
-          roughness: 0.3,
-          metalness: 0.7,
-          emissive: "#06b6d4",
-          emissiveIntensity: 0.3,
-        });
-      case "study":
-        return new THREE.MeshStandardMaterial({
-          color: "#0284c7",
-          roughness: 0.2,
-          metalness: 0.5,
-          emissive: "#38bdf8",
-          emissiveIntensity: 0.4,
-        });
-      case "wallet":
-        return new THREE.MeshStandardMaterial({
-          color: "#ca8a04",
-          roughness: 0.4,
-          metalness: 0.3,
-          emissive: "#eab308",
-          emissiveIntensity: 0.35,
-        });
-      case "explore":
-        return new THREE.MeshStandardMaterial({
-          color: "#7e22ce",
-          roughness: 0.5,
-          metalness: 0.4,
-          emissive: "#a855f7",
-          emissiveIntensity: 0.3,
-        });
-      case "travel":
-        return new THREE.MeshStandardMaterial({
-          color: "#0284c7",
-          roughness: 0.3,
-          metalness: 0.2,
-          emissive: "#0ea5e9",
-          emissiveIntensity: 0.35,
-        });
-      case "career":
-        return new THREE.MeshStandardMaterial({
-          color: "#4338ca",
-          roughness: 0.4,
-          metalness: 0.8,
-          emissive: "#6366f1",
-          emissiveIntensity: 0.35,
-        });
-      default:
-        return new THREE.MeshStandardMaterial({
-          color: config.color,
-          roughness: 0.5,
-          metalness: 0.2,
-        });
-    }
-  }, [config]);
-
-  const targetScale = hovered ? 1.15 : isSelected ? 1.2 : 1.0;
 
   return (
     <group ref={groupRef}>
-      {/* Click and Hover Target */}
+      {/* Exoplanet Surface Sphere */}
       <mesh
         ref={planetMeshRef}
-        scale={[targetScale, targetScale, targetScale]}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(config.id);
@@ -163,105 +142,96 @@ export function PlanetBody({
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry args={[config.size, 32, 32]} />
-        <primitive object={planetMaterial} attach="material" />
+        <sphereGeometry args={[config.size, 64, 64]} />
+        <meshStandardMaterial
+          map={textures.colorMap}
+          bumpMap={textures.bumpMap}
+          bumpScale={custom.bumpScale}
+          roughness={custom.roughness}
+          metalness={0.06}
+        />
       </mesh>
 
-      {/* Atmospheric Glow Shell */}
-      <mesh scale={[targetScale * 1.08, targetScale * 1.08, targetScale * 1.08]}>
-        <sphereGeometry args={[config.size, 24, 24]} />
+      {/* Atmospheric Rayleigh Limb Scattering / Fresnel Rim Glow */}
+      <mesh ref={atmosphereMeshRef}>
+        <sphereGeometry args={[config.size, 32, 32]} />
         <meshBasicMaterial
-          color={config.color}
+          color={custom.secondaryColor}
           transparent
-          opacity={hovered || isSelected ? 0.35 : 0.15}
+          opacity={hovered || isSelected ? 0.24 : 0.08}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
 
-      {/* Health Cloud Layer */}
-      {config.id === "health" && (
-        <mesh ref={cloudsMeshRef} scale={[targetScale * 1.02, targetScale * 1.02, targetScale * 1.02]}>
-          <sphereGeometry args={[config.size, 24, 24]} />
+      {/* Dynamic Customizable Planetary Rings */}
+      {custom.hasRings && ringTexture && (
+        <mesh rotation={[-Math.PI / 3.2, custom.ringTilt, 0]}>
+          <ringGeometry args={[config.size * 1.35, config.size * 2.35, 96]} />
           <meshStandardMaterial
-            color="#ffffff"
+            map={ringTexture}
+            side={THREE.DoubleSide}
             transparent
-            opacity={0.3}
-            roughness={1}
+            opacity={0.82}
+            roughness={0.25}
+            metalness={0.04}
             depthWrite={false}
           />
         </mesh>
       )}
 
-      {/* Wallet Planetary Dust Rings (Saturn style) */}
-      {config.id === "wallet" && (
-        <mesh rotation={[-Math.PI / 3, 0.2, 0]}>
-          <ringGeometry args={[config.size * 1.35, config.size * 2.1, 48]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.65}
-            roughness={0.6}
-            metalness={0.2}
-          />
-        </mesh>
-      )}
-
-      {/* Schedule Meridian Time Rings */}
-      {config.id === "schedule" && (
-        <mesh rotation={[Math.PI / 4, Math.PI / 6, 0]}>
-          <ringGeometry args={[config.size * 1.25, config.size * 1.32, 36]} />
-          <meshBasicMaterial
-            color="#22d3ee"
-            side={THREE.DoubleSide}
-            transparent
-            opacity={0.5}
-          />
-        </mesh>
-      )}
-
-      {/* Moonlet Orbits (Deals near Wallet, Build near Career) */}
-      {(config.id === "wallet" || config.id === "career") && (
-        <group ref={moonGroupRef}>
+      {/* Dynamic Customizable Satellite Moons */}
+      {custom.moons.map((moon, idx) => (
+        <group
+          key={moon.id || idx}
+          ref={(el) => {
+            moonRefs.current[idx] = el;
+          }}
+        >
           <mesh
-            position={[config.size * 2.4, 0.2, 0]}
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(config.id === "wallet" ? "deals" : "build");
+              onSelect(config.id);
+            }}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              document.body.style.cursor = "pointer";
+            }}
+            onPointerOut={() => {
+              document.body.style.cursor = "auto";
             }}
           >
-            <sphereGeometry args={[0.22, 16, 16]} />
+            <sphereGeometry args={[moon.size, 24, 24]} />
             <meshStandardMaterial
-              color={config.id === "wallet" ? "#34d399" : "#818cf8"}
-              emissive={config.id === "wallet" ? "#10b981" : "#6366f1"}
-              emissiveIntensity={0.4}
-              roughness={0.4}
+              color={moon.color}
+              roughness={0.45}
+              metalness={0.05}
             />
           </mesh>
         </group>
-      )}
+      ))}
 
-      {/* Holographic Telemetry Label on Hover or Active */}
+      {/* Zen Minimalist Telemetry Badge on Hover */}
       {(hovered || isSelected) && (
-        <Html position={[0, config.size + 0.9, 0]} center distanceFactor={14}>
-          <div
-            className="pointer-events-none px-2.5 py-1 rounded-full backdrop-blur-md border text-center whitespace-nowrap shadow-glass-sm transition-all duration-200"
-            style={{
-              backgroundColor: "rgba(3, 7, 18, 0.85)",
-              borderColor: config.color,
-            }}
-          >
-            <div className="text-[11px] font-display font-medium text-white tracking-wide flex items-center gap-1.5 justify-center">
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ backgroundColor: config.color }}
-              />
-              {config.name}
-            </div>
-            <div className="text-[9px] font-mono text-gray-300 uppercase tracking-wider">
-              {config.domain}
+        <Html position={[0, config.size + 1.1, 0]} center zIndexRange={[100, 0]}>
+          <div className="pointer-events-none transform -translate-y-2 transition-all duration-150 font-sans">
+            <div className="px-3.5 py-2 rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-glass-md text-left">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0 shadow-sm"
+                  style={{ backgroundColor: custom.primaryColor }}
+                />
+                <span className="text-xs font-semibold text-zinc-100 tracking-tight whitespace-nowrap">
+                  {config.name}
+                </span>
+              </div>
+              <div className="text-[10px] font-mono text-zinc-400 pl-4 whitespace-nowrap">
+                {config.domain} · {custom.archetype.replace("_", " ")}
+              </div>
+              <div className="text-[9px] font-mono text-zinc-500 pl-4 mt-1">
+                Click to enter domain
+              </div>
             </div>
           </div>
         </Html>

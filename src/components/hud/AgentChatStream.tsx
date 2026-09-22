@@ -100,7 +100,7 @@ export function AgentChatStream({
   const prompts = quickPrompts[activeSpecialistId] || quickPrompts.core;
 
   return (
-    <div className="flex flex-col h-full bg-space-950/60 rounded-2xl border border-white/10 overflow-hidden shadow-glass-lg">
+    <div className="flex flex-col h-full bg-zinc-950/70 rounded-2xl border border-white/10 overflow-hidden shadow-glass-md">
       {/* Messages Scroll Area */}
       <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((msg) => {
@@ -112,25 +112,25 @@ export function AgentChatStream({
               key={msg.id}
               className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
             >
-              <div className="flex items-center gap-1.5 mb-1 text-[11px] font-mono text-gray-400">
+              <div className="flex items-center gap-1.5 mb-1 text-[11px] font-mono text-zinc-400">
                 {!isUser && (
                   <span
-                    className="w-2 h-2 rounded-full"
+                    className="w-1.5 h-1.5 rounded-full"
                     style={{ backgroundColor: spec?.color || "#fbbf24" }}
                   />
                 )}
-                <span className="font-semibold text-gray-300">
+                <span className="font-medium text-zinc-300">
                   {isUser ? "You" : msg.senderName}
                 </span>
-                <span className="text-[10px] text-gray-500">{msg.timestamp}</span>
+                <span className="text-[10px] text-zinc-500">{msg.timestamp}</span>
               </div>
 
               {/* Message Content Bubble */}
               <div
-                className={`max-w-[88%] p-3.5 rounded-xl text-xs leading-relaxed transition ${
+                className={`max-w-[88%] p-3.5 rounded-2xl text-xs leading-relaxed transition ${
                   isUser
-                    ? "bg-slate-800 text-white rounded-tr-none border border-white/10 shadow-sm"
-                    : "bg-space-900/90 text-gray-100 rounded-tl-none border border-white/10 shadow-glass-sm"
+                    ? "bg-zinc-800 text-zinc-100 rounded-tr-sm border border-white/10 shadow-sm"
+                    : "bg-zinc-900/90 text-zinc-200 rounded-tl-sm border border-white/10 shadow-glass-sm"
                 }`}
               >
                 <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
@@ -159,23 +159,23 @@ export function AgentChatStream({
                     </button>
 
                     {openTraceId === msg.id && (
-                      <div className="mt-2 p-2 rounded-lg bg-space-950/80 border border-amber-500/20 text-[10px] font-mono text-gray-300 space-y-1">
+                      <div className="mt-2 p-2.5 rounded-xl bg-zinc-950/80 border border-white/10 text-[10px] font-mono text-zinc-300 space-y-1">
                         <div>
-                          <span className="text-gray-500">Inference Engine: </span>
+                          <span className="text-zinc-500">Inference Engine: </span>
                           <span className="text-amber-300">{msg.routingTrace.modelUsed}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Extracted Intent: </span>
+                          <span className="text-zinc-500">Extracted Intent: </span>
                           <span>"{msg.routingTrace.intent}"</span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Active Specialist Planets: </span>
-                          <span className="text-emerald-400">
+                          <span className="text-zinc-500">Active Specialist Planets: </span>
+                          <span className="text-zinc-200">
                             {msg.routingTrace.targetSpecialists.join(", ")}
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Model Confidence: </span>
+                          <span className="text-zinc-500">Model Confidence: </span>
                           <span>{Math.round(msg.routingTrace.confidence * 100)}%</span>
                         </div>
                       </div>
@@ -196,8 +196,8 @@ export function AgentChatStream({
       </div>
 
       {/* Suggested Quick Prompts Bar */}
-      <div className="px-4 py-2 border-t border-white/5 bg-space-950/40 flex items-center gap-1.5 overflow-x-auto">
-        <span className="text-[10px] font-mono text-gray-500 uppercase shrink-0">
+      <div className="px-4 py-2 border-t border-white/5 bg-zinc-950/50 flex items-center gap-1.5 overflow-x-auto">
+        <span className="text-[10px] font-mono text-zinc-500 uppercase shrink-0">
           Try:
         </span>
         {prompts.map((p, idx) => (
@@ -207,7 +207,7 @@ export function AgentChatStream({
               cosmicAudio.playClick();
               onSendMessage(p);
             }}
-            className="px-2.5 py-1 rounded-full bg-slate-900/80 hover:bg-slate-800 text-[11px] text-gray-300 hover:text-white border border-white/10 whitespace-nowrap transition active:scale-[0.98]"
+            className="px-2.5 py-1 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-[11px] text-zinc-300 hover:text-white border border-white/10 whitespace-nowrap transition active:scale-[0.98]"
           >
             {p}
           </button>
@@ -215,20 +215,20 @@ export function AgentChatStream({
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-3 bg-space-900/90 border-t border-white/10 flex gap-2">
+      <form onSubmit={handleSubmit} className="p-3 bg-zinc-900/80 border-t border-white/10 flex gap-2">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={`Talk with ${SPECIALISTS[activeSpecialistId]?.name || "Orbit Core"}...`}
-          className="flex-1 px-3.5 py-2.5 rounded-xl bg-space-950/90 border border-white/10 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-amber-400/50 transition font-sans"
+          placeholder={`Message ${SPECIALISTS[activeSpecialistId]?.name || "Orbit Core"}...`}
+          className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-950/90 border border-white/10 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50 transition font-sans"
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:hover:bg-amber-500 text-slate-950 font-display font-semibold text-xs transition active:scale-[0.98] flex items-center gap-1.5 shrink-0 shadow-sm"
+          className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 text-zinc-950 font-semibold text-xs transition active:scale-[0.98] flex items-center gap-1.5 shrink-0"
         >
-          <PaperPlaneRight size={15} weight="bold" />
+          <PaperPlaneRight size={14} weight="bold" />
           <span>Send</span>
         </button>
       </form>

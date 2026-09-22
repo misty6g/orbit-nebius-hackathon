@@ -45,27 +45,27 @@ export function CareerPipelineBoard({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 font-sans">
       {/* Pipeline Header */}
-      <div className="p-4 rounded-xl bg-space-900/80 border border-indigo-500/20 backdrop-blur-md shadow-glass-sm">
+      <div className="p-4 rounded-xl bg-space-950/60 border border-white/[0.08] backdrop-blur-md">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Briefcase size={18} weight="duotone" className="text-indigo-400" />
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-indigo-300">
+            <Briefcase size={16} weight="duotone" className="text-amber-400" />
+            <h4 className="text-xs font-mono font-medium tracking-wide text-slate-200">
               Summer 2027 SWE and ML Pipeline
             </h4>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
             RIT BS AI '28 Resume
           </span>
         </div>
 
-        <p className="text-xs text-gray-300 mb-3">
+        <p className="text-xs text-slate-400 mb-3 leading-relaxed">
           Orbit Career monitors target companies, tailors 1-page resumes, and passes job specs to Orbit Build for portfolio proof-of-work.
         </p>
 
         {/* Pipeline Cards */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {pipeline.map((item) => (
             <div
               key={item.id}
@@ -75,17 +75,17 @@ export function CareerPipelineBoard({
               }}
               className={`p-3 rounded-lg border transition cursor-pointer text-xs ${
                 selectedRole?.id === item.id
-                  ? "bg-indigo-950/40 border-indigo-400/50 shadow-sm"
-                  : "bg-space-950/60 border-white/5 hover:border-indigo-500/30"
+                  ? "bg-white/[0.06] border-white/20 shadow-sm"
+                  : "bg-space-900/40 border border-white/[0.05] hover:border-white/[0.12]"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="font-display font-medium text-white">{item.company}</span>
-                <span className="font-mono text-indigo-300 font-semibold">{item.matchScore}% Match</span>
+                <span className="font-medium text-slate-200">{item.company}</span>
+                <span className="font-mono text-amber-300 font-semibold">{item.matchScore}% Match</span>
               </div>
-              <div className="text-[11px] text-gray-300 mb-1">{item.role}</div>
-              <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
-                <span className="capitalize text-indigo-400">Status: {item.stage.replace("-", " ")}</span>
+              <div className="text-[11px] text-slate-400 mb-1">{item.role}</div>
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <span className="capitalize text-slate-400">Status: {item.stage.replace("-", " ")}</span>
                 <span>Summer 2027</span>
               </div>
             </div>
@@ -93,13 +93,13 @@ export function CareerPipelineBoard({
         </div>
 
         {/* Orbit Build Action */}
-        <div className="mt-3 pt-3 border-t border-white/10">
+        <div className="mt-3 pt-3 border-t border-white/[0.06]">
           <button
             onClick={handleTriggerBuild}
             disabled={isGenerating}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-display font-medium text-xs transition active:scale-[0.98]"
+            className="zen-btn w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 font-medium text-xs transition active:scale-[0.98] disabled:opacity-50"
           >
-            <FileCode size={16} weight="bold" />
+            <FileCode size={15} weight="bold" />
             <span>{isGenerating ? "Synthesizing Project Architecture..." : "Orbit Build: Generate Proof-of-Work Project"}</span>
           </button>
         </div>
@@ -107,20 +107,20 @@ export function CareerPipelineBoard({
 
       {/* Generated Project Spec Drawer */}
       {generatedSpec && (
-        <div className="p-4 rounded-xl bg-space-900/90 border border-indigo-400/30 backdrop-blur-md shadow-glass-md text-xs">
-          <div className="flex items-center justify-between mb-2 text-indigo-300 font-mono font-semibold">
-            <span className="flex items-center gap-1">
-              <Sparkle size={14} weight="fill" />
+        <div className="p-4 rounded-xl bg-space-950/95 border border-white/[0.12] backdrop-blur-md shadow-glass-md text-xs">
+          <div className="flex items-center justify-between mb-2 text-slate-200 font-mono font-medium">
+            <span className="flex items-center gap-1.5 text-amber-300">
+              <Sparkle size={13} weight="fill" />
               Orbit Build Output
             </span>
             <button
               onClick={() => setGeneratedSpec(null)}
-              className="text-gray-400 hover:text-white"
+              className="text-slate-400 hover:text-white text-[11px] transition"
             >
               Dismiss
             </button>
           </div>
-          <div className="font-mono text-gray-200 text-[11px] whitespace-pre-wrap leading-relaxed bg-space-950/80 p-3 rounded border border-white/5 max-h-48 overflow-y-auto">
+          <div className="font-mono text-slate-300 text-[11px] whitespace-pre-wrap leading-relaxed bg-space-900/60 p-3 rounded-lg border border-white/[0.05] max-h-48 overflow-y-auto">
             {generatedSpec}
           </div>
         </div>

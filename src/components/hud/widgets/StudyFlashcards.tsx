@@ -40,52 +40,52 @@ export function StudyFlashcards({ brain, onGenerateDeck }: StudyFlashcardsProps)
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 font-sans">
       {/* Course Context Card */}
-      <div className="p-4 rounded-xl bg-space-900/80 border border-sky-500/20 backdrop-blur-md shadow-glass-sm">
+      <div className="p-4 rounded-xl bg-space-950/60 border border-white/[0.08] backdrop-blur-md">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <GraduationCap size={18} weight="duotone" className="text-sky-400" />
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-sky-300">
+            <GraduationCap size={16} weight="duotone" className="text-amber-400" />
+            <h4 className="text-xs font-mono font-medium tracking-wide text-slate-200">
               {deck?.course || "CSCI 431 Computer Vision"}
             </h4>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/30">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
             Nemotron Spaced Review
           </span>
         </div>
 
-        <p className="text-xs text-gray-300 mb-4">
-          Topic: <span className="text-white font-medium">{deck?.title || "Convolutional Filters and Residual Architectures"}</span>
+        <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+          Topic: <span className="text-slate-200 font-medium">{deck?.title || "Convolutional Filters and Residual Architectures"}</span>
         </p>
 
         {/* 3D Interactive Flip Card */}
         {activeCard && (
-          <div className="mb-4 perspective">
+          <div className="mb-4">
             <div
               onClick={handleFlip}
-              className={`min-h-[160px] p-5 rounded-xl border transition-all duration-500 cursor-pointer flex flex-col justify-between ${
+              className={`min-h-[160px] p-5 rounded-xl border transition-all duration-300 cursor-pointer flex flex-col justify-between ${
                 flipped
-                  ? "bg-slate-900/90 border-sky-400/50 shadow-glass-md"
-                  : "bg-space-950/80 border-white/10 hover:border-sky-500/30 shadow-glass-sm"
+                  ? "bg-space-900/90 border-white/20 shadow-glass-md"
+                  : "bg-space-950/80 border-white/[0.07] hover:border-white/15 shadow-glass-sm"
               }`}
             >
-              <div className="flex items-center justify-between text-[11px] font-mono text-gray-400">
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
                 <span>Card {currentIndex + 1} of {cards.length}</span>
-                <span className="text-sky-400">{flipped ? "Answer" : "Click to Flip"}</span>
+                <span className="text-amber-400">{flipped ? "Answer" : "Click to Flip"}</span>
               </div>
 
               <div className="py-3 text-center">
-                <div className="text-sm font-display text-white leading-relaxed">
+                <div className="text-sm font-medium text-slate-100 leading-relaxed">
                   {flipped ? activeCard.answer : activeCard.question}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[10px] font-mono">
+              <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[10px] font-mono">
                 <span className={masteredMap[activeCard.id] ? "text-emerald-400" : "text-amber-400"}>
                   Status: {masteredMap[activeCard.id] ? "Mastered" : "Review Pending"}
                 </span>
-                <span className="text-gray-500">Source: Lecture 06 Slides</span>
+                <span className="text-slate-500">Source: Lecture 06 Slides</span>
               </div>
             </div>
           </div>
@@ -95,37 +95,37 @@ export function StudyFlashcards({ brain, onGenerateDeck }: StudyFlashcardsProps)
         <div className="flex items-center justify-between gap-2">
           <button
             onClick={handleFlip}
-            className="flex-1 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-200 font-display text-xs border border-white/10 transition active:scale-[0.98]"
+            className="zen-btn flex-1 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-xs border border-white/10 transition active:scale-[0.98]"
           >
             Flip Card
           </button>
           {activeCard && (
             <button
               onClick={() => handleMarkMastered(activeCard.id)}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-display text-xs border border-emerald-500/40 transition active:scale-[0.98]"
+              className="zen-btn flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs border border-emerald-500/30 transition active:scale-[0.98]"
             >
-              <Check size={14} weight="bold" />
+              <Check size={13} weight="bold" />
               <span>Mastered</span>
             </button>
           )}
           <button
             onClick={handleNext}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-display font-medium text-xs transition active:scale-[0.98]"
+            className="zen-btn flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 font-medium text-xs transition active:scale-[0.98]"
           >
-            <ArrowClockwise size={14} weight="bold" />
+            <ArrowClockwise size={13} weight="bold" />
             <span>Next</span>
           </button>
         </div>
       </div>
 
       {/* Slide / PDF Document Ingest Dropzone */}
-      <div className="p-4 rounded-xl bg-space-900/80 border border-white/10 backdrop-blur-md text-center">
-        <div className="border border-dashed border-white/20 rounded-lg p-3 hover:border-sky-400/40 transition cursor-pointer">
-          <UploadSimple size={20} className="mx-auto text-sky-400 mb-1" />
-          <div className="text-xs font-display text-gray-200">
+      <div className="p-4 rounded-xl bg-space-950/60 border border-white/[0.08] backdrop-blur-md text-center">
+        <div className="border border-dashed border-white/15 rounded-lg p-3 hover:border-amber-400/30 transition cursor-pointer">
+          <UploadSimple size={18} className="mx-auto text-amber-400/80 mb-1" />
+          <div className="text-xs text-slate-300">
             Drop course slides, exam reviews, or syllabus PDFs
           </div>
-          <div className="text-[10px] font-mono text-gray-400 mt-1">
+          <div className="text-[10px] font-mono text-slate-500 mt-1">
             Nemotron 70B extracts key concepts and generates flashcard decks automatically
           </div>
         </div>

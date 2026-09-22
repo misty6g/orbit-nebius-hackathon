@@ -26,6 +26,10 @@ export async function createNebiusCompletion({
   const token = apiKey || process.env.NEBIUS_API_KEY;
   const baseUrl = process.env.NEBIUS_BASE_URL || DEFAULT_NEBIUS_BASE_URL;
 
+  if (process.env.MOCK_NEBIUS === "true") {
+    throw new Error("MOCK_NEBIUS_ACTIVE: External Nebius API calls are blocked to preserve account credits.");
+  }
+
   if (!token) {
     throw new Error("NEBIUS_API_KEY_MISSING");
   }

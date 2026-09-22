@@ -1,0 +1,23 @@
+{
+  "project": "Orbit Personal Student OS",
+  "textures": [
+    "2k_stars_milky_way.jpg",
+    "2k_sun.jpg",
+    "2k_mercury.jpg",
+    "2k_venus_atmosphere.jpg",
+    "2k_earth_daymap.jpg",
+    "2k_earth_clouds.jpg",
+    "2k_mars.jpg",
+    "2k_jupiter.jpg",
+    "2k_saturn.jpg",
+    "2k_saturn_ring_alpha.png",
+    "2k_uranus.jpg",
+    "2k_neptune.jpg",
+    "2k_moon.jpg"
+  ],
+  "source": "Solar System Scope (https://www.solarsystemscope.com/textures/)",
+  "derivedFrom": "NASA / JPL-Caltech / USGS / ESA spacecraft observation datasets",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Textures created and provided by Solar System Scope under CC BY 4.0."
+}

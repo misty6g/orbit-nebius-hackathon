@@ -46,34 +46,23 @@ export function TavilySearchWidget({
     }
   };
 
-  const getAccentColor = () => {
-    switch (domainCategory) {
-      case "deals":
-        return "text-teal-300 border-teal-500/20";
-      case "travel":
-        return "text-sky-300 border-sky-500/20";
-      case "explore":
-        return "text-purple-300 border-purple-500/20";
-    }
-  };
-
   return (
-    <div className="space-y-4">
-      <div className={`p-4 rounded-xl bg-space-900/80 border backdrop-blur-md shadow-glass-sm ${getAccentColor()}`}>
+    <div className="space-y-3 font-sans">
+      <div className="p-4 rounded-xl bg-space-950/60 border border-white/[0.08] backdrop-blur-md">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <GlobeHemisphereWest size={18} weight="duotone" />
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-white">
+            <GlobeHemisphereWest size={16} weight="duotone" className="text-amber-400" />
+            <h4 className="text-xs font-mono font-medium tracking-wide text-slate-200">
               {domainTitle}
             </h4>
           </div>
-          <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-gray-300">
+          <span className="flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
             <Sparkle size={11} weight="fill" className="text-amber-400" />
             Tavily Live Web Engine
           </span>
         </div>
 
-        <p className="text-xs text-gray-300 mb-3">
+        <p className="text-xs text-slate-400 mb-3 leading-relaxed">
           Real-time external intelligence gathered with Tavily Search API. Zero auto-purchases or unauthorized mutations.
         </p>
 
@@ -84,49 +73,49 @@ export function TavilySearchWidget({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search verified student deals, flights, or local meetups..."
-            className="flex-1 px-3 py-2 rounded-lg bg-space-950/80 border border-white/10 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-cyan-400 transition"
+            className="flex-1 px-3 py-2 rounded-lg bg-space-900/60 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400/50 transition font-sans"
           />
           <button
             type="submit"
             disabled={loading}
-            className="px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-display font-medium text-xs transition active:scale-[0.98] flex items-center gap-1.5 shrink-0"
+            className="zen-btn px-3.5 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-stone-950 font-medium text-xs transition active:scale-[0.98] flex items-center gap-1.5 shrink-0 disabled:opacity-50"
           >
-            <MagnifyingGlass size={14} weight="bold" />
+            <MagnifyingGlass size={13} weight="bold" />
             <span>{loading ? "Searching..." : "Scan Web"}</span>
           </button>
         </form>
 
         {/* Answer Synthesis */}
         {answer && (
-          <div className="p-2.5 rounded-lg bg-space-950/60 border border-white/5 text-xs text-gray-200 mb-3">
-            <span className="font-mono text-[10px] text-cyan-400 block mb-1">Tavily Digest:</span>
+          <div className="p-3 rounded-lg bg-space-900/60 border border-white/[0.06] text-xs text-slate-300 mb-3 leading-relaxed">
+            <span className="font-mono text-[10px] text-amber-300 block mb-1">Tavily Digest:</span>
             {answer}
           </div>
         )}
 
         {/* Results List */}
-        <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
           {results.map((res, idx) => (
             <a
               key={idx}
               href={res.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block p-2.5 rounded-lg bg-space-950/50 border border-white/5 hover:border-cyan-400/30 transition text-xs group"
+              className="block p-3 rounded-lg bg-space-900/40 border border-white/[0.05] hover:border-white/[0.12] transition text-xs group"
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="font-display font-medium text-white group-hover:text-cyan-300 transition line-clamp-1">
+                <span className="font-medium text-slate-200 group-hover:text-amber-300 transition line-clamp-1">
                   {res.title}
                 </span>
-                <ArrowSquareOut size={13} className="text-gray-400 group-hover:text-white shrink-0 ml-1" />
+                <ArrowSquareOut size={13} className="text-slate-500 group-hover:text-white shrink-0 ml-1.5 transition" />
               </div>
-              <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">
+              <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
                 {res.snippet}
               </p>
             </a>
           ))}
           {!loading && results.length === 0 && (
-            <div className="text-center py-4 text-xs font-mono text-gray-500">
+            <div className="text-center py-4 text-xs font-mono text-slate-500">
               Click "Scan Web" to run live Tavily student search query.
             </div>
           )}
