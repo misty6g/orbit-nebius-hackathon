@@ -7,7 +7,7 @@ import { searchTavily } from "@/lib/tavily";
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, specialistId = "core", brain, apiKey, mockMode = false } = await req.json();
+    const { message, specialistId = "core", brain, apiKey, mockMode = false, history = [] } = await req.json();
 
     const activeSpecialist = SPECIALISTS[specialistId as SpecialistId] || SPECIALISTS.core;
     const student = brain?.student || {
@@ -147,12 +147,21 @@ Rules:
               .join("\n")}\nSynthesize these live verified results directly in your response.`
           : message;
 
+      // Format past turns for multi-turn conversational context
+      const historyMessages = (history || [])
+        .filter((m: any) => m.content && (m.sender === "user" || m.sender === specialistId || m.sender === "core"))
+        .map((m: any) => ({
+          role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
+          content: m.content as string,
+        }));
+
       try {
         const completionRes = await createNebiusCompletion({
           apiKey: keyToUse,
           model: process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
           messages: [
             { role: "system", content: systemPrompt },
+            ...historyMessages,
             { role: "user", content: userPrompt },
           ],
           temperature: 0.6,

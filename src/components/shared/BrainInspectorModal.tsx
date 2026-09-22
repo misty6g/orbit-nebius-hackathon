@@ -2,7 +2,7 @@
 
 import React from "react";
 import { SharedBrainProfile } from "@/types/orbit";
-import { Brain, X, ShieldCheck, User, Target, Lightning } from "@phosphor-icons/react";
+import { Brain, X, ShieldCheck, User, Target, Lightning, DownloadSimple } from "@phosphor-icons/react";
 
 interface BrainInspectorModalProps {
   isOpen: boolean;
@@ -16,6 +16,16 @@ export function BrainInspectorModal({
   brain,
 }: BrainInspectorModalProps) {
   if (!isOpen) return null;
+
+  const handleExportVault = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(brain, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `orbit_sovereign_vault_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
@@ -139,7 +149,15 @@ export function BrainInspectorModal({
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-white/[0.08] flex justify-end shrink-0">
+        <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between shrink-0">
+          <button
+            onClick={handleExportVault}
+            className="zen-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-mono transition active:scale-[0.98]"
+            title="Download client-side JSON backup of your entire Sovereign Brain"
+          >
+            <DownloadSimple size={14} weight="bold" />
+            <span>Export Sovereign Vault (.json)</span>
+          </button>
           <button
             onClick={onClose}
             className="zen-btn px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs transition"

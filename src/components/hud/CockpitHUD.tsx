@@ -215,6 +215,7 @@ export function CockpitHUD({
           brain,
           apiKey,
           mockMode,
+          history: messages.slice(-6).map((m) => ({ sender: m.sender, content: m.content })),
         }),
       });
 
@@ -267,8 +268,27 @@ export function CockpitHUD({
   };
 
   const handleAuthorizeAction = (id: string) => {
-    const updated = {
+    const targetMsg = messages.find((m) => m.approvalRequest?.id === id);
+    const approval = targetMsg?.approvalRequest;
+
+    let updatedCalendar = [...brain.activity.calendar];
+    if (approval && approval.service === "Google Calendar") {
+      const isFlight = approval.title.toLowerCase().includes("flight") || approval.title.toLowerCase().includes("travel");
+      updatedCalendar.push({
+        id: `hold-${Date.now()}`,
+        title: isFlight ? "Confirmed Hold: ROC -> BOS Break Travel" : "Confirmed Hold: CSCI 320 Evening Study Block",
+        time: isFlight ? "Dec 19 - Jan 3 (Provisional Window)" : "8:30 PM - 10:00 PM Tonight",
+        category: isFlight ? "life" : "study",
+        isHold: true,
+      });
+    }
+
+    const updated: SharedBrainProfile = {
       ...brain,
+      activity: {
+        ...brain.activity,
+        calendar: updatedCalendar,
+      },
       pendingApprovals: brain.pendingApprovals.map((a) =>
         a.id === id ? { ...a, status: "approved" as const } : a
       ),
