@@ -63,8 +63,8 @@ It replaces fragmented productivity silos with an interactive, photorealistic 3D
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/gyanmistry/orbit-student-os.git
-cd orbit-student-os
+git clone https://github.com/misty6g/orbit-nebius-hackathon.git
+cd orbit-nebius-hackathon
 ```
 
 ### 2. Install Dependencies

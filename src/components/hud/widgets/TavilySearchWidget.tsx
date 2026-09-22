@@ -28,10 +28,11 @@ export function TavilySearchWidget({
     cosmicAudio.playClick();
     setLoading(true);
     try {
+      const clientKey = typeof window !== "undefined" ? localStorage.getItem("orbit_tavily_key") || undefined : undefined;
       const res = await fetch("/api/tavily", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, apiKey: clientKey }),
       });
       const data = await res.json();
       setResults(data.results || []);
