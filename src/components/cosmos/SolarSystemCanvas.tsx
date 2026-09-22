@@ -110,14 +110,15 @@ export function SolarSystemCanvas({
         {/* User 3D Orbit Controls in Overview Mode */}
         {allowManualOrbit && (
           <OrbitControls
+            makeDefault
             enablePan={false}
             enableZoom={true}
-            minDistance={8}
-            maxDistance={48}
-            maxPolarAngle={Math.PI / 2 + 0.05}
-            minPolarAngle={Math.PI / 6}
-            rotateSpeed={0.5}
-            zoomSpeed={0.8}
+            minDistance={4}
+            maxDistance={140}
+            maxPolarAngle={Math.PI / 2 + 0.15}
+            minPolarAngle={Math.PI / 16}
+            rotateSpeed={0.6}
+            zoomSpeed={1.0}
             dampingFactor={0.06}
           />
         )}
