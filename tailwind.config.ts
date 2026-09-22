@@ -16,12 +16,12 @@ const config: Config = {
       },
       colors: {
         space: {
-          950: "#030712",
-          900: "#070d1d",
-          850: "#0d1527",
-          800: "#131f37",
-          700: "#1f2e4d",
-          600: "#33456b",
+          950: "#07080a", // Deep obsidian Zen void
+          900: "#0c0e12", // Soft dark slate
+          850: "#11141b",
+          800: "#171b24",
+          700: "#222836",
+          600: "#343d52",
         },
         solar: {
           gold: "#fbbf24",
@@ -42,14 +42,14 @@ const config: Config = {
         },
       },
       backgroundImage: {
-        "radial-solar": "radial-gradient(circle at center, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.05) 50%, transparent 70%)",
-        "radial-nebula": "radial-gradient(circle at 50% 30%, rgba(79, 70, 229, 0.15) 0%, rgba(6, 182, 212, 0.08) 40%, transparent 70%)",
+        "radial-solar": "radial-gradient(circle at center, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.04) 50%, transparent 70%)",
+        "radial-nebula": "radial-gradient(circle at 50% 30%, rgba(79, 70, 229, 0.1) 0%, rgba(6, 182, 212, 0.05) 40%, transparent 70%)",
       },
       boxShadow: {
-        "glass-sm": "inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 20px rgba(0, 0, 0, 0.4)",
-        "glass-md": "inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 32px rgba(0, 0, 0, 0.6)",
-        "glass-lg": "inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 16px 48px rgba(0, 0, 0, 0.7)",
-        "solar-glow": "0 0 60px rgba(251, 191, 36, 0.4)",
+        "glass-sm": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 20px rgba(0, 0, 0, 0.5)",
+        "glass-md": "inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.6)",
+        "glass-lg": "inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 48px rgba(0, 0, 0, 0.7)",
+        "solar-glow": "0 0 50px rgba(251, 191, 36, 0.3)",
       },
     },
   },

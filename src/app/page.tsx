@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { SpecialistId, SharedBrainProfile, MorningBriefData } from "@/types/orbit";
-import { INITIAL_DEMO_BRAIN } from "@/lib/specialists";
+import { INITIAL_DEMO_BRAIN, SPECIALISTS } from "@/lib/specialists";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
 import { CosmicAwakeningModal } from "@/components/onboarding/CosmicAwakeningModal";
@@ -18,6 +18,10 @@ import {
   X,
   PlayCircle,
   Lightning,
+  Pause,
+  Play,
+  MagnifyingGlass,
+  PaperPlaneRight,
 } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
@@ -43,6 +47,9 @@ export default function OrbitHome() {
   // Solar Dawn 3D Fly-Through Tour State
   const [isTouring, setIsTouring] = useState<boolean>(false);
   const [tourStep, setTourStep] = useState<number>(0);
+
+  // Zen Quick Omnibox
+  const [quickInput, setQuickInput] = useState<string>("");
 
   const tourNarrations = [
     {
@@ -87,7 +94,6 @@ export default function OrbitHome() {
     if (savedMockMode !== null) {
       setMockMode(savedMockMode === "true");
     } else {
-      // Default to mock mode for zero-credit testing
       setMockMode(true);
     }
 
@@ -181,8 +187,20 @@ export default function OrbitHome() {
     setSelectedSpecialistId("core");
   };
 
+  const handleQuickSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickInput.trim()) return;
+    cosmicAudio.playWarp();
+    setSelectedSpecialistId("core");
+    // Passing prompt via storage / state
+    sessionStorage.setItem("orbit_pending_prompt", quickInput.trim());
+    setQuickInput("");
+  };
+
+  const planetList = Object.values(SPECIALISTS).filter((s) => s.id !== "core");
+
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-space-950 font-sans">
+    <main className="relative w-screen h-screen overflow-hidden bg-[#07080a] font-sans">
       {/* 3D Solar System WebGL Canvas */}
       <SolarSystemCanvas
         selectedSpecialistId={selectedSpecialistId}
@@ -193,86 +211,173 @@ export default function OrbitHome() {
         tourStep={tourStep}
       />
 
-      {/* Minimalist Cosmos Telemetry Header (Visible only when in Overview) */}
+      {/* Top Left Zen Brand Glyph (Matching reference screenshot) */}
       {!selectedSpecialistId && !isTouring && (
-        <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto px-3 py-1.5 rounded-full bg-slate-950/70 border border-white/10 backdrop-blur-md shadow-glass-sm">
-            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-solar-glow animate-pulse" />
-            <span className="text-xs font-display font-semibold tracking-wider text-white">
-              ORBIT
-            </span>
-            <span className="text-[10px] font-mono text-gray-400">
-              Sovereign Student OS
-            </span>
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-zinc-950/60 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-glass-sm hover:border-white/20 transition cursor-pointer">
+            <svg
+              viewBox="0 0 24 24"
+              className="w-4 h-4 text-zinc-300 fill-none stroke-current stroke-[1.5]"
+            >
+              <circle cx="12" cy="12" r="9" strokeDasharray="3 3" />
+              <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.3" />
+              <path d="M12 3a9 9 0 0 1 9 9" />
+            </svg>
           </div>
+          <span className="text-xs font-display font-medium text-zinc-300 tracking-wider">
+            ORBIT
+          </span>
+        </div>
+      )}
 
-          <div className="flex items-center gap-2 pointer-events-auto">
-            {/* Zero-Credit Testing Mode Pill */}
-            <button
-              onClick={handleToggleMockMode}
-              title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono backdrop-blur-md transition active:scale-[0.98] border ${
-                mockMode
-                  ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                  : "bg-amber-950/80 border-amber-500/40 text-amber-300 hover:bg-amber-900/70 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+      {/* Top Right Zen Controls */}
+      {!selectedSpecialistId && !isTouring && (
+        <div className="absolute top-6 right-6 z-10 flex items-center gap-2.5">
+          {/* Zero-Credit Testing Mode Pill */}
+          <button
+            onClick={handleToggleMockMode}
+            title={mockMode ? "Mock AI Active (Zero Credits Spent) • Click to toggle Live Nebius" : "Live Nebius Active • Click to switch to Mock AI"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono backdrop-blur-xl transition active:scale-[0.98] border ${
+              mockMode
+                ? "bg-emerald-950/70 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/60 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                : "bg-amber-950/70 border-amber-500/30 text-amber-300 hover:bg-amber-900/60 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+            }`}
+          >
+            <Lightning size={12} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
+            <span>{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
+          </button>
+
+          {/* Quick Play Brief Button */}
+          <button
+            onClick={startMorningTour}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 text-zinc-200 border border-white/10 text-xs font-display backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
+          >
+            <PlayCircle size={15} weight="duotone" className="text-amber-400" />
+            <span>Solar Dawn Tour</span>
+          </button>
+
+          {/* Inspect Brain */}
+          <button
+            onClick={() => {
+              cosmicAudio.playClick();
+              setShowBrainInspector(true);
+            }}
+            title="Inspect Sovereign Shared Brain"
+            className="p-2 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl transition active:scale-[0.98]"
+          >
+            <Brain size={15} weight="duotone" />
+          </button>
+
+          {/* Credentials Gate */}
+          <button
+            onClick={() => {
+              cosmicAudio.playClick();
+              setShowApiKeyGate(true);
+            }}
+            title="Configure Nebius & Tavily Keys"
+            className="p-2 rounded-full bg-zinc-950/70 hover:bg-zinc-900/80 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl transition active:scale-[0.98]"
+          >
+            <Key size={15} weight="duotone" />
+          </button>
+        </div>
+      )}
+
+      {/* Bottom Left Audio Waveform Pill (Matching user's reference screenshot) */}
+      {!selectedSpecialistId && !isTouring && (
+        <div className="absolute bottom-6 left-6 z-10 flex items-center gap-2">
+          <button
+            onClick={toggleAudio}
+            title={isMuted ? "Resume Cosmic Soundscape" : "Pause Cosmic Soundscape"}
+            className="w-8 h-8 rounded-full bg-zinc-950/80 hover:bg-zinc-900 border border-white/10 backdrop-blur-xl flex items-center justify-center text-zinc-300 hover:text-white transition active:scale-[0.96] shadow-glass-sm"
+          >
+            {isMuted ? <Play size={12} weight="fill" /> : <Pause size={12} weight="fill" />}
+          </button>
+
+          {/* Waveform Pill */}
+          <div
+            onClick={toggleAudio}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-950/80 border border-white/10 backdrop-blur-xl cursor-pointer hover:border-white/20 transition shadow-glass-sm"
+          >
+            <span
+              className={`w-0.5 rounded-full bg-zinc-400 transition-all ${
+                isMuted ? "h-1.5 opacity-40" : "h-3.5 animate-pulse"
               }`}
-            >
-              <Lightning size={13} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
-              <span className="font-semibold tracking-tight">{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
-            </button>
+            />
+            <span
+              className={`w-0.5 rounded-full bg-zinc-300 transition-all ${
+                isMuted ? "h-2 opacity-40" : "h-5 animate-pulse delay-75"
+              }`}
+            />
+            <span
+              className={`w-0.5 rounded-full bg-amber-400 transition-all ${
+                isMuted ? "h-3 opacity-40" : "h-2.5 animate-pulse delay-150"
+              }`}
+            />
+            <span
+              className={`w-0.5 rounded-full bg-zinc-300 transition-all ${
+                isMuted ? "h-1.5 opacity-40" : "h-4 animate-pulse delay-100"
+              }`}
+            />
+            <span
+              className={`w-0.5 rounded-full bg-zinc-400 transition-all ${
+                isMuted ? "h-2 opacity-40" : "h-2 animate-pulse delay-200"
+              }`}
+            />
+          </div>
+        </div>
+      )}
 
-            {/* Quick Play Brief Button */}
+      {/* Center Bottom Zen Command Bar & Planet Warp Strip (Perplexity Zen style) */}
+      {!selectedSpecialistId && !isTouring && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-lg px-4 flex flex-col items-center gap-2.5">
+          {/* Zen Command Bar Input */}
+          <form
+            onSubmit={handleQuickSubmit}
+            className="w-full flex items-center gap-2 px-4 py-2.5 rounded-full bg-zinc-950/80 hover:bg-zinc-950/95 border border-white/10 hover:border-white/20 backdrop-blur-2xl shadow-2xl transition group"
+          >
+            <Sparkle size={15} weight="duotone" className="text-amber-400 shrink-0" />
+            <input
+              type="text"
+              value={quickInput}
+              onChange={(e) => setQuickInput(e.target.value)}
+              placeholder="Ask Orbit Core anything or select a planet..."
+              className="flex-1 bg-transparent text-xs text-white placeholder:text-zinc-500 focus:outline-none font-sans"
+            />
             <button
-              onClick={startMorningTour}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 text-xs font-display backdrop-blur-md transition active:scale-[0.98] shadow-solar-glow"
+              type="submit"
+              disabled={!quickInput.trim()}
+              className="p-1 rounded-full text-zinc-400 group-hover:text-white disabled:opacity-30 transition"
             >
-              <PlayCircle size={14} weight="fill" />
-              <span>Solar Dawn Tour</span>
+              <PaperPlaneRight size={14} weight="bold" />
             </button>
+          </form>
 
-            {/* Inspect Brain */}
+          {/* Minimalist Planet Warp Pills */}
+          <div className="flex items-center gap-1.5 p-1 rounded-full bg-zinc-950/60 border border-white/5 backdrop-blur-xl overflow-x-auto max-w-full">
             <button
-              onClick={() => {
-                cosmicAudio.playClick();
-                setShowBrainInspector(true);
-              }}
-              title="Inspect Sovereign Shared Brain"
-              className="p-2 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-white/10 text-gray-300 hover:text-white backdrop-blur-md transition active:scale-[0.98]"
+              onClick={() => handleSelectSpecialist("core")}
+              className="px-2.5 py-1 rounded-full text-[10px] font-mono text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition whitespace-nowrap"
             >
-              <Brain size={15} weight="duotone" />
+              Orbit Core
             </button>
-
-            {/* Credentials Gate */}
-            <button
-              onClick={() => {
-                cosmicAudio.playClick();
-                setShowApiKeyGate(true);
-              }}
-              title="Configure Nebius & Tavily Keys"
-              className="p-2 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-white/10 text-gray-300 hover:text-white backdrop-blur-md transition active:scale-[0.98]"
-            >
-              <Key size={15} weight="duotone" />
-            </button>
-
-            {/* Audio Toggle */}
-            <button
-              onClick={toggleAudio}
-              title={isMuted ? "Unmute Cosmic Audio" : "Mute Cosmic Audio"}
-              className="p-2 rounded-full bg-slate-950/70 hover:bg-slate-900 border border-white/10 text-gray-300 hover:text-white backdrop-blur-md transition active:scale-[0.98]"
-            >
-              {isMuted ? (
-                <SpeakerSlash size={15} weight="duotone" className="text-gray-400" />
-              ) : (
-                <SpeakerHigh size={15} weight="duotone" className="text-amber-400" />
-              )}
-            </button>
+            {planetList.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectSpecialist(p.id)}
+                title={`${p.name} (${p.domain})`}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-white/5 transition whitespace-nowrap"
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+                <span>{p.name.replace("Orbit ", "")}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
 
       {/* Floating Solar Dawn Tour Projection Card */}
       {isTouring && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-md p-5 rounded-2xl bg-space-900/90 border border-amber-400/30 backdrop-blur-xl shadow-solar-glow text-white">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-md p-5 rounded-2xl bg-zinc-950/90 border border-amber-400/30 backdrop-blur-2xl shadow-solar-glow text-white">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs font-mono">
             <span className="text-amber-300 font-semibold">
               {tourNarrations[tourStep]?.title}

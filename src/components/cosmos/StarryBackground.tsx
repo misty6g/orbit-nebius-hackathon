@@ -8,25 +8,25 @@ export function StarryBackground() {
   const pointsRef = useRef<THREE.Points>(null);
   const nebulaRef = useRef<THREE.Group>(null);
 
-  // Generate 7,000 realistic stars with varying temperatures and sizes
+  // Generate 6,500 pinpoint stars with fine astronomical scale
   const [starPositions, starColors, starSizes] = useMemo(() => {
-    const count = 7000;
+    const count = 6500;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
 
     const tempPalettes = [
       new THREE.Color("#ffffff"), // Pure white
-      new THREE.Color("#93c5fd"), // Blue-white (O/B type)
-      new THREE.Color("#fed7aa"), // Warm amber (K/M type)
-      new THREE.Color("#e0e7ff"), // Cool white
-      new THREE.Color("#c7d2fe"), // Violet tint
+      new THREE.Color("#dbeafe"), // Subtle cool white
+      new THREE.Color("#fed7aa"), // Warm star
+      new THREE.Color("#e2e8f0"), // Slate white
+      new THREE.Color("#f1f5f9"), // Bright point
     ];
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      // Distribute stars on a wide spherical shell between radius 120 and 260
-      const radius = 120 + Math.random() * 140;
+      // Distribute stars on a wide spherical shell
+      const radius = 100 + Math.random() * 150;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
 
@@ -39,7 +39,8 @@ export function StarryBackground() {
       colors[i3 + 1] = color.g;
       colors[i3 + 2] = color.b;
 
-      sizes[i] = Math.random() * 1.8 + 0.4;
+      // Fine pinprick stars matching the user's reference image
+      sizes[i] = Math.random() * 1.3 + 0.3;
     }
 
     return [positions, colors, sizes];
@@ -47,17 +48,17 @@ export function StarryBackground() {
 
   useFrame((state, delta) => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y += delta * 0.005;
-      pointsRef.current.rotation.x += delta * 0.001;
+      pointsRef.current.rotation.y += delta * 0.003;
+      pointsRef.current.rotation.x += delta * 0.0008;
     }
     if (nebulaRef.current) {
-      nebulaRef.current.rotation.y -= delta * 0.003;
+      nebulaRef.current.rotation.y -= delta * 0.0015;
     }
   });
 
   return (
     <group>
-      {/* Distant Deep Starfield */}
+      {/* Distant Pinprick Starfield */}
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -74,46 +75,99 @@ export function StarryBackground() {
           />
         </bufferGeometry>
         <pointsMaterial
-          size={1.2}
+          size={1.0}
           vertexColors
           transparent
-          opacity={0.85}
+          opacity={0.8}
           sizeAttenuation
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </points>
 
-      {/* Atmospheric Cosmic Nebula Gas Clouds */}
+      {/* Muted Atmospheric Nebula Smoke Clouds (Organic billowy puffs matching reference placement, desaturated per user request) */}
       <group ref={nebulaRef}>
-        <mesh position={[-50, 20, -100]}>
-          <sphereGeometry args={[70, 16, 16]} />
+        {/* Soft Muted Teal Smoke Cloud Cluster (Lower left) */}
+        <group position={[-38, -18, -65]}>
+          <mesh position={[0, 0, 0]}>
+            <sphereGeometry args={[42, 24, 24]} />
+            <meshBasicMaterial
+              color="#0c2624"
+              transparent
+              opacity={0.032}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh position={[-12, 8, -10]}>
+            <sphereGeometry args={[30, 20, 20]} />
+            <meshBasicMaterial
+              color="#082020"
+              transparent
+              opacity={0.025}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh position={[10, -6, 8]}>
+            <sphereGeometry args={[26, 20, 20]} />
+            <meshBasicMaterial
+              color="#0a2a26"
+              transparent
+              opacity={0.022}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* Soft Muted Rust/Maroon Smoke Cloud Cluster (Upper right) */}
+        <group position={[42, 24, -75]}>
+          <mesh position={[0, 0, 0]}>
+            <sphereGeometry args={[52, 24, 24]} />
+            <meshBasicMaterial
+              color="#2a1411"
+              transparent
+              opacity={0.03}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh position={[12, -10, -8]}>
+            <sphereGeometry args={[38, 20, 20]} />
+            <meshBasicMaterial
+              color="#22100e"
+              transparent
+              opacity={0.024}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          <mesh position={[-8, 14, 10]}>
+            <sphereGeometry args={[32, 20, 20]} />
+            <meshBasicMaterial
+              color="#321814"
+              transparent
+              opacity={0.02}
+              side={THREE.BackSide}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+
+        {/* Deep Slate Space Ambient Fill */}
+        <mesh position={[0, 0, -105]}>
+          <sphereGeometry args={[85, 20, 20]} />
           <meshBasicMaterial
-            color="#4f46e5"
+            color="#090d14"
             transparent
-            opacity={0.035}
-            side={THREE.BackSide}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        <mesh position={[60, -30, -120]}>
-          <sphereGeometry args={[85, 16, 16]} />
-          <meshBasicMaterial
-            color="#06b6d4"
-            transparent
-            opacity={0.03}
-            side={THREE.BackSide}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-        <mesh position={[0, 60, -90]}>
-          <sphereGeometry args={[60, 16, 16]} />
-          <meshBasicMaterial
-            color="#8b5cf6"
-            transparent
-            opacity={0.025}
+            opacity={0.02}
             side={THREE.BackSide}
             blending={THREE.AdditiveBlending}
             depthWrite={false}

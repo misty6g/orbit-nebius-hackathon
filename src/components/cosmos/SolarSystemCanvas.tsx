@@ -34,7 +34,6 @@ export function SolarSystemCanvas({
 
   const handlePositionUpdate = useCallback((id: SpecialistId, pos: THREE.Vector3) => {
     setPlanetPositions((prev) => {
-      // Small threshold to prevent continuous state re-renders if position barely changed
       const current = prev[id];
       if (current && current.distanceToSquared(pos) < 0.04) {
         return prev;
@@ -55,23 +54,25 @@ export function SolarSystemCanvas({
   return (
     <div className="w-full h-full absolute inset-0 bg-space-950 overflow-hidden">
       <Canvas
-        camera={{ position: [0, 26, 42], fov: 45, near: 0.1, far: 1000 }}
-        gl={{ antialias: true, alpha: false }}
+        camera={{ position: [0, 14, 23], fov: 42, near: 0.1, far: 1000 }}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         onPointerMissed={() => {
           if (selectedSpecialistId && !isTouring) {
             onDeselect();
           }
         }}
       >
-        <color attach="background" args={["#030712"]} />
+        <color attach="background" args={["#06080c"]} />
 
-        {/* Cinematic Ambient Starlight */}
-        <ambientLight intensity={0.25} />
+        {/* Ambient & Directional Key Light for dramatic day/night terminator boundary */}
+        <ambientLight intensity={0.14} />
+        <directionalLight position={[-18, 14, 16]} intensity={2.8} color="#ffffff" />
+        <directionalLight position={[16, -10, -12]} intensity={0.2} color="#94a3b8" />
 
-        {/* Starry Cosmos Backdrop */}
+        {/* Starry & Smoky Nebula Cosmos Backdrop */}
         <StarryBackground />
 
-        {/* Orbit Kepler Tracks */}
+        {/* Kepler Orbit Tracks */}
         <OrbitPaths />
 
         {/* Central Sun: Orbit Core */}
@@ -111,13 +112,13 @@ export function SolarSystemCanvas({
           <OrbitControls
             enablePan={false}
             enableZoom={true}
-            minDistance={14}
-            maxDistance={85}
-            maxPolarAngle={Math.PI / 2 + 0.05} // Do not dip below disk
-            minPolarAngle={Math.PI / 6} // Keep good orbital perspective
-            rotateSpeed={0.6}
+            minDistance={8}
+            maxDistance={48}
+            maxPolarAngle={Math.PI / 2 + 0.05}
+            minPolarAngle={Math.PI / 6}
+            rotateSpeed={0.5}
             zoomSpeed={0.8}
-            dampingFactor={0.05}
+            dampingFactor={0.06}
           />
         )}
       </Canvas>

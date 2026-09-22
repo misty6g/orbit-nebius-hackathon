@@ -19,13 +19,13 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
   const [hovered, setHovered] = useState(false);
 
   // Generate flare particles
-  const flareCount = 60;
+  const flareCount = 70;
   const flarePositions = React.useMemo(() => {
     const pos = new Float32Array(flareCount * 3);
     for (let i = 0; i < flareCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
-      const r = 2.4 + Math.random() * 0.8;
+      const r = 2.6 + Math.random() * 0.9;
       pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
@@ -37,27 +37,27 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
     const time = state.clock.getElapsedTime();
 
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.15;
+      meshRef.current.rotation.y += delta * 0.12;
       // Gentle solar pulse
-      const scale = 1 + Math.sin(time * 1.5) * 0.02;
+      const scale = 1 + Math.sin(time * 1.4) * 0.02;
       meshRef.current.scale.set(scale, scale, scale);
     }
 
     if (coronaRef.current) {
-      coronaRef.current.rotation.z -= delta * 0.08;
-      const coronaScale = 1.15 + Math.sin(time * 2.2) * 0.04;
+      coronaRef.current.rotation.z -= delta * 0.06;
+      const coronaScale = 1.15 + Math.sin(time * 2.0) * 0.03;
       coronaRef.current.scale.set(coronaScale, coronaScale, coronaScale);
     }
 
     if (outerCoronaRef.current) {
-      outerCoronaRef.current.rotation.y += delta * 0.05;
-      const outerScale = 1.35 + Math.cos(time * 1.8) * 0.06;
+      outerCoronaRef.current.rotation.y += delta * 0.04;
+      const outerScale = 1.35 + Math.cos(time * 1.6) * 0.04;
       outerCoronaRef.current.scale.set(outerScale, outerScale, outerScale);
     }
 
     if (flaresRef.current) {
-      flaresRef.current.rotation.y += delta * 0.25;
-      flaresRef.current.rotation.x += delta * 0.1;
+      flaresRef.current.rotation.y += delta * 0.2;
+      flaresRef.current.rotation.x += delta * 0.08;
     }
   });
 
@@ -65,9 +65,9 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Central Omnidirectional Light from the Sun */}
-      <pointLight color="#fed7aa" intensity={2.8} distance={120} decay={1.2} />
-      <pointLight color="#fbbf24" intensity={1.5} distance={40} decay={1} />
+      {/* Central Solar Point Light */}
+      <pointLight color="#fed7aa" intensity={2.6} distance={100} decay={1.1} />
+      <pointLight color="#fbbf24" intensity={1.4} distance={35} decay={1} />
 
       {/* Main Solar Sphere */}
       <mesh
@@ -86,12 +86,12 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry args={[config.size, 32, 32]} />
+        <sphereGeometry args={[config.size, 48, 48]} />
         <meshStandardMaterial
           color="#fef08a"
           emissive="#f59e0b"
-          emissiveIntensity={1.8}
-          roughness={0.2}
+          emissiveIntensity={1.9}
+          roughness={0.25}
           metalness={0.1}
         />
       </mesh>
@@ -102,7 +102,7 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         <meshBasicMaterial
           color="#fbbf24"
           transparent
-          opacity={0.35}
+          opacity={0.32}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -115,7 +115,7 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         <meshBasicMaterial
           color="#f97316"
           transparent
-          opacity={0.18}
+          opacity={0.16}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -133,7 +133,7 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.18}
+          size={0.2}
           color="#fde047"
           transparent
           opacity={0.7}
@@ -141,15 +141,30 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         />
       </points>
 
-      {/* Holographic Telemetry Label on Hover or Active */}
+      {/* Prominent, Ultra-Readable Zen Core Hover Badge */}
       {(hovered || isSelected) && (
-        <Html position={[0, config.size + 1.2, 0]} center distanceFactor={14}>
-          <div className="pointer-events-none px-3 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-md border border-amber-400/40 shadow-solar-glow text-center whitespace-nowrap transition-all duration-300">
-            <div className="text-xs font-display font-semibold text-amber-200 tracking-wide">
-              {config.name}
-            </div>
-            <div className="text-[10px] font-mono text-amber-400/80 uppercase">
-              {config.domain}
+        <Html position={[0, config.size + 1.4, 0]} center zIndexRange={[100, 0]}>
+          <div className="pointer-events-none transform -translate-y-2 transition-all duration-200">
+            <div
+              className="px-4 py-2.5 rounded-2xl border text-left shadow-2xl backdrop-blur-2xl"
+              style={{
+                backgroundColor: "rgba(9, 10, 13, 0.95)",
+                borderColor: "rgba(251, 191, 36, 0.4)",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.7), 0 0 25px rgba(251, 191, 36, 0.25)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm animate-pulse shrink-0" />
+                <span className="text-sm font-display font-semibold text-amber-200 tracking-wide whitespace-nowrap">
+                  {config.name}
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-amber-400/80 uppercase tracking-wider pl-4 whitespace-nowrap">
+                {config.domain}
+              </div>
+              <div className="text-[10px] font-mono text-zinc-500 pl-4 mt-1 flex items-center gap-1">
+                <span>Click to enter core cockpit</span>
+              </div>
             </div>
           </div>
         </Html>

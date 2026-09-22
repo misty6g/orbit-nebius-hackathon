@@ -10,7 +10,7 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     glowColor: "rgba(251, 191, 36, 0.6)",
     orbitRadius: 0, // Center Sun
     orbitSpeed: 0,
-    size: 2.2,
+    size: 2.5,
     features: [
       "Multi-agent intent routing via NVIDIA Nemotron",
       "Sovereign external action authorization gates",
@@ -25,9 +25,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Honest macro ranges, daily totals, bulk tracking.",
     color: "#10b981", // Emerald Gaia
     glowColor: "rgba(16, 185, 129, 0.5)",
-    orbitRadius: 5.5,
-    orbitSpeed: 0.7,
-    size: 0.75,
+    orbitRadius: 4.6,
+    orbitSpeed: 0.55,
+    size: 0.95,
     features: [
       "Honest macro range estimation (calories & protein)",
       "Daily intake pacing vs 3,000-3,200 kcal bulk target",
@@ -42,12 +42,12 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Lifting progression, PR tracking, volleyball coordination.",
     color: "#f97316", // Rust Mars
     glowColor: "rgba(249, 115, 22, 0.5)",
-    orbitRadius: 8.0,
-    orbitSpeed: 0.55,
-    size: 0.7,
+    orbitRadius: 6.8,
+    orbitSpeed: 0.45,
+    size: 0.9,
     features: [
       "4x/week lifting split tracking",
-      "Men's volleyball game day coordination",
+      "Men's Volleyball game day coordination",
       "Muscle group recovery status",
       "PR and progressive overload logs",
     ],
@@ -59,9 +59,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Google Calendar connector, free blocks, confirmed holds.",
     color: "#06b6d4", // Chrono Cyan
     glowColor: "rgba(6, 182, 212, 0.5)",
-    orbitRadius: 10.8,
-    orbitSpeed: 0.45,
-    size: 0.8,
+    orbitRadius: 9.2,
+    orbitSpeed: 0.38,
+    size: 0.95,
     features: [
       "Primary school + volleyball schedule sync",
       "Free time discovery for study sessions",
@@ -76,9 +76,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Slide ingest, Nemotron flashcards, quiz engine.",
     color: "#38bdf8", // Sapphire Ice Giant
     glowColor: "rgba(56, 189, 248, 0.5)",
-    orbitRadius: 13.8,
-    orbitSpeed: 0.38,
-    size: 0.95,
+    orbitRadius: 11.8,
+    orbitSpeed: 0.32,
+    size: 1.15,
     features: [
       "Slide and PDF document synthesis",
       "AI flashcard generation via Nemotron-70B",
@@ -93,9 +93,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Monthly spending meter, expense audits, soft limits.",
     color: "#eab308", // Ringed Saturn
     glowColor: "rgba(234, 179, 8, 0.5)",
-    orbitRadius: 17.2,
-    orbitSpeed: 0.3,
-    size: 1.15,
+    orbitRadius: 14.6,
+    orbitSpeed: 0.26,
+    size: 1.35,
     features: [
       "Strict $800/month spending cap pacing",
       "Chat purchase logging and receipt analysis",
@@ -110,9 +110,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Curated .edu offers and tech hardware discounts.",
     color: "#34d399", // Emerald Moonlet
     glowColor: "rgba(52, 211, 153, 0.5)",
-    orbitRadius: 19.4,
-    orbitSpeed: 0.28,
-    size: 0.55,
+    orbitRadius: 16.5,
+    orbitSpeed: 0.24,
+    size: 0.65,
     features: [
       "On-demand .edu discount hunts",
       "Live web discovery via Tavily search",
@@ -127,9 +127,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Rochester local scene, tech meetups, hackathons.",
     color: "#a855f7", // Amethyst Aurora
     glowColor: "rgba(168, 85, 247, 0.5)",
-    orbitRadius: 22.4,
-    orbitSpeed: 0.22,
-    size: 0.85,
+    orbitRadius: 17.5,
+    orbitSpeed: 0.2,
+    size: 1.05,
     features: [
       "Curated Rochester and RIT campus shortlists",
       "AI/ML tech meetups and volleyball events",
@@ -141,14 +141,14 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     id: "travel",
     name: "Orbit Travel",
     domain: "Break Flights & Logistics",
-    tagline: "BOS ↔ ROC break flight hunter, academic look-ahead.",
+    tagline: "BOS to ROC break flight hunter, academic look-ahead.",
     color: "#0ea5e9", // Oceanic Atmosphere
     glowColor: "rgba(14, 165, 233, 0.5)",
-    orbitRadius: 25.4,
-    orbitSpeed: 0.18,
-    size: 0.8,
+    orbitRadius: 20.2,
+    orbitSpeed: 0.17,
+    size: 0.95,
     features: [
-      "RIT Rochester ↔ Boston route monitoring",
+      "RIT Rochester to Boston route monitoring",
       "3-week look-ahead before university breaks",
       "Wallet $800 constraint and study conflict cross-check",
       "Zero auto-booking; strictly suggest and confirm",
@@ -161,9 +161,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "Summer 2027 SWE/ML hunt, resume tailoring, strategy.",
     color: "#818cf8", // Cyber Carbon
     glowColor: "rgba(129, 140, 248, 0.5)",
-    orbitRadius: 28.5,
+    orbitRadius: 23.0,
     orbitSpeed: 0.14,
-    size: 0.9,
+    size: 1.15,
     features: [
       "Summer 2027 SWE and ML internship pipeline",
       "RIT BS AI '28 resume tailoring",
@@ -178,9 +178,9 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     tagline: "JD to scoped technical spec, architecture, and starter code.",
     color: "#6366f1", // Cyber Moonlet
     glowColor: "rgba(99, 102, 241, 0.5)",
-    orbitRadius: 30.8,
+    orbitRadius: 25.0,
     orbitSpeed: 0.12,
-    size: 0.55,
+    size: 0.65,
     features: [
       "Job description to scoped portfolio project generator",
       "Architecture specs, starter code, and README creation",

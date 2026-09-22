@@ -19,7 +19,8 @@ export function CameraChoreographer({
   tourStep,
 }: CameraChoreographerProps) {
   const { camera } = useThree();
-  const targetCamPos = useRef(new THREE.Vector3(0, 26, 42));
+  // Tightly zoomed-in default overview perspective
+  const targetCamPos = useRef(new THREE.Vector3(0, 14, 23));
   const targetLookAt = useRef(new THREE.Vector3(0, 0, 0));
   const currentLookAt = useRef(new THREE.Vector3(0, 0, 0));
 
@@ -30,29 +31,29 @@ export function CameraChoreographer({
     if (isTouring) {
       const activeId = tourTargets[tourStep] || "core";
       if (activeId === "core") {
-        targetCamPos.current.set(0, 4.0, 7.5);
+        targetCamPos.current.set(0, 3.2, 5.8);
         targetLookAt.current.set(0, 0, 0);
       } else {
-        const pPos = planetPositions[activeId] || new THREE.Vector3(10, 0, 10);
-        targetCamPos.current.set(pPos.x + 2.8, pPos.y + 1.6, pPos.z + 3.6);
+        const pPos = planetPositions[activeId] || new THREE.Vector3(8, 0, 8);
+        targetCamPos.current.set(pPos.x + 2.2, pPos.y + 1.2, pPos.z + 2.8);
         targetLookAt.current.copy(pPos);
       }
       return;
     }
 
     if (!selectedSpecialistId) {
-      // Overview solar system view
-      targetCamPos.current.set(0, 26, 42);
+      // Intimate, zoomed-in overview perspective
+      targetCamPos.current.set(0, 14, 23);
       targetLookAt.current.set(0, 0, 0);
     } else if (selectedSpecialistId === "core") {
       // Close focus on Sun Core
-      targetCamPos.current.set(0, 3.8, 7.2);
+      targetCamPos.current.set(0, 3.2, 5.8);
       targetLookAt.current.set(0, 0, 0);
     } else {
       // Zoom into selected planet
       const pPos = planetPositions[selectedSpecialistId];
       if (pPos) {
-        targetCamPos.current.set(pPos.x + 2.6, pPos.y + 1.4, pPos.z + 3.2);
+        targetCamPos.current.set(pPos.x + 2.2, pPos.y + 1.2, pPos.z + 2.8);
         targetLookAt.current.copy(pPos);
       }
     }
@@ -63,13 +64,13 @@ export function CameraChoreographer({
     if (selectedSpecialistId && selectedSpecialistId !== "core" && !isTouring) {
       const pPos = planetPositions[selectedSpecialistId];
       if (pPos) {
-        targetCamPos.current.set(pPos.x + 2.6, pPos.y + 1.4, pPos.z + 3.2);
+        targetCamPos.current.set(pPos.x + 2.2, pPos.y + 1.2, pPos.z + 2.8);
         targetLookAt.current.copy(pPos);
       }
     }
 
     // Smooth lerp camera position
-    const lerpSpeed = isTouring ? 2.2 : 3.2;
+    const lerpSpeed = isTouring ? 2.4 : 3.4;
     camera.position.lerp(targetCamPos.current, delta * lerpSpeed);
 
     // Smooth lerp lookAt target
