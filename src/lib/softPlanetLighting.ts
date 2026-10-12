@@ -95,36 +95,34 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     mat3 m = mat3(vM0, vM1, vM2);
     vec3 N = normalize(m * localDir);
     vec3 L = normalize(uSunPos - vWorldPos);
-    float ndl = dot(N, L);
+    vec3 V = normalize(cameraPosition - vWorldPos);
 
-    // Screen-space box blur on N·L — erases triangle-edge Mach bands.
+    float ndl = dot(N, L);
+    // Screen-space blur — erases triangle-edge Mach bands.
     float ndlBlur =
       (ndl +
         (ndl - dFdx(ndl)) + (ndl + dFdx(ndl)) +
         (ndl - dFdy(ndl)) + (ndl + dFdy(ndl))) *
       0.2;
 
-    // Break perfectly-vertical N·L iso-contours (screen-fixed bands).
-    vec3 V = normalize(cameraPosition - vWorldPos);
-    float rim = pow(clamp(1.0 - abs(dot(N, V)), 0.0, 1.0), 1.5);
+    // View-facing fill dominates (circular iso-contours). A pure sun N·L wrap
+    // draws screen-vertical bands on the terminator under 8-bit SDR.
+    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.75);
+    float sun = smoothstep(-0.55, 1.05, ndlBlur);
     float brk = ignoise(localDir.xy * 48.0 + localDir.yz * 19.0) - 0.5;
-    ndlBlur += brk * 0.045 + localDir.y * brk * 0.03 + rim * 0.025;
-
-    // Very wide half-Lambert — shallow slope ⇒ fewer SDR steps per pixel.
-    float hl = clamp(ndlBlur * 0.5 + 0.5, 0.0, 1.0);
-    float day = hl * hl;
-    float aa = max(fwidth(day) * 2.5, 0.03);
-    day = smoothstep(-0.08 - aa, 1.08 + aa, day);
+    float day = clamp(sun * 0.38 + face * 0.62 + brk * 0.03, 0.0, 1.0);
+    float aa = max(fwidth(day) * 2.0, 0.025);
+    day = smoothstep(-0.05 - aa, 1.05 + aa, day);
 
     float wrap = mix(nightFloor, 1.0, day);
 
-    // Dither in wrap-space before multiply — breaks luminance iso-bands on dark side.
+    // Wrap-space triangular dither.
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
     float t2 = ignoise(gl_FragCoord.xy + vec2(11.3, 53.7));
-    float dith = (t0 + t1 - 1.0) * (6.0 / 255.0) + (t2 - 0.5) * (3.0 / 255.0);
-    dith *= 1.0 + fwidth(wrap) * 60.0;
-    wrap = clamp(wrap + dith, 0.0, 1.25);
+    float dith = (t0 + t1 - 1.0) * (5.0 / 255.0) + (t2 - 0.5) * (2.5 / 255.0);
+    dith *= 1.0 + fwidth(wrap) * 45.0;
+    wrap = clamp(wrap + dith, 0.0, 1.2);
 
     vec3 color = albedo * wrap;
     gl_FragColor = vec4(color, 1.0);
