@@ -20,11 +20,11 @@ export function CameraChoreographer({
 }: CameraChoreographerProps) {
   const { camera, controls } = useThree();
 
-  // Full solar system overview position: fits all 8 orbits (up to radius 39.2) with spacious framing
-  const defaultOverviewPos = useMemo(() => new THREE.Vector3(0, 48, 80), []);
+  // Zen cinematic overview: sun + nearest 1–2 planets dominate like a hero shot
+  const defaultOverviewPos = useMemo(() => new THREE.Vector3(0, 12, 22), []);
   const defaultOverviewLookAt = useMemo(() => new THREE.Vector3(0, 0, 0), []);
 
-  const targetCamPos = useRef(new THREE.Vector3(0, 48, 80));
+  const targetCamPos = useRef(new THREE.Vector3(0, 12, 22));
   const targetLookAt = useRef(new THREE.Vector3(0, 0, 0));
   const currentLookAt = useRef(new THREE.Vector3(0, 0, 0));
 
@@ -85,7 +85,14 @@ export function CameraChoreographer({
       } else {
         const pPos = planetPositionsRef.current[selectedSpecialistId];
         if (pPos) {
-          targetCamPos.current.set(pPos.x + 2.8, pPos.y + 1.4, pPos.z + 3.2);
+          // Bias camera sunward so the lit face + terminator read clearly
+          const radial = pPos.lengthSq() > 1e-6 ? pPos.clone().normalize() : new THREE.Vector3(1, 0, 0);
+          const tangent = new THREE.Vector3(-radial.z, 0, radial.x).normalize();
+          targetCamPos.current
+            .copy(pPos)
+            .addScaledVector(radial, -3.6)
+            .addScaledVector(tangent, 2.4)
+            .add(new THREE.Vector3(0, 1.7, 0));
           targetLookAt.current.copy(pPos);
         }
       }
@@ -182,7 +189,13 @@ export function CameraChoreographer({
       if (selectedSpecialistId !== "core") {
         const pPos = planetPositionsRef.current[selectedSpecialistId];
         if (pPos) {
-          targetCamPos.current.set(pPos.x + 2.8, pPos.y + 1.4, pPos.z + 3.2);
+          const radial = pPos.lengthSq() > 1e-6 ? pPos.clone().normalize() : new THREE.Vector3(1, 0, 0);
+          const tangent = new THREE.Vector3(-radial.z, 0, radial.x).normalize();
+          targetCamPos.current
+            .copy(pPos)
+            .addScaledVector(radial, -3.6)
+            .addScaledVector(tangent, 2.4)
+            .add(new THREE.Vector3(0, 1.7, 0));
           targetLookAt.current.copy(pPos);
         }
       }

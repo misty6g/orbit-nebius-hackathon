@@ -23,9 +23,9 @@ export function OrbitPaths() {
         }
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
         const material = new THREE.LineBasicMaterial({
-          color: "#94a3b8",
+          color: "#64748b",
           transparent: true,
-          opacity: 0.06,
+          opacity: 0.035,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });

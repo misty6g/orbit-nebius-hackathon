@@ -4,11 +4,18 @@ import React, { useState, useCallback, useMemo, useRef, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { SpecialistId, PlanetCustomization } from "@/types/orbit";
+import {
+  SpecialistId,
+  PlanetCustomization,
+  NebulaCustomization,
+  DEFAULT_NEBULA_CUSTOMIZATION,
+  DEFAULT_PLANET_CUSTOMIZATIONS,
+} from "@/types/orbit";
 import { SPECIALISTS } from "@/lib/specialists";
 import { StarryBackground } from "./StarryBackground";
+import { NebulaField } from "./NebulaField";
 import { SunCore } from "./SunCore";
-import { PlanetBody } from "./PlanetBody";
+import { AlienPlanet } from "./AlienPlanet";
 import { OrbitPaths } from "./OrbitPaths";
 import { GravitationalBeams } from "./GravitationalBeams";
 import { CameraChoreographer } from "./CameraChoreographer";
@@ -22,6 +29,7 @@ interface SolarSystemCanvasProps {
   isTouring?: boolean;
   tourStep?: number;
   planetCustomizations?: Record<string, PlanetCustomization>;
+  nebulaCustomization?: NebulaCustomization;
 }
 
 export function SolarSystemCanvas({
@@ -32,6 +40,7 @@ export function SolarSystemCanvas({
   isTouring = false,
   tourStep = 0,
   planetCustomizations = {},
+  nebulaCustomization = DEFAULT_NEBULA_CUSTOMIZATION,
 }: SolarSystemCanvasProps) {
   const [planetPositions, setPlanetPositions] = useState<Record<string, THREE.Vector3>>({});
   const planetPositionsRef = useRef<Record<string, THREE.Vector3>>({});
@@ -59,26 +68,41 @@ export function SolarSystemCanvas({
 
   const allowManualOrbit = !selectedSpecialistId && !isTouring;
 
+  const deepBg = nebulaCustomization.deepColor || DEFAULT_NEBULA_CUSTOMIZATION.deepColor;
+
   return (
-    <div className="w-full h-full absolute inset-0 bg-[#030508] overflow-hidden">
+    <div className="w-full h-full absolute inset-0 overflow-hidden" style={{ backgroundColor: deepBg }}>
       <Canvas
-        camera={{ position: [0, 48, 80], fov: 42, near: 0.1, far: 1500 }}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        camera={{ position: [0, 12, 22], fov: 40, near: 0.1, far: 1500 }}
+        gl={{
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+          // No ACES — was crushing soft night fill + nebula washes to near-black
+          toneMapping: THREE.NoToneMapping,
+          toneMappingExposure: 1,
+        }}
         onPointerMissed={() => {
           if (selectedSpecialistId && !isTouring) {
             onDeselect();
           }
         }}
       >
-        <color attach="background" args={["#030508"]} />
+        <color attach="background" args={[deepBg]} />
+        {/* Fog tint follows the user deep/wash color */}
+        <fogExp2 attach="fog" args={[deepBg, 0.0035]} />
 
-        {/* Ethereal Space Lighting for Satin Spheres */}
-        <ambientLight intensity={0.15} />
-        <directionalLight position={[-14, 20, 24]} intensity={0.55} color="#ffffff" />
-        <directionalLight position={[16, -10, -18]} intensity={0.25} color="#94a3b8" />
+        {/* Cool fill supports softLit wrap (night ≈ 0.7× day) */}
+        <ambientLight intensity={0.5} color="#6a7a98" />
+        <hemisphereLight args={["#5a6f90", "#1c1430", 0.45]} />
+        <directionalLight position={[18, 22, 28]} intensity={0.2} color="#8aa0c0" />
+        <directionalLight position={[-24, 8, -16]} intensity={0.18} color="#6b5a88" />
 
         <Suspense fallback={null}>
-          {/* Brilliant Dense Diamond Starfield & Galactic Clusters */}
+          {/* User-tintable nebula split */}
+          <NebulaField colors={nebulaCustomization} />
+
+          {/* Sharp pinprick starfield */}
           <StarryBackground />
 
           {/* Whisper-Thin Architectural Kepler Orbit Tracks */}
@@ -90,18 +114,45 @@ export function SolarSystemCanvas({
             isSelected={selectedSpecialistId === "core"}
           />
 
-          {/* Orbiting Specialist Celestial Spheres with Ethereal Atmospheric Finish */}
-          {planets.map((spec, index) => (
-            <PlanetBody
-              key={spec.id}
-              config={spec}
-              initialAngle={(index * 2.3999632) % (Math.PI * 2)}
-              onSelect={onSelectSpecialist}
-              isSelected={selectedSpecialistId === spec.id}
-              onPositionUpdate={handlePositionUpdate}
-              customization={planetCustomizations[spec.id]}
-            />
-          ))}
+          {/* All specialists use AlienPlanet — distinct fictional archetypes + Studio palette */}
+          {planets.map((spec, index) => {
+            const studio =
+              planetCustomizations[spec.id] || DEFAULT_PLANET_CUSTOMIZATIONS[spec.id];
+            const archetype = studio?.archetype;
+            const hasClouds =
+              archetype === "oceanic" ||
+              archetype === "ice_giant" ||
+              spec.id === "travel" ||
+              spec.id === "move";
+
+            return (
+              <AlienPlanet
+                key={spec.id}
+                config={spec}
+                initialAngle={(index * 2.3999632) % (Math.PI * 2)}
+                onSelect={onSelectSpecialist}
+                isSelected={selectedSpecialistId === spec.id}
+                onPositionUpdate={handlePositionUpdate}
+                customization={planetCustomizations[spec.id]}
+                size={spec.id === "move" ? Math.max(spec.size, 1.15) : undefined}
+                archetype={archetype}
+                hasClouds={hasClouds}
+                atmosphereColor={studio?.secondaryColor}
+                bumpScale={studio?.bumpScale}
+                roughness={studio?.roughness}
+                palette={
+                  studio
+                    ? {
+                        primary: studio.primaryColor,
+                        secondary: studio.secondaryColor,
+                        accent: studio.accentColor,
+                        atmosphere: studio.secondaryColor,
+                      }
+                    : undefined
+                }
+              />
+            );
+          })}
 
           {/* 3D Tracker updating HTML edge nametags at 60fps */}
           <PlanetScreenTracker
@@ -131,8 +182,8 @@ export function SolarSystemCanvas({
           enabled={allowManualOrbit}
           enablePan={false}
           enableZoom={true}
-          minDistance={15}
-          maxDistance={240}
+          minDistance={8}
+          maxDistance={90}
           maxPolarAngle={Math.PI / 2 + 0.15}
           minPolarAngle={Math.PI / 16}
           rotateSpeed={0.5}

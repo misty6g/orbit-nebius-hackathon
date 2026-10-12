@@ -389,7 +389,7 @@ export function CockpitHUD({
         role="dialog"
         aria-modal="true"
         aria-label={`${spec.name} Cockpit Console`}
-        className="fixed inset-3 sm:inset-5 md:inset-8 z-50 max-w-5xl xl:max-w-6xl mx-auto my-auto h-[90vh] max-h-[880px] flex flex-col p-4 sm:p-5 md:p-6 bg-[#07080a]/94 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-zen-dock pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-250"
+        className="fixed inset-3 sm:inset-5 md:inset-8 z-50 max-w-5xl xl:max-w-6xl mx-auto my-auto h-[90vh] max-h-[880px] flex flex-col p-4 sm:p-5 md:p-6 bg-[rgba(10,10,20,0.62)] backdrop-blur-2xl rounded-2xl border border-white/5 shadow-zen-dock pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-250"
       >
         {/* Top Header Bar */}
         <header className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10 shrink-0">
@@ -474,16 +474,22 @@ export function CockpitHUD({
               <Key size={15} weight="duotone" />
             </button>
 
-            {/* Audio Play / Pause Toggle with Equalizer */}
+            {/* Audio Play / Pause — track selection lives on the home Cosmic Audio control */}
             <button
               onClick={toggleAudio}
-              title={audioState.isPlaying ? "Pause Deep Space Soundscape (Astrovia - Brown Dwarf)" : "Play Deep Space Soundscape"}
+              title={
+                audioState.isPlaying
+                  ? `Pause Cosmic Audio · ${audioState.trackTitle}`
+                  : `Play Cosmic Audio · ${audioState.trackTitle}`
+              }
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 hover:border-amber-400/30 text-zinc-300 hover:text-white backdrop-blur-xl text-xs font-mono transition active:scale-[0.96]"
             >
               {audioState.isPlaying ? (
                 <>
                   <Pause size={13} weight="fill" className="text-amber-400" />
-                  <span className="text-amber-300 hidden sm:inline">Cosmic Audio</span>
+                  <span className="text-amber-300 hidden sm:inline truncate max-w-[9rem]">
+                    {audioState.trackTitle}
+                  </span>
                 </>
               ) : (
                 <>

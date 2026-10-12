@@ -53,29 +53,84 @@ export interface PlanetCustomization {
   moons: CustomMoonConfig[];
 }
 
+/** User-tunable NebulaField split colors (persisted in localStorage). */
+export interface NebulaCustomization {
+  /** Volume on the −X / left side of the sky. */
+  leftColor: string;
+  /** Volume on the +X / right side of the sky. */
+  rightColor: string;
+  /** Deep wash between lobes + canvas fog tint. */
+  deepColor: string;
+}
+
+export const DEFAULT_NEBULA_CUSTOMIZATION: NebulaCustomization = {
+  leftColor: "#0369a1",
+  rightColor: "#4338ca",
+  deepColor: "#0b1020",
+};
+
+export const NEBULA_COLOR_PRESETS: Array<{
+  id: string;
+  label: string;
+  colors: NebulaCustomization;
+}> = [
+  {
+    id: "indigo-blue",
+    label: "Indigo / Space Blue",
+    colors: { leftColor: "#0369a1", rightColor: "#4338ca", deepColor: "#0b1020" },
+  },
+  {
+    id: "zen-teal-rust",
+    label: "Teal / Rust (Zen)",
+    colors: { leftColor: "#14b8a6", rightColor: "#c2410c", deepColor: "#1a0e28" },
+  },
+  {
+    id: "violet-cyan",
+    label: "Violet / Cyan",
+    colors: { leftColor: "#0891b2", rightColor: "#7c3aed", deepColor: "#0c0a1a" },
+  },
+  {
+    id: "emerald-amber",
+    label: "Emerald / Amber",
+    colors: { leftColor: "#059669", rightColor: "#d97706", deepColor: "#0a120e" },
+  },
+  {
+    id: "rose-slate",
+    label: "Rose / Slate",
+    colors: { leftColor: "#64748b", rightColor: "#e11d48", deepColor: "#0f0a10" },
+  },
+  {
+    id: "mono-void",
+    label: "Mono Void",
+    colors: { leftColor: "#334155", rightColor: "#1e293b", deepColor: "#05070c" },
+  },
+];
+
 export const DEFAULT_PLANET_CUSTOMIZATIONS: Record<string, PlanetCustomization> = {
+  // Muted teal ocean world with invented archipelagos (not Earth continents).
   health: {
     id: "health",
     archetype: "oceanic",
-    primaryColor: "#0f3a42",
-    secondaryColor: "#10b981",
-    accentColor: "#99f6e4",
-    bumpScale: 0.15,
-    roughness: 0.35,
+    primaryColor: "#1a5c66",
+    secondaryColor: "#2f8f7a",
+    accentColor: "#9fd9c4",
+    bumpScale: 0.16,
+    roughness: 0.78,
     hasRings: false,
     ringStyle: "none",
     ringColor: "#34d399",
     ringTilt: 0.2,
     moons: [],
   },
+  // Rusty mineral terrain — hero AlienPlanet overrides visuals in canvas.
   move: {
     id: "move",
     archetype: "rocky",
-    primaryColor: "#7c2d12",
-    secondaryColor: "#ea580c",
-    accentColor: "#ffedd5",
-    bumpScale: 0.35,
-    roughness: 0.65,
+    primaryColor: "#9a4520",
+    secondaryColor: "#c96a32",
+    accentColor: "#e8c49a",
+    bumpScale: 0.32,
+    roughness: 0.94,
     hasRings: false,
     ringStyle: "none",
     ringColor: "#f97316",
@@ -85,108 +140,114 @@ export const DEFAULT_PLANET_CUSTOMIZATIONS: Record<string, PlanetCustomization> 
         id: "m-move-1",
         name: "Phobos",
         size: 0.22,
-        color: "#fdba74",
+        color: "#c4a484",
         distance: 2.2,
         speed: 1.4,
       },
     ],
   },
+  // Gas giant with irregular cool atmospheric bands.
   schedule: {
     id: "schedule",
     archetype: "gas_giant",
-    primaryColor: "#0f224a",
-    secondaryColor: "#2563eb",
-    accentColor: "#bfdbfe",
-    bumpScale: 0.08,
-    roughness: 0.3,
+    primaryColor: "#243a6e",
+    secondaryColor: "#4a6fb5",
+    accentColor: "#c5d4f0",
+    bumpScale: 0.04,
+    roughness: 0.85,
     hasRings: true,
     ringStyle: "meridian",
-    ringColor: "#60a5fa",
+    ringColor: "#8aa8d8",
     ringTilt: 0.35,
     moons: [],
   },
+  // Cloudy pale ice-haze world.
   study: {
     id: "study",
     archetype: "ice_giant",
-    primaryColor: "#075985",
-    secondaryColor: "#38bdf8",
-    accentColor: "#e0f2fe",
+    primaryColor: "#6a8fa8",
+    secondaryColor: "#a8c4d4",
+    accentColor: "#e8f1f6",
     bumpScale: 0.05,
-    roughness: 0.28,
+    roughness: 0.55,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#7dd3fc",
+    ringColor: "#b6d4e3",
     ringTilt: 0.1,
     moons: [
       {
         id: "m-study-1",
         name: "Mimas",
         size: 0.2,
-        color: "#bae6fd",
+        color: "#d0dde6",
         distance: 2.1,
         speed: 1.1,
       },
     ],
   },
+  // Warm-banded gas giant with irregular storms.
   wallet: {
     id: "wallet",
     archetype: "gas_giant",
-    primaryColor: "#292524",
-    secondaryColor: "#d97706",
-    accentColor: "#fef3c7",
-    bumpScale: 0.06,
-    roughness: 0.32,
+    primaryColor: "#5c4a32",
+    secondaryColor: "#c4923a",
+    accentColor: "#f0dfb0",
+    bumpScale: 0.04,
+    roughness: 0.7,
     hasRings: true,
     ringStyle: "saturnian",
-    ringColor: "#fbbf24",
+    ringColor: "#d4b06a",
     ringTilt: 0.45,
     moons: [
       {
         id: "m-wallet-1",
         name: "Titan",
         size: 0.28,
-        color: "#fde68a",
+        color: "#c9b896",
         distance: 2.5,
         speed: 0.9,
       },
     ],
   },
+  // Volcanic basalt with isolated lava (emissive reserved for fissure color only).
   explore: {
     id: "explore",
     archetype: "volcanic",
-    primaryColor: "#3b0764",
-    secondaryColor: "#9333ea",
-    accentColor: "#f3e8ff",
-    bumpScale: 0.25,
-    roughness: 0.55,
+    primaryColor: "#3a3548",
+    secondaryColor: "#8b3d2f",
+    accentColor: "#e8a060",
+    bumpScale: 0.28,
+    roughness: 0.88,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#c084fc",
+    ringColor: "#a78bfa",
     ringTilt: 0.25,
     moons: [],
   },
+  // Pale dusty cloud-world (soft bands, no Earth geography).
   travel: {
     id: "travel",
     archetype: "gas_giant",
-    primaryColor: "#1e3a8a",
-    secondaryColor: "#38bdf8",
-    accentColor: "#f0f9ff",
-    bumpScale: 0.08,
-    roughness: 0.32,
+    primaryColor: "#8a7e72",
+    secondaryColor: "#c4b8a8",
+    accentColor: "#f2ebe0",
+    bumpScale: 0.03,
+    roughness: 0.65,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#93c5fd",
+    ringColor: "#d6cfc4",
     ringTilt: 0.15,
     moons: [],
   },
+  // Cratered charcoal rocky world.
   career: {
     id: "career",
     archetype: "rocky",
-    primaryColor: "#0f172a",
-    secondaryColor: "#475569",
-    accentColor: "#e2e8f0",
-    bumpScale: 0.3,
-    roughness: 0.5,
+    primaryColor: "#3a3f48",
+    secondaryColor: "#6b7280",
+    accentColor: "#c5cad3",
+    bumpScale: 0.32,
+    roughness: 0.98,
     hasRings: false,
     ringStyle: "none",
     ringColor: "#94a3b8",
@@ -196,7 +257,7 @@ export const DEFAULT_PLANET_CUSTOMIZATIONS: Record<string, PlanetCustomization> 
         id: "m-career-1",
         name: "Apollo",
         size: 0.24,
-        color: "#cbd5e1",
+        color: "#9aa3ad",
         distance: 2.3,
         speed: 1.2,
       },

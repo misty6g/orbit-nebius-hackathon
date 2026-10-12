@@ -132,6 +132,8 @@ const ZEN_PALETTES: Record<string, ZenAtmospherePalette> = {
 };
 
 const zenTextureCache = new Map<string, THREE.CanvasTexture>();
+// Bump whenever the solar generator changes so stale cached canvases are never reused.
+const SOLAR_GEN_VERSION = "solar_v5_zen_cinematic";
 
 function lerpColor(c1: RGB, c2: RGB, t: number): RGB {
   const clampT = Math.max(0, Math.min(1, t));
@@ -140,6 +142,50 @@ function lerpColor(c1: RGB, c2: RGB, t: number): RGB {
     g: Math.round(c1.g + (c2.g - c1.g) * clampT),
     b: Math.round(c1.b + (c2.b - c1.b) * clampT),
   };
+}
+
+function clamp255(v: number): number {
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+function sstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+// Compact value-noise fbm for solar surface detail (self-contained)
+function sNoise2D(x: number, y: number): number {
+  const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+/** U-wrapping lattice noise so equirect textures tile seamlessly (no visible meridian). */
+function sSmoothWrap(x: number, y: number, periodX: number): number {
+  const fx0 = Math.floor(x);
+  const fy0 = Math.floor(y);
+  const fx = x - fx0;
+  const fy = y - fy0;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const ix0 = ((fx0 % periodX) + periodX) % periodX;
+  const ix1 = (ix0 + 1) % periodX;
+  const n00 = sNoise2D(ix0, fy0);
+  const n10 = sNoise2D(ix1, fy0);
+  const n01 = sNoise2D(ix0, fy0 + 1);
+  const n11 = sNoise2D(ix1, fy0 + 1);
+  return n00 * (1 - sx) * (1 - sy) + n10 * sx * (1 - sy) + n01 * (1 - sx) * sy + n11 * sx * sy;
+}
+
+/** Seamless-in-U fbm: integer base frequency keeps every octave periodic across the meridian. */
+function sFbmWrapU(x: number, y: number, octaves: number, baseFreq: number): number {
+  let val = 0;
+  let amp = 0.5;
+  for (let o = 0; o < octaves; o++) {
+    const f = Math.max(1, Math.round(baseFreq * Math.pow(2.1, o)));
+    val += sSmoothWrap(x * (f / baseFreq), y * (f / baseFreq), f) * amp;
+    amp *= 0.48;
+  }
+  return val;
 }
 
 // Smooth multi-octave harmonic synthesis for silky atmospheric clouds
@@ -155,9 +201,76 @@ function harmonicNoise(u: number, v: number, freq: number): number {
 }
 
 /**
- * Generates an ethereal, calm, minimalist celestial texture inspired by Perplexity Zen.
- * Features smooth atmospheric gradients, subtle cloud stratification, and soft limb falloff.
+ * Soft cinematic Zen sun disc — restrained amber/peach plasma, gentle mottling
+ * (not a harsh photoreal fireball). Limb glow handled in SunCore.
  */
+export function generateSolarTexture(): THREE.CanvasTexture {
+  const cached = zenTextureCache.get(SOLAR_GEN_VERSION);
+  if (cached) return cached;
+
+  if (typeof window === "undefined") {
+    return new THREE.CanvasTexture(document.createElement("canvas"));
+  }
+
+  // Restrained warm palette — peach, soft amber, muted copper
+  const deep = { r: 160, g: 72, b: 48 };
+  const mid = { r: 220, g: 140, b: 78 };
+  const bright = { r: 255, g: 210, b: 150 };
+  const hot = { r: 255, g: 236, b: 210 };
+
+  const width = 1024;
+  const height = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const imgData = ctx.createImageData(width, height);
+  const data = imgData.data;
+
+  for (let y = 0; y < height; y++) {
+    const v = y / height;
+    for (let x = 0; x < width; x++) {
+      const u = x / width;
+      const idx = (y * width + x) * 4;
+
+      // Soft large-scale drift + gentle mid mottling (no harsh pores/lanes)
+      const large = sFbmWrapU(u * 3.5 + 1.2, v * 3.5 + 4.1, 3, 3.5);
+      const midN = sFbmWrapU(u * 11 + 2.7, v * 11 + 6.3, 3, 11);
+      const fine = sFbmWrapU(u * 28 + 5.5, v * 28 + 1.9, 2, 28);
+
+      let t = large * 0.55 + midN * 0.3 + fine * 0.2;
+      t = Math.max(0, Math.min(1, (t - 0.15) / 0.7));
+
+      let col: RGB;
+      if (t > 0.65) {
+        col = lerpColor(bright, hot, (t - 0.65) / 0.35);
+      } else if (t > 0.35) {
+        col = lerpColor(mid, bright, (t - 0.35) / 0.3);
+      } else {
+        col = lerpColor(deep, mid, t / 0.35);
+      }
+
+      // Whisper of grain only
+      const grain = sSmoothWrap(u * 160, v * 160, 160);
+      const m = 1 + (grain - 0.5) * 0.05;
+      data[idx] = clamp255(col.r * m);
+      data[idx + 1] = clamp255(col.g * m);
+      data[idx + 2] = clamp255(col.b * m);
+      data[idx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
+  zenTextureCache.set(SOLAR_GEN_VERSION, texture);
+  return texture;
+}
 export function generateZenPlanetTexture(id: SpecialistId | string): THREE.CanvasTexture {
   const cached = zenTextureCache.get(id);
   if (cached) return cached;

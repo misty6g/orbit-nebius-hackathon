@@ -49,7 +49,8 @@ const config: Config = {
         "glass-sm": "inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 10px rgba(0, 0, 0, 0.4)",
         "glass-md": "inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 30px rgba(0, 0, 0, 0.5)",
         "glass-lg": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 40px rgba(0, 0, 0, 0.6)",
-        "zen-dock": "inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 50px rgba(0, 0, 0, 0.6)",
+        "zen-dock":
+          "inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 32px rgba(0, 0, 0, 0.3), 0 20px 50px rgba(0, 0, 0, 0.45)",
       },
     },
   },

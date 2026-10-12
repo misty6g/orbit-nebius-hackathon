@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { SpecialistId, SharedBrainProfile, MorningBriefData, PlanetCustomization, DEFAULT_PLANET_CUSTOMIZATIONS } from "@/types/orbit";
+import {
+  SpecialistId,
+  SharedBrainProfile,
+  MorningBriefData,
+  PlanetCustomization,
+  DEFAULT_PLANET_CUSTOMIZATIONS,
+  NebulaCustomization,
+  DEFAULT_NEBULA_CUSTOMIZATION,
+} from "@/types/orbit";
 import { INITIAL_DEMO_BRAIN, SPECIALISTS } from "@/lib/specialists";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
@@ -25,8 +33,10 @@ import {
   MagnifyingGlass,
   PaperPlaneRight,
   SlidersHorizontal,
+  CaretUp,
+  Check,
 } from "@phosphor-icons/react";
-import { cosmicAudio, AudioEngineState } from "@/lib/audio";
+import { cosmicAudio, AudioEngineState, CosmicTrackId, COSMIC_TRACKS } from "@/lib/audio";
 
 export default function OrbitHome() {
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<SpecialistId | null>(null);
@@ -43,6 +53,9 @@ export default function OrbitHome() {
 
   // Exoplanet Customization State
   const [planetCustomizations, setPlanetCustomizations] = useState<Record<string, PlanetCustomization>>(DEFAULT_PLANET_CUSTOMIZATIONS);
+  const [nebulaCustomization, setNebulaCustomization] = useState<NebulaCustomization>(
+    DEFAULT_NEBULA_CUSTOMIZATION
+  );
 
   // Credentials & Mode
   const [nebiusKey, setNebiusKey] = useState<string>("");
@@ -52,6 +65,7 @@ export default function OrbitHome() {
   // Zen Ambient Audio State
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
+  const [showTrackPicker, setShowTrackPicker] = useState<boolean>(false);
 
   // Solar Dawn 3D Fly-Through Tour State
   const [isTouring, setIsTouring] = useState<boolean>(false);
@@ -121,6 +135,17 @@ export default function OrbitHome() {
       } catch {}
     }
 
+    const savedNebula = localStorage.getItem("orbit_nebula_customization");
+    if (savedNebula) {
+      try {
+        const parsed = JSON.parse(savedNebula) as Partial<NebulaCustomization>;
+        setNebulaCustomization({
+          ...DEFAULT_NEBULA_CUSTOMIZATION,
+          ...parsed,
+        });
+      } catch {}
+    }
+
     // Fetch morning brief
     fetch("/api/brief")
       .then((res) => res.json())
@@ -175,6 +200,12 @@ export default function OrbitHome() {
     cosmicAudio.toggleMusic();
   };
 
+  const handleSelectTrack = (id: CosmicTrackId) => {
+    cosmicAudio.playClick();
+    cosmicAudio.setTrack(id, true);
+    setShowTrackPicker(false);
+  };
+
   const handleVolumeChange = (newVol: number) => {
     if (audioState.isMuted) {
       cosmicAudio.setMuted(false);
@@ -194,9 +225,16 @@ export default function OrbitHome() {
     });
   };
 
+  const handleUpdateNebula = (updated: NebulaCustomization) => {
+    setNebulaCustomization(updated);
+    localStorage.setItem("orbit_nebula_customization", JSON.stringify(updated));
+  };
+
   const handleResetAllCustomizations = () => {
     setPlanetCustomizations(DEFAULT_PLANET_CUSTOMIZATIONS);
     localStorage.removeItem("orbit_planet_customizations");
+    setNebulaCustomization(DEFAULT_NEBULA_CUSTOMIZATION);
+    localStorage.removeItem("orbit_nebula_customization");
   };
 
   const handleOpenCustomizer = (id?: SpecialistId) => {
@@ -263,12 +301,13 @@ export default function OrbitHome() {
         isTouring={isTouring}
         tourStep={tourStep}
         planetCustomizations={planetCustomizations}
+        nebulaCustomization={nebulaCustomization}
       />
 
       {/* Top Left Zen Brand Glyph */}
       {!selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 left-6 z-10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex items-center justify-center shadow-glass-sm hover:border-white/20 transition cursor-pointer active:scale-[0.96]">
+          <div className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.6)] border border-white/5 backdrop-blur-2xl flex items-center justify-center shadow-zen-dock hover:border-white/10 transition cursor-pointer active:scale-[0.96]">
             <svg
               viewBox="0 0 24 24"
               className="w-4 h-4 text-amber-400 fill-none stroke-current stroke-[1.75]"
@@ -296,10 +335,10 @@ export default function OrbitHome() {
           <button
             onClick={handleToggleMockMode}
             title={mockMode ? "Mock AI Active (Zero Credits) - Click to toggle Live Nebius" : "Live Nebius Active - Click to switch to Mock AI"}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono backdrop-blur-xl transition active:scale-[0.98] border ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono backdrop-blur-2xl transition active:scale-[0.98] border ${
               mockMode
-                ? "bg-zinc-900/90 border-emerald-500/40 text-emerald-300 hover:bg-zinc-800/90"
-                : "bg-zinc-900/90 border-amber-500/40 text-amber-300 hover:bg-zinc-800/90"
+                ? "bg-[rgba(10,10,20,0.45)] border-emerald-500/30 text-emerald-300 hover:bg-[rgba(10,10,20,0.65)]"
+                : "bg-[rgba(10,10,20,0.45)] border-amber-500/30 text-amber-300 hover:bg-[rgba(10,10,20,0.65)]"
             }`}
           >
             <Lightning size={12} weight="fill" className={mockMode ? "text-emerald-400" : "text-amber-400"} />
@@ -310,7 +349,7 @@ export default function OrbitHome() {
           <button
             onClick={() => handleOpenCustomizer()}
             title="Open Exoplanet Customization Studio"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 border border-white/10 text-xs font-medium backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[rgba(10,10,20,0.45)] hover:bg-[rgba(10,10,20,0.65)] text-zinc-200 border border-white/5 text-xs font-medium backdrop-blur-2xl transition active:scale-[0.98] shadow-zen-dock"
           >
             <SlidersHorizontal size={14} weight="bold" className="text-amber-400" />
             <span>Planet Studio</span>
@@ -319,7 +358,7 @@ export default function OrbitHome() {
           {/* Quick Play Brief Button */}
           <button
             onClick={startMorningTour}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 border border-white/10 text-xs font-medium backdrop-blur-xl transition active:scale-[0.98] shadow-glass-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[rgba(10,10,20,0.45)] hover:bg-[rgba(10,10,20,0.65)] text-zinc-200 border border-white/5 text-xs font-medium backdrop-blur-2xl transition active:scale-[0.98] shadow-zen-dock"
           >
             <PlayCircle size={15} weight="duotone" className="text-amber-400" />
             <span>Solar Dawn Tour</span>
@@ -332,7 +371,7 @@ export default function OrbitHome() {
               setShowBrainInspector(true);
             }}
             title="Inspect Sovereign Shared Brain"
-            className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
+            className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 text-zinc-300 hover:text-white backdrop-blur-2xl flex items-center justify-center transition active:scale-[0.96] shadow-zen-dock"
           >
             <Brain size={15} weight="duotone" />
           </button>
@@ -344,21 +383,21 @@ export default function OrbitHome() {
               setShowApiKeyGate(true);
             }}
             title="Configure Nebius & Tavily Keys"
-            className="w-8 h-8 rounded-full bg-zinc-900/80 hover:bg-zinc-800 border border-white/10 text-zinc-300 hover:text-white backdrop-blur-xl flex items-center justify-center transition active:scale-[0.96]"
+            className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 text-zinc-300 hover:text-white backdrop-blur-2xl flex items-center justify-center transition active:scale-[0.96] shadow-zen-dock"
           >
             <Key size={15} weight="duotone" />
           </button>
         </div>
       )}
 
-      {/* Bottom Left Zen Ambient Music Player with Volume Control */}
+      {/* Bottom Left Zen Ambient Music Player with Volume + Track Picker */}
       {!selectedSpecialistId && !isTouring && (
-        <div className="absolute bottom-6 left-6 z-10 flex items-center gap-2">
+        <div className="absolute bottom-6 left-6 z-10 flex items-end gap-2">
           {/* Circular Play / Pause Button */}
           <button
             onClick={toggleAudio}
-            title={audioState.isPlaying ? "Pause Zen Ambient Music" : "Play Zen Ambient Music"}
-            className="w-9 h-9 rounded-full bg-zinc-950/90 hover:bg-zinc-900 border border-white/10 hover:border-amber-400/40 backdrop-blur-xl flex items-center justify-center text-zinc-300 hover:text-white transition active:scale-[0.96] shadow-glass-sm group"
+            title={audioState.isPlaying ? "Pause Cosmic Audio" : "Play Cosmic Audio"}
+            className="w-9 h-9 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 hover:border-amber-400/40 backdrop-blur-2xl flex items-center justify-center text-zinc-300 hover:text-white transition active:scale-[0.96] shadow-zen-dock group"
           >
             {audioState.isPlaying ? (
               <Pause size={14} weight="fill" className="text-amber-400" />
@@ -367,49 +406,119 @@ export default function OrbitHome() {
             )}
           </button>
 
-          {/* Equalizer Waveform Pill with Track Info */}
-          <button
-            onClick={toggleAudio}
-            title={audioState.isPlaying ? "Pause Deep Space Soundscape (Astrovia - Brown Dwarf)" : "Play Deep Space Soundscape (Astrovia - Brown Dwarf)"}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-950/90 border border-white/10 hover:border-white/20 backdrop-blur-xl cursor-pointer transition shadow-glass-sm active:scale-[0.98] group"
-          >
-            <div className="flex items-end gap-1 h-4">
-              <span
-                className={`w-0.5 rounded-full transition-all ${
-                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-1 bg-amber-400" : "h-1.5 bg-zinc-500 opacity-40"
-                }`}
+          {/* Track pill + picker */}
+          <div className="relative">
+            {showTrackPicker && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowTrackPicker(false)}
+                />
+                <div className="absolute bottom-full left-0 mb-2 z-20 w-64 p-1.5 rounded-2xl bg-[rgba(10,10,20,0.92)] border border-white/10 backdrop-blur-2xl shadow-zen-dock">
+                  <div className="px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                    Cosmic Audio
+                  </div>
+                  <div className="space-y-0.5">
+                    {COSMIC_TRACKS.map((track) => {
+                      const active = track.id === audioState.trackId;
+                      return (
+                        <button
+                          key={track.id}
+                          onClick={() => handleSelectTrack(track.id)}
+                          className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-left transition active:scale-[0.99] ${
+                            active
+                              ? "bg-amber-500/10 border border-amber-400/35"
+                              : "border border-transparent hover:bg-white/5"
+                          }`}
+                        >
+                          <span className="mt-0.5 w-4 shrink-0 flex justify-center">
+                            {active ? (
+                              <Check size={12} weight="bold" className="text-amber-400" />
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-600 mt-1" />
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span
+                              className={`block text-[11px] font-mono ${
+                                active ? "text-amber-200" : "text-zinc-200"
+                              }`}
+                            >
+                              {track.title}
+                            </span>
+                            <span className="block text-[10px] font-mono text-zinc-500 truncate">
+                              {track.subtitle}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                cosmicAudio.playClick();
+                setShowTrackPicker((v) => !v);
+              }}
+              title={`Select track · ${audioState.trackTitle}`}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(10,10,20,0.55)] border border-white/5 hover:border-white/10 backdrop-blur-2xl cursor-pointer transition shadow-zen-dock active:scale-[0.98] group"
+            >
+              <div className="flex items-end gap-1 h-4">
+                <span
+                  className={`w-0.5 rounded-full transition-all ${
+                    audioState.isPlaying && !audioState.isMuted
+                      ? "zen-eq-bar-1 bg-amber-400"
+                      : "h-1.5 bg-zinc-500 opacity-40"
+                  }`}
+                />
+                <span
+                  className={`w-0.5 rounded-full transition-all ${
+                    audioState.isPlaying && !audioState.isMuted
+                      ? "zen-eq-bar-2 bg-amber-300"
+                      : "h-2.5 bg-zinc-400 opacity-40"
+                  }`}
+                />
+                <span
+                  className={`w-0.5 rounded-full transition-all ${
+                    audioState.isPlaying && !audioState.isMuted
+                      ? "zen-eq-bar-3 bg-amber-400"
+                      : "h-3.5 bg-amber-400/50 opacity-40"
+                  }`}
+                />
+                <span
+                  className={`w-0.5 rounded-full transition-all ${
+                    audioState.isPlaying && !audioState.isMuted
+                      ? "zen-eq-bar-4 bg-amber-300"
+                      : "h-2 bg-zinc-400 opacity-40"
+                  }`}
+                />
+                <span
+                  className={`w-0.5 rounded-full transition-all ${
+                    audioState.isPlaying && !audioState.isMuted
+                      ? "zen-eq-bar-5 bg-amber-400"
+                      : "h-1.5 bg-zinc-500 opacity-40"
+                  }`}
+                />
+              </div>
+              <span className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-200 transition max-w-[9.5rem] truncate">
+                {audioState.isPlaying ? audioState.trackTitle : "Cosmic Audio"}
+              </span>
+              <CaretUp
+                size={11}
+                weight="bold"
+                className={`text-zinc-500 transition ${showTrackPicker ? "rotate-180 text-amber-400" : ""}`}
               />
-              <span
-                className={`w-0.5 rounded-full transition-all ${
-                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-2 bg-amber-300" : "h-2.5 bg-zinc-400 opacity-40"
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full transition-all ${
-                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-3 bg-amber-400" : "h-3.5 bg-amber-400/50 opacity-40"
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full transition-all ${
-                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-4 bg-amber-300" : "h-2 bg-zinc-400 opacity-40"
-                }`}
-              />
-              <span
-                className={`w-0.5 rounded-full transition-all ${
-                  audioState.isPlaying && !audioState.isMuted ? "zen-eq-bar-5 bg-amber-400" : "h-1.5 bg-zinc-500 opacity-40"
-                }`}
-              />
-            </div>
-            <span className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-200 transition">
-              {audioState.isPlaying ? "Deep Space Ambient" : "Cosmic Audio"}
-            </span>
-          </button>
+            </button>
+          </div>
 
           {/* Volume Control Pill with Hover/Click Slider */}
           <div
             onMouseEnter={() => setShowVolumeSlider(true)}
             onMouseLeave={() => setShowVolumeSlider(false)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-zinc-950/90 border border-white/10 hover:border-white/20 backdrop-blur-xl transition shadow-glass-sm"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[rgba(10,10,20,0.55)] border border-white/5 hover:border-white/10 backdrop-blur-2xl transition shadow-zen-dock"
           >
             <button
               onClick={toggleMute}
@@ -425,7 +534,6 @@ export default function OrbitHome() {
               )}
             </button>
 
-            {/* Expandable Slider */}
             <div
               className={`flex items-center gap-1.5 overflow-hidden transition-all duration-200 ${
                 showVolumeSlider ? "w-24 opacity-100" : "w-0 opacity-0 pointer-events-none"
@@ -452,11 +560,11 @@ export default function OrbitHome() {
       {/* Center Bottom Integrated Zen Command Dock (Perplexity Zen style) */}
       {!selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-4 flex flex-col items-center">
-          <div className="w-full p-2 rounded-2xl bg-zinc-950/90 border border-white/10 backdrop-blur-2xl shadow-zen-dock space-y-2">
+          <div className="w-full p-2 rounded-2xl bg-[rgba(10,10,20,0.45)] border border-white/5 backdrop-blur-2xl shadow-zen-dock space-y-2">
             {/* Zen Command Bar Input */}
             <form
               onSubmit={handleQuickSubmit}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-zinc-900/60 border border-white/5 hover:border-white/10 transition group"
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[rgba(10,10,20,0.35)] border border-white/5 hover:border-white/10 transition group"
             >
               <Sparkle size={15} weight="duotone" className="text-amber-400 shrink-0" />
               <input
@@ -589,6 +697,8 @@ export default function OrbitHome() {
         onUpdateCustomization={handleUpdateCustomization}
         onResetAll={handleResetAllCustomizations}
         initialPlanetId={customizerPlanetId}
+        nebulaCustomization={nebulaCustomization}
+        onUpdateNebula={handleUpdateNebula}
       />
     </main>
   );

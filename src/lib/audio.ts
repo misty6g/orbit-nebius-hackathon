@@ -1,27 +1,217 @@
 // Deep Space Atmospheric Zen Audio Engine for cosmic soundscapes and tactile UI feedback.
-// Powered by Astrovia's "Brown Dwarf" (Spectrum and Luminosity, CC BY-SA 4.0)
-// and a multi-layered procedural Web Audio deep-space synthesizer with gravitational sub-bass,
-// stereo nebula shimmer pads, and organic starlight twinkle resonance.
+// Track "Brown Dwarf" by Astrovia (Spectrum and Luminosity, CC BY-SA 4.0) plus
+// procedural Web Audio synth profiles for additional ambient options.
+
+export type CosmicTrackId =
+  | "brown-dwarf"
+  | "nebula-drift"
+  | "void-hum"
+  | "starlight-choir"
+  | "ion-wake";
+
+export type SynthProfileId =
+  | "brown-dwarf"
+  | "nebula-drift"
+  | "void-hum"
+  | "starlight-choir"
+  | "ion-wake";
+
+export interface CosmicTrack {
+  id: CosmicTrackId;
+  title: string;
+  subtitle: string;
+  /** Optional looping mp3 under /public/audio */
+  src?: string;
+  /** Layer procedural synth under/alongside the file */
+  useSynth: boolean;
+  synthProfile: SynthProfileId;
+}
+
+export const COSMIC_TRACKS: CosmicTrack[] = [
+  {
+    id: "brown-dwarf",
+    title: "Brown Dwarf",
+    subtitle: "Astrovia · deep space ambient",
+    src: "/audio/zen_ambient.mp3",
+    useSynth: true,
+    synthProfile: "brown-dwarf",
+  },
+  {
+    id: "nebula-drift",
+    title: "Nebula Drift",
+    subtitle: "Soft pads · slow cosmic breath",
+    useSynth: true,
+    synthProfile: "nebula-drift",
+  },
+  {
+    id: "void-hum",
+    title: "Void Hum",
+    subtitle: "Gravitational sub-bass drone",
+    useSynth: true,
+    synthProfile: "void-hum",
+  },
+  {
+    id: "starlight-choir",
+    title: "Starlight Choir",
+    subtitle: "Bright glass · frequent twinkles",
+    useSynth: true,
+    synthProfile: "starlight-choir",
+  },
+  {
+    id: "ion-wake",
+    title: "Ion Wake",
+    subtitle: "Pulse haze · ion-trail shimmer",
+    useSynth: true,
+    synthProfile: "ion-wake",
+  },
+];
 
 export interface AudioEngineState {
   isPlaying: boolean;
   isMuted: boolean;
   volume: number;
+  trackId: CosmicTrackId;
   trackTitle: string;
 }
 
 type AudioListener = (state: AudioEngineState) => void;
 
+interface SynthProfileConfig {
+  subVol: number;
+  padVolScale: number;
+  padCutoff: number;
+  lfoRate: number;
+  lfoDepth: number;
+  padVoices: Array<{
+    freq: number;
+    detune: number;
+    type: OscillatorType;
+    vol: number;
+    pan: number;
+  }>;
+  twinkleMinMs: number;
+  twinkleMaxMs: number;
+  twinklePeak: number;
+  twinkleFreqs: number[];
+  masterSynthGain: number;
+}
+
+const SYNTH_PROFILES: Record<SynthProfileId, SynthProfileConfig> = {
+  "brown-dwarf": {
+    subVol: 0.28,
+    padVolScale: 1,
+    padCutoff: 420,
+    lfoRate: 0.042,
+    lfoDepth: 180,
+    masterSynthGain: 0.24,
+    twinkleMinMs: 4500,
+    twinkleMaxMs: 9000,
+    twinklePeak: 0.02,
+    twinkleFreqs: [880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0],
+    padVoices: [
+      { freq: 73.42, detune: 0.5, type: "sine", vol: 0.22, pan: 0.0 },
+      { freq: 110.0, detune: -0.6, type: "triangle", vol: 0.18, pan: -0.4 },
+      { freq: 174.61, detune: 0.8, type: "sine", vol: 0.15, pan: 0.4 },
+      { freq: 261.63, detune: -0.7, type: "sine", vol: 0.12, pan: -0.6 },
+      { freq: 329.63, detune: 1.1, type: "sine", vol: 0.1, pan: 0.6 },
+      { freq: 440.0, detune: -0.9, type: "sine", vol: 0.08, pan: 0.0 },
+      { freq: 523.25, detune: 1.3, type: "sine", vol: 0.05, pan: 0.3 },
+    ],
+  },
+  "nebula-drift": {
+    subVol: 0.14,
+    padVolScale: 1.15,
+    padCutoff: 560,
+    lfoRate: 0.028,
+    lfoDepth: 220,
+    masterSynthGain: 0.22,
+    twinkleMinMs: 6000,
+    twinkleMaxMs: 12000,
+    twinklePeak: 0.014,
+    twinkleFreqs: [698.46, 830.61, 987.77, 1174.66],
+    padVoices: [
+      { freq: 65.41, detune: 0.3, type: "sine", vol: 0.18, pan: 0.0 },
+      { freq: 98.0, detune: -0.4, type: "sine", vol: 0.16, pan: -0.5 },
+      { freq: 146.83, detune: 0.6, type: "triangle", vol: 0.14, pan: 0.5 },
+      { freq: 196.0, detune: -0.5, type: "sine", vol: 0.12, pan: -0.3 },
+      { freq: 293.66, detune: 0.8, type: "sine", vol: 0.1, pan: 0.35 },
+      { freq: 392.0, detune: -0.7, type: "sine", vol: 0.07, pan: 0.0 },
+    ],
+  },
+  "void-hum": {
+    subVol: 0.42,
+    padVolScale: 0.35,
+    padCutoff: 180,
+    lfoRate: 0.018,
+    lfoDepth: 60,
+    masterSynthGain: 0.26,
+    twinkleMinMs: 10000,
+    twinkleMaxMs: 18000,
+    twinklePeak: 0.008,
+    twinkleFreqs: [220.0, 277.18, 329.63],
+    padVoices: [
+      { freq: 36.71, detune: 0.2, type: "sine", vol: 0.3, pan: 0.0 },
+      { freq: 55.0, detune: -0.3, type: "sine", vol: 0.22, pan: -0.2 },
+      { freq: 82.41, detune: 0.4, type: "triangle", vol: 0.12, pan: 0.25 },
+      { freq: 110.0, detune: -0.2, type: "sine", vol: 0.08, pan: 0.0 },
+    ],
+  },
+  "starlight-choir": {
+    subVol: 0.1,
+    padVolScale: 1.05,
+    padCutoff: 900,
+    lfoRate: 0.055,
+    lfoDepth: 260,
+    masterSynthGain: 0.2,
+    twinkleMinMs: 1800,
+    twinkleMaxMs: 4200,
+    twinklePeak: 0.028,
+    twinkleFreqs: [1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0],
+    padVoices: [
+      { freq: 130.81, detune: 0.5, type: "sine", vol: 0.14, pan: -0.4 },
+      { freq: 196.0, detune: -0.6, type: "triangle", vol: 0.12, pan: 0.4 },
+      { freq: 261.63, detune: 0.7, type: "sine", vol: 0.14, pan: 0.0 },
+      { freq: 329.63, detune: -0.5, type: "sine", vol: 0.11, pan: -0.55 },
+      { freq: 392.0, detune: 0.9, type: "sine", vol: 0.1, pan: 0.55 },
+      { freq: 523.25, detune: -0.8, type: "sine", vol: 0.08, pan: 0.2 },
+      { freq: 659.25, detune: 1.0, type: "sine", vol: 0.06, pan: -0.2 },
+    ],
+  },
+  "ion-wake": {
+    subVol: 0.2,
+    padVolScale: 0.95,
+    padCutoff: 680,
+    lfoRate: 0.09,
+    lfoDepth: 320,
+    masterSynthGain: 0.23,
+    twinkleMinMs: 3000,
+    twinkleMaxMs: 6500,
+    twinklePeak: 0.018,
+    twinkleFreqs: [739.99, 987.77, 1244.51, 1479.98],
+    padVoices: [
+      { freq: 77.78, detune: 1.2, type: "sawtooth", vol: 0.06, pan: -0.3 },
+      { freq: 103.83, detune: -1.0, type: "sine", vol: 0.16, pan: 0.0 },
+      { freq: 155.56, detune: 0.8, type: "triangle", vol: 0.14, pan: 0.45 },
+      { freq: 233.08, detune: -0.9, type: "sine", vol: 0.12, pan: -0.45 },
+      { freq: 311.13, detune: 1.1, type: "sine", vol: 0.1, pan: 0.3 },
+      { freq: 466.16, detune: -0.7, type: "sine", vol: 0.07, pan: 0.0 },
+    ],
+  },
+};
+
+function resolveTrack(id: string | null | undefined): CosmicTrack {
+  return COSMIC_TRACKS.find((t) => t.id === id) || COSMIC_TRACKS[0];
+}
+
 class CosmicAudioEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private isPlaying: boolean = false;
-  private masterVolume: number = 0.8; // Calibrated 80% volume for rich clarity
+  private masterVolume: number = 0.8;
   private bgAudio: HTMLAudioElement | null = null;
   private listeners: Set<AudioListener> = new Set();
-  private trackTitle: string = "Astrovia - Brown Dwarf";
+  private currentTrack: CosmicTrack = COSMIC_TRACKS[0];
 
-  // Procedural Deep Space Synth State
   private synthGain: GainNode | null = null;
   private synthOscs: OscillatorNode[] = [];
   private synthLfos: OscillatorNode[] = [];
@@ -37,7 +227,9 @@ class CosmicAudioEngine {
         }
       }
 
-      // Auto-unlock AudioContext on first user interaction anywhere
+      const savedTrack = localStorage.getItem("orbit_audio_track");
+      this.currentTrack = resolveTrack(savedTrack);
+
       const unlock = () => {
         this.initContext();
         window.removeEventListener("pointerdown", unlock);
@@ -46,6 +238,14 @@ class CosmicAudioEngine {
       window.addEventListener("pointerdown", unlock, { once: true });
       window.addEventListener("keydown", unlock, { once: true });
     }
+  }
+
+  public getTracks(): CosmicTrack[] {
+    return COSMIC_TRACKS;
+  }
+
+  public getTrackId(): CosmicTrackId {
+    return this.currentTrack.id;
   }
 
   public subscribe(listener: AudioListener): () => void {
@@ -72,7 +272,8 @@ class CosmicAudioEngine {
       isPlaying: this.isPlaying,
       isMuted: this.isMuted,
       volume: this.masterVolume,
-      trackTitle: this.trackTitle,
+      trackId: this.currentTrack.id,
+      trackTitle: this.currentTrack.title,
     };
   }
 
@@ -88,32 +289,38 @@ class CosmicAudioEngine {
     }
   }
 
-  private initBgAudio() {
-    if (typeof window !== "undefined" && !this.bgAudio) {
-      this.bgAudio = new Audio("/audio/zen_ambient.mp3");
+  private ensureBgAudio(src: string) {
+    if (typeof window === "undefined") return;
+    if (!this.bgAudio) {
+      this.bgAudio = new Audio(src);
       this.bgAudio.loop = true;
-      this.bgAudio.volume = this.masterVolume;
       this.bgAudio.preload = "auto";
       this.bgAudio.onerror = (e) => {
         console.warn("Background audio element error:", e);
       };
+    } else if (this.bgAudio.getAttribute("data-src") !== src) {
+      this.bgAudio.pause();
+      this.bgAudio.src = src;
     }
+    this.bgAudio.setAttribute("data-src", src);
+    this.bgAudio.volume = this.isMuted ? 0 : this.masterVolume;
   }
 
-  // Multi-Layered Procedural Deep-Space Synthesizer
   private startSynth() {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.currentTrack.useSynth) return;
     this.stopSynth();
+
+    const profile = SYNTH_PROFILES[this.currentTrack.synthProfile];
 
     try {
       const now = this.ctx.currentTime;
       const synthGain = this.ctx.createGain();
       synthGain.gain.setValueAtTime(0.001, now);
-      // Smooth fade-in over 1.6s
-      const targetGain = this.isMuted ? 0.0001 : 0.24 * this.masterVolume;
+      const targetGain = this.isMuted
+        ? 0.0001
+        : profile.masterSynthGain * this.masterVolume;
       synthGain.gain.linearRampToValueAtTime(targetGain, now + 1.6);
 
-      // Layer 1: Gravitational Sub-Bass Space Drone (Spacecraft Hull Resonance)
       const subFilter = this.ctx.createBiquadFilter();
       subFilter.type = "lowpass";
       subFilter.frequency.setValueAtTime(95, now);
@@ -122,12 +329,12 @@ class CosmicAudioEngine {
       const subOsc1 = this.ctx.createOscillator();
       const subOsc2 = this.ctx.createOscillator();
       const subGain = this.ctx.createGain();
-      subGain.gain.setValueAtTime(0.28, now);
+      subGain.gain.setValueAtTime(profile.subVol, now);
 
       subOsc1.type = "sine";
-      subOsc1.frequency.setValueAtTime(55.0, now); // A1 deep drone
+      subOsc1.frequency.setValueAtTime(55.0, now);
       subOsc2.type = "sine";
-      subOsc2.frequency.setValueAtTime(82.4, now); // E2 fifth drone
+      subOsc2.frequency.setValueAtTime(82.4, now);
 
       subOsc1.connect(subFilter);
       subOsc2.connect(subFilter);
@@ -138,44 +345,30 @@ class CosmicAudioEngine {
       subOsc2.start(now);
       this.synthOscs.push(subOsc1, subOsc2);
 
-      // Layer 2: Nebula Shimmer Pad (Expansive Minor 9th Space Chord)
       const padFilter = this.ctx.createBiquadFilter();
       padFilter.type = "lowpass";
-      padFilter.frequency.setValueAtTime(420, now);
+      padFilter.frequency.setValueAtTime(profile.padCutoff, now);
       padFilter.Q.setValueAtTime(2.2, now);
 
-      // Slow cosmic breathing LFO sweeps the pad filter cutoff (24s cycle)
       const lfo1 = this.ctx.createOscillator();
       const lfoGain1 = this.ctx.createGain();
-      lfo1.frequency.setValueAtTime(0.042, now);
-      lfoGain1.gain.setValueAtTime(180, now);
+      lfo1.frequency.setValueAtTime(profile.lfoRate, now);
+      lfoGain1.gain.setValueAtTime(profile.lfoDepth, now);
       lfo1.connect(lfoGain1);
       lfoGain1.connect(padFilter.frequency);
       lfo1.start(now);
       this.synthLfos.push(lfo1);
 
-      // Celestial voices: D2, A2, F3, C4, E4, A4, C5
-      const padVoices = [
-        { freq: 73.42, detune: 0.5, type: "sine" as const, vol: 0.22, pan: 0.0 },
-        { freq: 110.0, detune: -0.6, type: "triangle" as const, vol: 0.18, pan: -0.4 },
-        { freq: 174.61, detune: 0.8, type: "sine" as const, vol: 0.15, pan: 0.4 },
-        { freq: 261.63, detune: -0.7, type: "sine" as const, vol: 0.12, pan: -0.6 },
-        { freq: 329.63, detune: 1.1, type: "sine" as const, vol: 0.10, pan: 0.6 },
-        { freq: 440.0, detune: -0.9, type: "sine" as const, vol: 0.08, pan: 0.0 },
-        { freq: 523.25, detune: 1.3, type: "sine" as const, vol: 0.05, pan: 0.3 },
-      ];
-
-      padVoices.forEach((v) => {
+      profile.padVoices.forEach((v) => {
         const osc = this.ctx!.createOscillator();
         const vGain = this.ctx!.createGain();
 
         osc.type = v.type;
         osc.frequency.setValueAtTime(v.freq + v.detune, now);
-        vGain.gain.setValueAtTime(v.vol, now);
+        vGain.gain.setValueAtTime(v.vol * profile.padVolScale, now);
 
         osc.connect(vGain);
 
-        // Spatial Stereo Panning
         const panner = this.ctx!.createStereoPanner();
         panner.pan.setValueAtTime(v.pan, now);
         vGain.connect(panner);
@@ -189,24 +382,26 @@ class CosmicAudioEngine {
       synthGain.connect(this.ctx.destination);
       this.synthGain = synthGain;
 
-      // Layer 3: Organic Starlight Twinkles (Occasional gentle cosmic glass pings)
       this.scheduleStarlightTwinkles();
     } catch (e) {
       console.warn("Synth start warning:", e);
     }
   }
 
-  // Periodic distant celestial crystal chimes
   private scheduleStarlightTwinkles() {
-    if (!this.isPlaying || !this.ctx || this.isMuted) return;
+    if (!this.isPlaying || !this.ctx || this.isMuted || !this.currentTrack.useSynth)
+      return;
 
-    const delayMs = 4500 + Math.random() * 4500; // Trigger every 4.5 to 9 seconds
+    const profile = SYNTH_PROFILES[this.currentTrack.synthProfile];
+    const span = Math.max(500, profile.twinkleMaxMs - profile.twinkleMinMs);
+    const delayMs = profile.twinkleMinMs + Math.random() * span;
+
     this.twinkleTimeout = setTimeout(() => {
       if (!this.isPlaying || !this.ctx || this.isMuted) return;
 
       try {
         const now = this.ctx.currentTime;
-        const freqs = [880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
+        const freqs = profile.twinkleFreqs;
         const freq = freqs[Math.floor(Math.random() * freqs.length)];
 
         const osc = this.ctx.createOscillator();
@@ -215,8 +410,9 @@ class CosmicAudioEngine {
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, now);
 
-        // Soft attack, long ethereal 2.8s decay
-        const peak = (0.015 + Math.random() * 0.015) * this.masterVolume;
+        const peak =
+          (profile.twinklePeak * 0.6 + Math.random() * profile.twinklePeak * 0.4) *
+          this.masterVolume;
         gain.gain.setValueAtTime(0.0001, now);
         gain.gain.linearRampToValueAtTime(peak, now + 0.15);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
@@ -247,13 +443,21 @@ class CosmicAudioEngine {
         const gain = this.synthGain;
         setTimeout(() => {
           oscs.forEach((o) => {
-            try { o.stop(); o.disconnect(); } catch {}
+            try {
+              o.stop();
+              o.disconnect();
+            } catch {}
           });
           lfos.forEach((l) => {
-            try { l.stop(); l.disconnect(); } catch {}
+            try {
+              l.stop();
+              l.disconnect();
+            } catch {}
           });
           if (gain) {
-            try { gain.disconnect(); } catch {}
+            try {
+              gain.disconnect();
+            } catch {}
           }
         }, 600);
       } catch {}
@@ -263,25 +467,56 @@ class CosmicAudioEngine {
     }
   }
 
+  public async setTrack(id: CosmicTrackId, autoPlay = true): Promise<void> {
+    const next = resolveTrack(id);
+    const wasPlaying = this.isPlaying;
+    const changed = next.id !== this.currentTrack.id;
+
+    this.currentTrack = next;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("orbit_audio_track", next.id);
+    }
+    this.notify();
+
+    if (!changed && wasPlaying) return;
+
+    if (wasPlaying || autoPlay) {
+      await this.playMusic();
+    }
+  }
+
   public async playMusic(): Promise<void> {
     this.initContext();
-    this.initBgAudio();
 
     this.isPlaying = true;
     this.isMuted = false;
     this.notify();
 
-    // Start instant procedural deep-space synthesizer
-    this.startSynth();
+    if (this.currentTrack.useSynth) {
+      this.startSynth();
+    } else {
+      this.stopSynth();
+    }
 
-    // Start high-definition deep space ambient soundtrack
-    if (this.bgAudio) {
-      this.bgAudio.volume = this.masterVolume;
-      try {
-        await this.bgAudio.play();
-      } catch (err) {
-        console.warn("HTML5 audio playback blocked by policy, fallback synth active:", err);
+    if (this.currentTrack.src) {
+      this.ensureBgAudio(this.currentTrack.src);
+      if (this.bgAudio) {
+        this.bgAudio.volume = this.masterVolume;
+        try {
+          // Restart from start when switching into a file track
+          if (this.bgAudio.paused || this.bgAudio.getAttribute("data-src") === this.currentTrack.src) {
+            // keep position if same track resume; reset if we just set src
+          }
+          await this.bgAudio.play();
+        } catch (err) {
+          console.warn(
+            "HTML5 audio playback blocked by policy, fallback synth active:",
+            err
+          );
+        }
       }
+    } else if (this.bgAudio) {
+      this.bgAudio.pause();
     }
   }
 
@@ -319,8 +554,11 @@ class CosmicAudioEngine {
     }
 
     if (this.synthGain && this.ctx) {
+      const profile = SYNTH_PROFILES[this.currentTrack.synthProfile];
       const now = this.ctx.currentTime;
-      const target = this.isMuted ? 0.0001 : 0.24 * this.masterVolume;
+      const target = this.isMuted
+        ? 0.0001
+        : profile.masterSynthGain * this.masterVolume;
       this.synthGain.gain.linearRampToValueAtTime(target, now + 0.1);
     }
 
@@ -337,9 +575,21 @@ class CosmicAudioEngine {
       this.bgAudio.volume = muted ? 0 : this.masterVolume;
     }
     if (this.synthGain && this.ctx) {
+      const profile = SYNTH_PROFILES[this.currentTrack.synthProfile];
       const now = this.ctx.currentTime;
-      const target = muted ? 0.0001 : 0.24 * this.masterVolume;
+      const target = muted
+        ? 0.0001
+        : profile.masterSynthGain * this.masterVolume;
       this.synthGain.gain.linearRampToValueAtTime(target, now + 0.1);
+    }
+    if (!muted && this.isPlaying && this.currentTrack.useSynth && !this.synthGain) {
+      this.startSynth();
+    }
+    if (muted && this.twinkleTimeout) {
+      clearTimeout(this.twinkleTimeout);
+      this.twinkleTimeout = null;
+    } else if (!muted && this.isPlaying) {
+      this.scheduleStarlightTwinkles();
     }
     this.notify();
   }
@@ -413,7 +663,7 @@ class CosmicAudioEngine {
 
     try {
       const now = this.ctx.currentTime;
-      const freqs = [523.25, 659.25, 783.99, 1046.5]; // C major chord arpeggio
+      const freqs = [523.25, 659.25, 783.99, 1046.5];
       freqs.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
@@ -422,7 +672,10 @@ class CosmicAudioEngine {
         osc.frequency.setValueAtTime(freq, now + idx * 0.06);
 
         gain.gain.setValueAtTime(0.001, now + idx * 0.06);
-        gain.gain.linearRampToValueAtTime(0.03 * this.masterVolume, now + idx * 0.06 + 0.02);
+        gain.gain.linearRampToValueAtTime(
+          0.03 * this.masterVolume,
+          now + idx * 0.06 + 0.02
+        );
         gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.06 + 0.6);
 
         osc.connect(gain);

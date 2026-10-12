@@ -54,7 +54,7 @@ export function PlanetScreenTracker({
 
     const camDist = camera.position.length();
     // Show off-screen nametags when zoomed in on a specialist OR when camera is closer than overview
-    const isZoomed = selectedSpecialistId !== null || camDist < 60;
+    const isZoomed = selectedSpecialistId !== null || camDist < 28;
 
     if (!isZoomed) {
       container.style.opacity = "0";
@@ -193,7 +193,7 @@ export function OffScreenIndicatorsOverlay({
             e.stopPropagation();
             onSelectSpecialist(planet.id);
           }}
-          className="absolute items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#07080a]/92 border border-white/15 hover:border-amber-400 hover:bg-zinc-900 shadow-zen-dock backdrop-blur-xl pointer-events-auto cursor-pointer select-none transition-all group active:scale-95"
+          className="absolute items-center gap-1.5 px-3 py-1.5 rounded-full bg-[rgba(10,10,20,0.55)] border border-white/5 hover:border-amber-400/50 hover:bg-[rgba(10,10,20,0.75)] shadow-zen-dock backdrop-blur-2xl pointer-events-auto cursor-pointer select-none transition-all group active:scale-95"
           title={`Warp camera to ${planet.name}`}
         >
           <span className="badge-chevron text-[11px] text-amber-400 font-mono transition-transform group-hover:scale-125">
