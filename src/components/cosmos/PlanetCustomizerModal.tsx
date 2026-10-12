@@ -19,9 +19,13 @@ import {
 import { SPECIALISTS } from "@/lib/specialists";
 import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/exoplanetTextures";
 import {
-  createNightFillMaterial,
-  createDayBoostMaterial,
+  createSoftLitMaterial,
   NIGHT_FLOOR,
+  PLANET_SPHERE_WIDTH,
+  PLANET_SPHERE_HEIGHT,
+  PLANET_SHELL_WIDTH,
+  PLANET_SHELL_HEIGHT,
+  STUDIO_SUN_POS,
 } from "@/lib/softPlanetLighting";
 import {
   X,
@@ -48,7 +52,7 @@ interface PlanetCustomizerModalProps {
   onUpdateNebula?: (updated: NebulaCustomization) => void;
 }
 
-/** Live preview uses the same soft-lit dual-layer path as the cosmos. */
+/** Live preview uses the same soft-lit analytical-normal path as the cosmos. */
 function CustomizerPreviewMesh({
   custom,
   planetId,
@@ -57,27 +61,25 @@ function CustomizerPreviewMesh({
   planetId: SpecialistId;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const dayBoostRef = useRef<THREE.Mesh>(null);
   const moonRefs = useRef<Array<THREE.Group | null>>([]);
   const moonAngles = useRef<number[]>([0, 2, 4]);
 
   const textures = useMemo(() => generateExoplanetTextures(custom), [custom]);
 
-  const nightFillMaterial = useMemo(
-    () => createNightFillMaterial(textures.colorMap, NIGHT_FLOOR),
-    [textures.colorMap]
-  );
-  const dayBoostMaterial = useMemo(
-    () => createDayBoostMaterial(textures.colorMap, NIGHT_FLOOR),
+  const softLitMaterial = useMemo(
+    () =>
+      createSoftLitMaterial(textures.colorMap, {
+        nightFloor: NIGHT_FLOOR,
+        sunPos: STUDIO_SUN_POS,
+      }),
     [textures.colorMap]
   );
 
   useEffect(() => {
     return () => {
-      nightFillMaterial.dispose();
-      dayBoostMaterial.dispose();
+      softLitMaterial.dispose();
     };
-  }, [nightFillMaterial, dayBoostMaterial]);
+  }, [softLitMaterial]);
 
   const ringTexture = useMemo(() => {
     if (custom.hasRings && custom.ringStyle !== "none") {
@@ -115,23 +117,24 @@ function CustomizerPreviewMesh({
   const fresnelMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: /* glsl */ `
-        varying vec3 vNormalW;
+        varying vec3 vSphereRadiusW;
         varying vec3 vWorldPos;
         void main() {
-          vNormalW = normalize(mat3(modelMatrix) * normal);
+          vSphereRadiusW = mat3(modelMatrix) * position;
           vec4 wp = modelMatrix * vec4(position, 1.0);
           vWorldPos = wp.xyz;
           gl_Position = projectionMatrix * viewMatrix * wp;
         }
       `,
       fragmentShader: /* glsl */ `
-        varying vec3 vNormalW;
+        precision highp float;
+        varying vec3 vSphereRadiusW;
         varying vec3 vWorldPos;
         uniform vec3 uColor;
         uniform float uIntensity;
         void main() {
-          vec3 lightDir = normalize(vec3(4.0, 3.0, 5.0));
-          vec3 N = normalize(vNormalW);
+          vec3 lightDir = normalize(vec3(4.5, 3.2, 5.5));
+          vec3 N = normalize(vSphereRadiusW);
           float lit = smoothstep(-0.1, 0.75, dot(N, lightDir));
           vec3 V = normalize(cameraPosition - vWorldPos);
           float fresnel = pow(1.0 - abs(dot(V, N)), 2.6);
@@ -186,9 +189,6 @@ function CustomizerPreviewMesh({
   useFrame((_, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * 0.32;
-      if (dayBoostRef.current) {
-        dayBoostRef.current.rotation.copy(meshRef.current.rotation);
-      }
     }
     const tint = new THREE.Color(custom.secondaryColor)
       .lerp(new THREE.Color("#7ab8b4"), 0.35)
@@ -210,33 +210,32 @@ function CustomizerPreviewMesh({
 
   return (
     <group>
-      {/* Soft key + fill matching cosmos night≈0.7× day */}
-      <ambientLight intensity={0.22} color="#6a7a98" />
-      <directionalLight position={[4, 3, 5]} intensity={0.35} color="#ffe9c4" />
-      <directionalLight position={[-4, 1, -3]} intensity={0.2} color="#93c5fd" />
+      {/* Soft key for rings/moons; planet albedo is self soft-lit */}
+      <ambientLight intensity={0.18} color="#6a7a98" />
+      <directionalLight position={[4, 3, 5]} intensity={0.3} color="#ffe9c4" />
 
-      <mesh ref={meshRef} material={nightFillMaterial}>
-        <sphereGeometry args={[1.7, 72, 72]} />
-      </mesh>
-      <mesh ref={dayBoostRef} material={dayBoostMaterial} raycast={() => null}>
-        <sphereGeometry args={[1.702, 72, 72]} />
+      <mesh ref={meshRef} material={softLitMaterial}>
+        <sphereGeometry args={[1.7, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]} />
       </mesh>
 
       {cloudMap && (
         <mesh raycast={() => null}>
-          <sphereGeometry args={[1.72, 48, 48]} />
+          <sphereGeometry args={[1.72, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
           <meshBasicMaterial
             map={cloudMap}
             transparent
             opacity={0.12 + (custom.cloudCover ?? 0) * 0.14}
             depthWrite={false}
             toneMapped={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
           />
         </mesh>
       )}
 
       <mesh material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[1.76, 40, 40]} />
+        <sphereGeometry args={[1.76, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
       </mesh>
 
       {custom.hasRings && ringTexture && (
@@ -522,7 +521,13 @@ export function PlanetCustomizerModal({
                 <div className="flex-1 w-full h-full cursor-grab active:cursor-grabbing">
                   <Canvas
                     camera={{ position: [0, 1.1, 5.4], fov: 42 }}
-                    gl={{ toneMapping: THREE.NoToneMapping, toneMappingExposure: 1 }}
+                    gl={{
+                      antialias: true,
+                      toneMapping: THREE.NoToneMapping,
+                      toneMappingExposure: 1,
+                      powerPreference: "high-performance",
+                    }}
+                    dpr={[1, 2]}
                   >
                     <color attach="background" args={["#06070c"]} />
                     <Suspense fallback={null}>

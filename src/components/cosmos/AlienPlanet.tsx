@@ -17,9 +17,12 @@ import {
   generateExoplanetRingTexture,
 } from "@/lib/exoplanetTextures";
 import {
-  createNightFillMaterial,
-  createDayBoostMaterial,
+  createSoftLitMaterial,
   NIGHT_FLOOR,
+  PLANET_SPHERE_WIDTH,
+  PLANET_SPHERE_HEIGHT,
+  PLANET_SHELL_WIDTH,
+  PLANET_SHELL_HEIGHT,
 } from "@/lib/softPlanetLighting";
 
 export interface AlienPlanetProps {
@@ -44,10 +47,10 @@ export interface AlienPlanetProps {
 }
 
 const FRESNEL_VERTEX = /* glsl */ `
-  varying vec3 vNormalW;
+  varying vec3 vSphereRadiusW;
   varying vec3 vWorldPos;
   void main() {
-    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vSphereRadiusW = mat3(modelMatrix) * position;
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vWorldPos = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
@@ -55,15 +58,16 @@ const FRESNEL_VERTEX = /* glsl */ `
 `;
 
 const FRESNEL_FRAGMENT = /* glsl */ `
-  varying vec3 vNormalW;
+  precision highp float;
+  varying vec3 vSphereRadiusW;
   varying vec3 vWorldPos;
   uniform vec3 uColor;
   uniform float uIntensity;
   void main() {
     vec3 V = normalize(cameraPosition - vWorldPos);
-    vec3 N = normalize(vNormalW);
+    vec3 N = normalize(vSphereRadiusW);
     vec3 sunDir = normalize(-vWorldPos + vec3(0.0001));
-    float NdotL = clamp(dot(N, sunDir), 0.0, 1.0);
+    float NdotL = dot(N, sunDir);
     // Soft wispy mist on the sunlit limb — wraps slightly, never a neon ring.
     float lit = smoothstep(-0.12, 0.7, NdotL);
     float rim = pow(1.0 - abs(dot(V, N)), 2.8);
@@ -104,7 +108,6 @@ export function AlienPlanet({
   const planetMeshRef = useRef<THREE.Mesh>(null);
   const cloudsMeshRef = useRef<THREE.Mesh>(null);
   const atmosphereMeshRef = useRef<THREE.Mesh>(null);
-  const dayBoostMeshRef = useRef<THREE.Mesh>(null);
   const moonRefs = useRef<Array<THREE.Group | null>>([]);
   const moonAngles = useRef<number[]>([]);
 
@@ -175,21 +178,17 @@ export function AlienPlanet({
   // Studio-driven procedural albedo for every specialist (including Move).
   const textures = useMemo(() => generateExoplanetTextures(custom), [custom]);
 
-  const nightFillMaterial = useMemo(
-    () => createNightFillMaterial(textures.colorMap, NIGHT_FLOOR),
-    [textures.colorMap]
-  );
-  const dayBoostMaterial = useMemo(
-    () => createDayBoostMaterial(textures.colorMap, NIGHT_FLOOR),
+  // Single soft-lit pass with analytical sphere normals — no terminator faceting.
+  const softLitMaterial = useMemo(
+    () => createSoftLitMaterial(textures.colorMap, NIGHT_FLOOR),
     [textures.colorMap]
   );
 
   useEffect(() => {
     return () => {
-      nightFillMaterial.dispose();
-      dayBoostMaterial.dispose();
+      softLitMaterial.dispose();
     };
-  }, [nightFillMaterial, dayBoostMaterial]);
+  }, [softLitMaterial]);
 
   const softClouds = useMemo(() => {
     if (!wantsClouds || cloudCover < 0.05) return null;
@@ -299,9 +298,6 @@ export function AlienPlanet({
     if (planetMeshRef.current) {
       planetMeshRef.current.rotation.y +=
         delta * (archetype === "gas_giant" || archetype === "ice_giant" ? 0.32 : 0.2);
-      if (dayBoostMeshRef.current) {
-        dayBoostMeshRef.current.rotation.copy(planetMeshRef.current.rotation);
-      }
     }
 
     if (cloudsMeshRef.current) {
@@ -327,7 +323,6 @@ export function AlienPlanet({
 
     const s = currentScaleRef.current;
     if (planetMeshRef.current) planetMeshRef.current.scale.set(s, s, s);
-    if (dayBoostMeshRef.current) dayBoostMeshRef.current.scale.set(s, s, s);
     if (cloudsMeshRef.current) {
       const cs = s * 1.012;
       cloudsMeshRef.current.scale.set(cs, cs, cs);
@@ -353,7 +348,7 @@ export function AlienPlanet({
     <group ref={groupRef}>
       <mesh
         ref={planetMeshRef}
-        material={nightFillMaterial}
+        material={softLitMaterial}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(config.id);
@@ -368,15 +363,13 @@ export function AlienPlanet({
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry args={[radius, 80, 80]} />
-      </mesh>
-      <mesh ref={dayBoostMeshRef} material={dayBoostMaterial} raycast={() => null}>
-        <sphereGeometry args={[radius * 1.001, 80, 80]} />
+        <sphereGeometry args={[radius, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]} />
       </mesh>
 
       {wantsClouds && softClouds && (
         <mesh ref={cloudsMeshRef} raycast={() => null}>
-          <sphereGeometry args={[radius * 1.012, 64, 64]} />
+          {/* Equirect cloud map needs SphereGeometry UVs */}
+          <sphereGeometry args={[radius * 1.014, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
           <meshBasicMaterial
             map={softClouds}
             transparent
@@ -384,12 +377,15 @@ export function AlienPlanet({
             depthWrite={false}
             color="#e4ecf4"
             toneMapped={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
           />
         </mesh>
       )}
 
       <mesh ref={atmosphereMeshRef} material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[radius * 1.028, 48, 48]} />
+        <sphereGeometry args={[radius * 1.032, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
       </mesh>
 
       {custom.hasRings && ringTexture && (

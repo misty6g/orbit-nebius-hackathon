@@ -125,7 +125,7 @@ const textureCache = new Map<string, ExoplanetMaterialTextures>();
 const ringTextureCache = new Map<string, THREE.CanvasTexture>();
 // Bump whenever the generator algorithm changes so stale in-memory or
 // persisted canvases from an older build can never be reused.
-const TEXTURE_GEN_VERSION = "v8c-vibrant-defaults";
+const TEXTURE_GEN_VERSION = "v8e-smooth-noband";
 
 /**
  * Procedural fictional exoplanet textures — Zen soft-lit cinematic look.
@@ -161,8 +161,9 @@ export function generateExoplanetTextures(
     return { colorMap: dummy, bumpMap: dummy, roughnessMap: dummy };
   }
 
-  const width = 1024;
-  const height = 512;
+  // Higher res reduces texel stair-steps at Studio zoom / grazing terminator.
+  const width = 2048;
+  const height = 1024;
 
   const colorCanvas = document.createElement("canvas");
   colorCanvas.width = width;

@@ -13,9 +13,12 @@ import {
 } from "@/types/orbit";
 import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/exoplanetTextures";
 import {
-  createNightFillMaterial,
-  createDayBoostMaterial,
+  createSoftLitMaterial,
   NIGHT_FLOOR,
+  PLANET_SPHERE_WIDTH,
+  PLANET_SPHERE_HEIGHT,
+  PLANET_SHELL_WIDTH,
+  PLANET_SHELL_HEIGHT,
 } from "@/lib/softPlanetLighting";
 
 interface PlanetBodyProps {
@@ -28,10 +31,10 @@ interface PlanetBodyProps {
 }
 
 const FRESNEL_VERTEX = /* glsl */ `
-  varying vec3 vNormalW;
+  varying vec3 vSphereRadiusW;
   varying vec3 vWorldPos;
   void main() {
-    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vSphereRadiusW = mat3(modelMatrix) * position;
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vWorldPos = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
@@ -39,16 +42,16 @@ const FRESNEL_VERTEX = /* glsl */ `
 `;
 
 const FRESNEL_FRAGMENT = /* glsl */ `
-  varying vec3 vNormalW;
+  precision highp float;
+  varying vec3 vSphereRadiusW;
   varying vec3 vWorldPos;
   uniform vec3 uColor;
   uniform float uIntensity;
   void main() {
     vec3 V = normalize(cameraPosition - vWorldPos);
-    vec3 N = normalize(vNormalW);
-    // Soft scattering on the sunlit limb only — never a full neon ring.
+    vec3 N = normalize(vSphereRadiusW);
     vec3 sunDir = normalize(-vWorldPos + vec3(0.0001));
-    float NdotL = clamp(dot(N, sunDir), 0.0, 1.0);
+    float NdotL = dot(N, sunDir);
     float lit = smoothstep(0.0, 0.55, NdotL);
     float fresnel = pow(1.0 - abs(dot(V, N)), 3.2);
     float a = fresnel * lit * uIntensity;
@@ -68,7 +71,6 @@ export function PlanetBody({
   const planetMeshRef = useRef<THREE.Mesh>(null);
   const atmosphereMeshRef = useRef<THREE.Mesh>(null);
   const moonRefs = useRef<Array<THREE.Group | null>>([]);
-  const dayBoostMeshRef = useRef<THREE.Mesh>(null);
 
   const [hovered, setHovered] = useState(false);
   const angleRef = useRef(initialAngle);
@@ -103,21 +105,16 @@ export function PlanetBody({
     return generateExoplanetTextures(custom);
   }, [custom]);
 
-  const nightFillMaterial = useMemo(
-    () => createNightFillMaterial(textures.colorMap, NIGHT_FLOOR),
-    [textures.colorMap]
-  );
-  const dayBoostMaterial = useMemo(
-    () => createDayBoostMaterial(textures.colorMap, NIGHT_FLOOR),
+  const softLitMaterial = useMemo(
+    () => createSoftLitMaterial(textures.colorMap, NIGHT_FLOOR),
     [textures.colorMap]
   );
 
   useEffect(() => {
     return () => {
-      nightFillMaterial.dispose();
-      dayBoostMaterial.dispose();
+      softLitMaterial.dispose();
     };
-  }, [nightFillMaterial, dayBoostMaterial]);
+  }, [softLitMaterial]);
 
   // Procedural ring texture in the Studio ring color.
   const ringTexture = useMemo(() => {
@@ -200,9 +197,6 @@ export function PlanetBody({
     // Smooth axial rotation
     if (planetMeshRef.current) {
       planetMeshRef.current.rotation.y += delta * 0.28;
-      if (dayBoostMeshRef.current) {
-        dayBoostMeshRef.current.rotation.copy(planetMeshRef.current.rotation);
-      }
     }
 
     fresnelMaterial.uniforms.uColor.value.copy(atmoTint);
@@ -222,9 +216,6 @@ export function PlanetBody({
     const s = currentScaleRef.current;
     if (planetMeshRef.current) {
       planetMeshRef.current.scale.set(s, s, s);
-    }
-    if (dayBoostMeshRef.current) {
-      dayBoostMeshRef.current.scale.set(s, s, s);
     }
 
     if (atmosphereMeshRef.current) {
@@ -248,10 +239,10 @@ export function PlanetBody({
 
   return (
     <group ref={groupRef}>
-      {/* Night fill MeshBasic 0.7× + additive day boost → night ≈ day×0.7 */}
+      {/* Soft-lit analytical sphere — night ≈ 0.7× day, no terminator faceting */}
       <mesh
         ref={planetMeshRef}
-        material={nightFillMaterial}
+        material={softLitMaterial}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(config.id);
@@ -266,19 +257,16 @@ export function PlanetBody({
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry args={[config.size, 80, 80]} />
-      </mesh>
-      <mesh
-        ref={dayBoostMeshRef}
-        material={dayBoostMaterial}
-        raycast={() => null}
-      >
-        <sphereGeometry args={[config.size * 1.001, 80, 80]} />
+        <sphereGeometry
+          args={[config.size, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]}
+        />
       </mesh>
 
       {/* Soft sunlit-limb atmosphere — complements lighting, not a full outline */}
       <mesh ref={atmosphereMeshRef} material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[config.size * 1.025, 48, 48]} />
+        <sphereGeometry
+          args={[config.size * 1.032, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]}
+        />
       </mesh>
 
       {/* Procedural ring system in the Studio ring color */}
