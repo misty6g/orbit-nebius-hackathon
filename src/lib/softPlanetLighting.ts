@@ -31,14 +31,23 @@ export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
  * Soft-lit planet shader.
  * - Object-space sphere direction re-normalized per fragment (no chord sag)
  * - Equirect UV from that direction (no mesh-UV meridian imprint)
+ * - World normal via varying (modelMatrix is vertex-only in ShaderMaterial)
  * - Half-Lambert wrap + fwidth AA + triangular SDR dither
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
   varying vec3 vLocalPos;
   varying vec3 vWorldPos;
+  // modelMatrix columns — ShaderMaterial only injects modelMatrix in the vertex stage.
+  varying vec3 vM0;
+  varying vec3 vM1;
+  varying vec3 vM2;
 
   void main() {
     vLocalPos = position;
+    mat3 m = mat3(modelMatrix);
+    vM0 = m[0];
+    vM1 = m[1];
+    vM2 = m[2];
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vWorldPos = wp.xyz;
     gl_Position = projectionMatrix * viewMatrix * wp;
@@ -53,6 +62,9 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
   uniform vec3 uSunPos;
   varying vec3 vLocalPos;
   varying vec3 vWorldPos;
+  varying vec3 vM0;
+  varying vec3 vM1;
+  varying vec3 vM2;
 
   const float PI = 3.141592653589793;
 
@@ -79,8 +91,9 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
       albedo = mix(albedo, 0.5 * (aL + aR), seam);
     }
 
-    // Analytic sphere normal: object dir → world via model matrix (three.js builtin).
-    vec3 N = normalize(mat3(modelMatrix) * localDir);
+    // Analytic world normal from object-space sphere dir (not lerped vertex N).
+    mat3 m = mat3(vM0, vM1, vM2);
+    vec3 N = normalize(m * localDir);
     vec3 L = normalize(uSunPos - vWorldPos);
     float ndl = dot(N, L);
 
