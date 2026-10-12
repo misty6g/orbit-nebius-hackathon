@@ -37,11 +37,12 @@ export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
  * triangular dither so SDR cannot posterize into vertical terminator bands.
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
-  varying vec3 vLocalPos;
-  varying vec3 vWorldPos;
-  varying vec3 vM0;
-  varying vec3 vM1;
-  varying vec3 vM2;
+  // highp varyings — mediump defaults posterize soft N·L into ~8px bands.
+  varying highp vec3 vLocalPos;
+  varying highp vec3 vWorldPos;
+  varying highp vec3 vM0;
+  varying highp vec3 vM1;
+  varying highp vec3 vM2;
 
   void main() {
     vLocalPos = position;
@@ -61,11 +62,11 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
   uniform sampler2D map;
   uniform float nightFloor;
   uniform vec3 uSunPos;
-  varying vec3 vLocalPos;
-  varying vec3 vWorldPos;
-  varying vec3 vM0;
-  varying vec3 vM1;
-  varying vec3 vM2;
+  varying highp vec3 vLocalPos;
+  varying highp vec3 vWorldPos;
+  varying highp vec3 vM0;
+  varying highp vec3 vM1;
+  varying highp vec3 vM2;
 
   const float PI = 3.141592653589793;
 
@@ -116,16 +117,16 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     day = smoothstep(-0.08 - aa, 1.08 + aa, day);
 
     float wrap = mix(nightFloor, 1.0, day);
-    vec3 color = albedo * wrap;
 
-    // Strong triangular dither (~±6 LSB) — primary defense against posterization.
+    // Dither in wrap-space before multiply — breaks luminance iso-bands on dark side.
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
     float t2 = ignoise(gl_FragCoord.xy + vec2(11.3, 53.7));
-    float dith = (t0 + t1 - 1.0) * (5.0 / 255.0) + (t2 - 0.5) * (2.5 / 255.0);
-    dith *= 1.0 + fwidth(wrap) * 50.0;
-    color += vec3(dith);
+    float dith = (t0 + t1 - 1.0) * (6.0 / 255.0) + (t2 - 0.5) * (3.0 / 255.0);
+    dith *= 1.0 + fwidth(wrap) * 60.0;
+    wrap = clamp(wrap + dith, 0.0, 1.25);
 
+    vec3 color = albedo * wrap;
     gl_FragColor = vec4(color, 1.0);
   }
 `;
