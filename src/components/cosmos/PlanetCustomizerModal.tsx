@@ -124,19 +124,18 @@ function CustomizerPreviewMesh({
           gl_Position = projectionMatrix * viewMatrix * wp;
         }
       `,
-      fragmentShader: /* glsl */ `
+        fragmentShader: /* glsl */ `
         precision highp float;
         varying vec3 vSphereRadiusW;
         varying vec3 vWorldPos;
         uniform vec3 uColor;
         uniform float uIntensity;
         void main() {
-          vec3 lightDir = normalize(vec3(4.5, 3.2, 5.5));
           vec3 N = normalize(vSphereRadiusW);
-          float lit = smoothstep(-0.1, 0.75, dot(N, lightDir));
           vec3 V = normalize(cameraPosition - vWorldPos);
+          // View-facing mist only — no sun N·L (avoids vertical limb bands).
           float fresnel = pow(1.0 - abs(dot(V, N)), 2.6);
-          float a = fresnel * (0.12 + 0.75 * lit) * uIntensity;
+          float a = fresnel * 0.55 * uIntensity;
           gl_FragColor = vec4(uColor * a, a);
         }
       `,

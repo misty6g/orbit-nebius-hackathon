@@ -48,11 +48,9 @@ const FRESNEL_FRAGMENT = /* glsl */ `
   void main() {
     vec3 V = normalize(cameraPosition - vWorldPos);
     vec3 N = normalize(vSphereRadiusW);
-    vec3 sunDir = normalize(-vWorldPos + vec3(0.0001));
-    float NdotL = dot(N, sunDir);
-    float lit = smoothstep(0.0, 0.55, NdotL);
+    // View-facing mist only — sun N·L limb lighting drew vertical bands.
     float fresnel = pow(1.0 - abs(dot(V, N)), 3.2);
-    float a = fresnel * lit * uIntensity;
+    float a = fresnel * 0.65 * uIntensity;
     gl_FragColor = vec4(uColor * a, a);
   }
 `;

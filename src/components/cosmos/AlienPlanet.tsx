@@ -64,13 +64,10 @@ const FRESNEL_FRAGMENT = /* glsl */ `
   void main() {
     vec3 V = normalize(cameraPosition - vWorldPos);
     vec3 N = normalize(vSphereRadiusW);
-    vec3 sunDir = normalize(-vWorldPos + vec3(0.0001));
-    float NdotL = dot(N, sunDir);
-    // Soft wispy mist on the sunlit limb — wraps slightly, never a neon ring.
-    float lit = smoothstep(-0.12, 0.7, NdotL);
+    // View-facing mist only — sun N·L limb lighting drew vertical bands.
     float rim = pow(1.0 - abs(dot(V, N)), 2.8);
-    float wrap = pow(max(0.0, 1.0 - abs(dot(V, N))), 1.5) * lit * 0.28;
-    float a = (rim * lit * 0.7 + wrap) * uIntensity;
+    float wrap = pow(max(0.0, 1.0 - abs(dot(V, N))), 1.5) * 0.22;
+    float a = (rim * 0.55 + wrap) * uIntensity;
     gl_FragColor = vec4(uColor * a, a);
   }
 `;

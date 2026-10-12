@@ -30,31 +30,18 @@ export const COSMOS_SUN_POS = new THREE.Vector3(0, 0, 0);
 export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
 
 /**
- * Soft-lit planet shader.
+ * Soft-fill planet shader.
  *
- * Directional sun N·L wraps posterize into screen-vertical terminator columns
- * under 8-bit SDR (the annotated “cheap jagged banding”). Form comes from:
- *  - gentle view-facing fill (circular iso-contours only)
- *  - nightFloor lift
- *  - wrap-space dither
- *  - the separate fresnel atmosphere shell on the mesh
+ * Directional / facing lighting gradients posterize into jagged vertical
+ * terminator columns under 8-bit SDR. Keep a constant nightFloor lift + dither;
+ * sphere form comes from albedo detail and the fresnel atmosphere shell.
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
   varying highp vec3 vLocalPos;
-  varying highp vec3 vWorldPos;
-  varying highp vec3 vM0;
-  varying highp vec3 vM1;
-  varying highp vec3 vM2;
 
   void main() {
     vLocalPos = position;
-    mat3 m = mat3(modelMatrix);
-    vM0 = m[0];
-    vM1 = m[1];
-    vM2 = m[2];
-    vec4 wp = modelMatrix * vec4(position, 1.0);
-    vWorldPos = wp.xyz;
-    gl_Position = projectionMatrix * viewMatrix * wp;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
@@ -64,10 +51,6 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
   uniform sampler2D map;
   uniform float nightFloor;
   varying highp vec3 vLocalPos;
-  varying highp vec3 vWorldPos;
-  varying highp vec3 vM0;
-  varying highp vec3 vM1;
-  varying highp vec3 vM2;
 
   const float PI = 3.141592653589793;
 
@@ -93,9 +76,7 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
       albedo = mix(albedo, 0.5 * (aL + aR), seam);
     }
 
-    // Soft night fill as a near-constant lift — no directional/facing gradient.
-    // Gradients (sun or facing) posterize into visible columns under 8-bit SDR;
-    // form comes from albedo + the fresnel atmosphere shell instead.
+    // Constant soft night fill (≈ nightFloor‥1) — no lighting gradient.
     float wrap = mix(nightFloor, 1.0, 0.72);
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
@@ -125,7 +106,7 @@ export interface SoftLitOptions {
 }
 
 /**
- * Soft-lit planet material — facing fill + nightFloor, no sun N·L wrap.
+ * Soft-fill planet material — nightFloor lift, no directional wrap.
  */
 export function createSoftLitMaterial(
   colorMap: THREE.Texture,
