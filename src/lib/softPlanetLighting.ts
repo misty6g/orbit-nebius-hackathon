@@ -100,7 +100,8 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     float sun = smoothstep(-0.5, 1.0, ndl);
     sun = sun * sun;
     float brk = ignoise(localDir.xy * 40.0 + localDir.yz * 17.0) - 0.5;
-    float day = clamp(sun * 0.32 + face * 0.68 + brk * 0.035, 0.0, 1.0);
+    // Keep sun as a whisper — vertical N·L columns are what read as cheap banding.
+    float day = clamp(sun * 0.18 + face * 0.82 + brk * 0.04, 0.0, 1.0);
 
     float wrap = mix(nightFloor, 1.0, day);
 

@@ -329,17 +329,20 @@ export default function OrbitHome() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#07080a] font-sans">
-      {/* 3D Solar System WebGL Canvas */}
-      <SolarSystemCanvas
-        selectedSpecialistId={selectedSpecialistId}
-        onSelectSpecialist={handleSelectSpecialist}
-        onDeselect={handleDeselect}
-        activeConstellationTargets={activeConstellationTargets}
-        isTouring={isTouring}
-        tourStep={tourStep}
-        planetCustomizations={planetCustomizations}
-        nebulaCustomization={nebulaCustomization}
-      />
+      {/* 3D Solar System WebGL Canvas — unmount while Studio is open so the
+          preview gets a dedicated GL context (dual Canvas blacks out Studio). */}
+      {!showCustomizer && (
+        <SolarSystemCanvas
+          selectedSpecialistId={selectedSpecialistId}
+          onSelectSpecialist={handleSelectSpecialist}
+          onDeselect={handleDeselect}
+          activeConstellationTargets={activeConstellationTargets}
+          isTouring={isTouring}
+          tourStep={tourStep}
+          planetCustomizations={planetCustomizations}
+          nebulaCustomization={nebulaCustomization}
+        />
+      )}
 
       {/* Top Left Zen Brand Glyph */}
       {!selectedSpecialistId && !isTouring && (
