@@ -93,21 +93,13 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
       albedo = mix(albedo, 0.5 * (aL + aR), seam);
     }
 
-    mat3 m = mat3(vM0, vM1, vM2);
-    vec3 N = normalize(m * localDir);
-    vec3 V = normalize(cameraPosition - vWorldPos);
-
-    // Circular facing fill only — never sun N·L (that drew vertical columns).
-    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.55);
-    float brk = ignoise(localDir.xy * 36.0 + localDir.yz * 14.0) - 0.5;
-    // Compress the wrap range so SDR has fewer steps across the disk.
-    // face=0 → ~nightFloor+0.12 ; face=1 → 1.0
-    float day = clamp(0.4 + 0.6 * face + brk * 0.04, 0.0, 1.0);
-    float wrap = mix(nightFloor, 1.0, day);
-
+    // Soft night fill as a near-constant lift — no directional/facing gradient.
+    // Gradients (sun or facing) posterize into visible columns under 8-bit SDR;
+    // form comes from albedo + the fresnel atmosphere shell instead.
+    float wrap = mix(nightFloor, 1.0, 0.72);
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
-    wrap = clamp(wrap + (t0 + t1 - 1.0) * (4.0 / 255.0), 0.0, 1.1);
+    wrap = clamp(wrap + (t0 + t1 - 1.0) * (3.0 / 255.0), 0.0, 1.05);
 
     gl_FragColor = vec4(albedo * wrap, 1.0);
   }
