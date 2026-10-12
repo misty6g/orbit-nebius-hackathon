@@ -10,11 +10,8 @@ import {
   PlanetCustomization,
   PlanetArchetype,
   DEFAULT_PLANET_CUSTOMIZATIONS,
+  normalizePlanetCustomization,
 } from "@/types/orbit";
-import {
-  generateMoveHeroTextures,
-  MOVE_HERO_PALETTE,
-} from "@/lib/alienPlanetTextures";
 import {
   generateExoplanetTextures,
   generateExoplanetRingTexture,
@@ -32,16 +29,13 @@ export interface AlienPlanetProps {
   isSelected: boolean;
   onPositionUpdate?: (id: SpecialistId, pos: THREE.Vector3) => void;
   customization?: PlanetCustomization;
-  /** Override visual radius (defaults to config.size). */
   size?: number;
-  /** Optional palette override for badge / atmosphere tint. */
   palette?: {
     primary?: string;
     secondary?: string;
     accent?: string;
     atmosphere?: string;
   };
-  /** Force archetype (otherwise Studio / defaults). */
   archetype?: PlanetArchetype;
   hasClouds?: boolean;
   atmosphereColor?: string;
@@ -71,16 +65,16 @@ const FRESNEL_FRAGMENT = /* glsl */ `
     vec3 sunDir = normalize(-vWorldPos + vec3(0.0001));
     float NdotL = clamp(dot(N, sunDir), 0.0, 1.0);
     // Soft wispy mist on the sunlit limb — wraps slightly, never a neon ring.
-    float lit = smoothstep(-0.05, 0.65, NdotL);
-    float rim = pow(1.0 - abs(dot(V, N)), 2.6);
-    float wrap = pow(max(0.0, 1.0 - abs(dot(V, N))), 1.4) * lit * 0.35;
-    float a = (rim * lit * 0.85 + wrap) * uIntensity;
+    float lit = smoothstep(-0.12, 0.7, NdotL);
+    float rim = pow(1.0 - abs(dot(V, N)), 2.8);
+    float wrap = pow(max(0.0, 1.0 - abs(dot(V, N))), 1.5) * lit * 0.28;
+    float a = (rim * lit * 0.7 + wrap) * uIntensity;
     gl_FragColor = vec4(uColor * a, a);
   }
 `;
 
 const ARCHETYPE_LABEL: Record<PlanetArchetype, string> = {
-  rocky: "alien rocky",
+  rocky: "rocky world",
   oceanic: "ocean world",
   gas_giant: "gas giant",
   ice_giant: "ice giant",
@@ -88,9 +82,8 @@ const ARCHETYPE_LABEL: Record<PlanetArchetype, string> = {
 };
 
 /**
- * Reusable high-detail alien world with fictional procedural albedo.
- * Orbit / select / hover API matches PlanetBody so specialists can swap over.
- * Move uses the dedicated hero rust generator; others use Studio-driven exoplanet maps.
+ * Soft-lit cinematic exoplanet. Studio customization drives albedo, mist,
+ * clouds, and rings. Night fill ≈ 0.7× day via dual-layer materials.
  */
 export function AlienPlanet({
   config,
@@ -112,6 +105,8 @@ export function AlienPlanet({
   const cloudsMeshRef = useRef<THREE.Mesh>(null);
   const atmosphereMeshRef = useRef<THREE.Mesh>(null);
   const dayBoostMeshRef = useRef<THREE.Mesh>(null);
+  const moonRefs = useRef<Array<THREE.Group | null>>([]);
+  const moonAngles = useRef<number[]>([]);
 
   const [hovered, setHovered] = useState(false);
   const angleRef = useRef(initialAngle);
@@ -119,22 +114,27 @@ export function AlienPlanet({
   const tempVec = useMemo(() => new THREE.Vector3(), []);
 
   const custom = useMemo(() => {
-    const base =
-      customization ||
-      DEFAULT_PLANET_CUSTOMIZATIONS[config.id] || {
+    const fallback =
+      DEFAULT_PLANET_CUSTOMIZATIONS[config.id] ||
+      ({
         id: config.id,
         archetype: "rocky" as const,
         primaryColor: config.color,
         secondaryColor: config.glowColor,
-        accentColor: "#ffedd5",
-        bumpScale: 0.22,
+        accentColor: "#c8b8a0",
+        bumpScale: 0.2,
         roughness: 0.9,
+        atmosphereIntensity: 0.45,
+        cloudCover: 0.2,
+        chromaMute: 0.4,
         hasRings: false,
         ringStyle: "none" as const,
         ringColor: config.color,
         ringTilt: 0.15,
         moons: [],
-      };
+      } satisfies PlanetCustomization);
+
+    const base = normalizePlanetCustomization(customization, fallback);
 
     return {
       ...base,
@@ -158,25 +158,23 @@ export function AlienPlanet({
 
   const radius = sizeProp ?? config.size;
   const atmoColor =
-    atmosphereColor ||
-    palette?.atmosphere ||
-    (config.id === "move" ? MOVE_HERO_PALETTE.atmosphere : custom.secondaryColor);
+    atmosphereColor || palette?.atmosphere || custom.secondaryColor;
   const badgePrimary = palette?.primary || custom.primaryColor;
   const archetype = custom.archetype;
+  const atmoIntensity = custom.atmosphereIntensity ?? 0.45;
+  const cloudCover = custom.cloudCover ?? 0.2;
 
   const wantsClouds =
     hasCloudsProp ??
-    (archetype === "oceanic" || archetype === "ice_giant" || config.id === "travel" || config.id === "move");
+    (cloudCover > 0.08 &&
+      (archetype === "oceanic" ||
+        archetype === "ice_giant" ||
+        archetype === "gas_giant" ||
+        archetype === "rocky"));
 
-  const textures = useMemo(() => {
-    if (config.id === "move") {
-      return generateMoveHeroTextures();
-    }
-    const exo = generateExoplanetTextures(custom);
-    return { ...exo, cloudsMap: null as THREE.CanvasTexture | null };
-  }, [config.id, custom]);
+  // Studio-driven procedural albedo for every specialist (including Move).
+  const textures = useMemo(() => generateExoplanetTextures(custom), [custom]);
 
-  // Dual-layer soft lighting: MeshBasic night fill (cannot go black) + additive day boost
   const nightFillMaterial = useMemo(
     () => createNightFillMaterial(textures.colorMap, NIGHT_FLOOR),
     [textures.colorMap]
@@ -193,10 +191,8 @@ export function AlienPlanet({
     };
   }, [nightFillMaterial, dayBoostMaterial]);
 
-  // Soft procedural cloud veil for non-Move worlds that want clouds.
   const softClouds = useMemo(() => {
-    if (config.id === "move") return textures.cloudsMap;
-    if (!wantsClouds) return null;
+    if (!wantsClouds || cloudCover < 0.05) return null;
     if (typeof window === "undefined") return null;
 
     const w = 1024;
@@ -207,22 +203,23 @@ export function AlienPlanet({
     const ctx = canvas.getContext("2d")!;
     const img = ctx.createImageData(w, h);
     const d = img.data;
-    const tint = new THREE.Color(custom.accentColor || "#e8f0f6");
+    const tint = new THREE.Color(custom.accentColor || "#d8e0e8");
+    tint.lerp(new THREE.Color("#e8eef4"), 0.35);
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const u = x / w;
         const v = y / h;
         const n =
-          Math.sin(u * 18.7 + v * 9.3) * 0.5 +
-          Math.sin(u * 41.2 - v * 22.1) * 0.25 +
-          Math.sin((u + v) * 63.0) * 0.15;
-        const cover = Math.max(0, Math.min(1, (n + 0.35) * 0.55));
+          Math.sin(u * 14.7 + v * 7.3) * 0.45 +
+          Math.sin(u * 31.2 - v * 18.1) * 0.28 +
+          Math.sin((u + v) * 48.0) * 0.18;
+        const cover = Math.max(0, Math.min(1, (n + 0.25) * 0.5 * cloudCover));
         const i = (y * w + x) * 4;
         d[i] = Math.round(tint.r * 255);
         d[i + 1] = Math.round(tint.g * 255);
         d[i + 2] = Math.round(tint.b * 255);
-        d[i + 3] = Math.round(cover * 140);
+        d[i + 3] = Math.round(cover * 150);
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -233,7 +230,7 @@ export function AlienPlanet({
     map.minFilter = THREE.LinearMipmapLinearFilter;
     map.needsUpdate = true;
     return map;
-  }, [config.id, wantsClouds, textures.cloudsMap, custom.accentColor]);
+  }, [wantsClouds, cloudCover, custom.accentColor]);
 
   const ringTexture = useMemo(() => {
     if (custom.hasRings && custom.ringStyle !== "none") {
@@ -242,16 +239,39 @@ export function AlienPlanet({
     return null;
   }, [custom.hasRings, custom.ringStyle, custom.ringColor]);
 
+  const moonTextures = useMemo(
+    () =>
+      custom.moons.map((moon) =>
+        generateExoplanetTextures({
+          id: config.id,
+          archetype: "rocky",
+          primaryColor: new THREE.Color(moon.color).multiplyScalar(0.5).getStyle(),
+          secondaryColor: moon.color,
+          accentColor: "#d0c8bc",
+          bumpScale: 0.08,
+          roughness: 0.95,
+          atmosphereIntensity: 0.1,
+          cloudCover: 0,
+          chromaMute: 0.5,
+          hasRings: false,
+          ringStyle: "none",
+          ringColor: moon.color,
+          ringTilt: 0,
+          moons: [],
+        })
+      ),
+    [custom.moons, config.id]
+  );
+
   const fresnelMaterial = useMemo(() => {
-    // Soft teal/warm mist — Zen wraps atmosphere around the lit limb
-    const tint = new THREE.Color(atmoColor).lerp(new THREE.Color("#5ec8c4"), 0.55);
-    tint.lerp(new THREE.Color("#e8c4a0"), 0.15);
+    const tint = new THREE.Color(atmoColor).lerp(new THREE.Color("#7ab8b4"), 0.4);
+    tint.lerp(new THREE.Color("#d4b890"), 0.12);
     return new THREE.ShaderMaterial({
       vertexShader: FRESNEL_VERTEX,
       fragmentShader: FRESNEL_FRAGMENT,
       uniforms: {
         uColor: { value: tint },
-        uIntensity: { value: 0.55 },
+        uIntensity: { value: 0.35 + atmoIntensity * 0.45 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -262,7 +282,6 @@ export function AlienPlanet({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((_state, delta) => {
-    // Slow cinematic orbits so a large world lingers in the hero frame
     const speedMult = hovered ? 0.03 : 0.09;
     angleRef.current += delta * config.orbitSpeed * speedMult;
 
@@ -271,7 +290,6 @@ export function AlienPlanet({
 
     if (groupRef.current) {
       groupRef.current.position.set(x, 0, z);
-
       if (onPositionUpdate) {
         groupRef.current.getWorldPosition(tempVec);
         onPositionUpdate(config.id, tempVec);
@@ -279,21 +297,23 @@ export function AlienPlanet({
     }
 
     if (planetMeshRef.current) {
-      planetMeshRef.current.rotation.y += delta * (archetype === "gas_giant" || archetype === "ice_giant" ? 0.35 : 0.22);
+      planetMeshRef.current.rotation.y +=
+        delta * (archetype === "gas_giant" || archetype === "ice_giant" ? 0.32 : 0.2);
       if (dayBoostMeshRef.current) {
         dayBoostMeshRef.current.rotation.copy(planetMeshRef.current.rotation);
       }
     }
 
     if (cloudsMeshRef.current) {
-      cloudsMeshRef.current.rotation.y += delta * 0.08;
+      cloudsMeshRef.current.rotation.y += delta * 0.07;
     }
 
     fresnelMaterial.uniforms.uColor.value
       .set(atmoColor)
-      .lerp(new THREE.Color("#5ec8c4"), 0.55)
-      .lerp(new THREE.Color("#e8c4a0"), 0.15);
-    const targetGlow = hovered || isSelected ? 0.72 : 0.55;
+      .lerp(new THREE.Color("#7ab8b4"), 0.4)
+      .lerp(new THREE.Color("#d4b890"), 0.12);
+    const baseGlow = 0.28 + atmoIntensity * 0.4;
+    const targetGlow = hovered || isSelected ? baseGlow + 0.18 : baseGlow;
     const u = fresnelMaterial.uniforms.uIntensity;
     u.value = THREE.MathUtils.damp(u.value, targetGlow, 4.5, delta);
 
@@ -306,12 +326,8 @@ export function AlienPlanet({
     );
 
     const s = currentScaleRef.current;
-    if (planetMeshRef.current) {
-      planetMeshRef.current.scale.set(s, s, s);
-    }
-    if (dayBoostMeshRef.current) {
-      dayBoostMeshRef.current.scale.set(s, s, s);
-    }
+    if (planetMeshRef.current) planetMeshRef.current.scale.set(s, s, s);
+    if (dayBoostMeshRef.current) dayBoostMeshRef.current.scale.set(s, s, s);
     if (cloudsMeshRef.current) {
       const cs = s * 1.012;
       cloudsMeshRef.current.scale.set(cs, cs, cs);
@@ -320,13 +336,21 @@ export function AlienPlanet({
       const atmoScale = s * 1.03;
       atmosphereMeshRef.current.scale.set(atmoScale, atmoScale, atmoScale);
     }
-  });
 
-  const cloudMap = softClouds;
+    custom.moons.forEach((moon, idx) => {
+      if (moonAngles.current[idx] == null) moonAngles.current[idx] = idx * 1.7;
+      moonAngles.current[idx] += delta * moon.speed * 0.75;
+      const el = moonRefs.current[idx];
+      if (el) {
+        const mx = Math.cos(moonAngles.current[idx]) * (radius * moon.distance * 0.85);
+        const mz = Math.sin(moonAngles.current[idx]) * (radius * moon.distance * 0.85);
+        el.position.set(mx, 0.08, mz);
+      }
+    });
+  });
 
   return (
     <group ref={groupRef}>
-      {/* Night fill: MeshBasic at 0.7× albedo — texture always readable */}
       <mesh
         ref={planetMeshRef}
         material={nightFillMaterial}
@@ -346,31 +370,26 @@ export function AlienPlanet({
       >
         <sphereGeometry args={[radius, 80, 80]} />
       </mesh>
-      {/* Day boost: additive (1-0.7)×albedo×ndl so day reaches full albedo */}
-      <mesh
-        ref={dayBoostMeshRef}
-        material={dayBoostMaterial}
-        raycast={() => null}
-      >
+      <mesh ref={dayBoostMeshRef} material={dayBoostMaterial} raycast={() => null}>
         <sphereGeometry args={[radius * 1.001, 80, 80]} />
       </mesh>
 
-      {wantsClouds && cloudMap && (
+      {wantsClouds && softClouds && (
         <mesh ref={cloudsMeshRef} raycast={() => null}>
           <sphereGeometry args={[radius * 1.012, 64, 64]} />
           <meshBasicMaterial
-            map={cloudMap}
+            map={softClouds}
             transparent
-            opacity={archetype === "oceanic" ? 0.18 : 0.14}
+            opacity={0.1 + cloudCover * 0.16}
             depthWrite={false}
-            color="#e8f0f8"
+            color="#e4ecf4"
             toneMapped={false}
           />
         </mesh>
       )}
 
       <mesh ref={atmosphereMeshRef} material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[radius * 1.025, 48, 48]} />
+        <sphereGeometry args={[radius * 1.028, 48, 48]} />
       </mesh>
 
       {custom.hasRings && ringTexture && (
@@ -380,13 +399,31 @@ export function AlienPlanet({
             map={ringTexture}
             side={THREE.DoubleSide}
             transparent
-            opacity={0.85}
-            roughness={0.65}
+            opacity={0.75}
+            roughness={0.7}
             metalness={0}
             depthWrite={false}
           />
         </mesh>
       )}
+
+      {custom.moons.map((moon, idx) => (
+        <group
+          key={moon.id || idx}
+          ref={(el) => {
+            moonRefs.current[idx] = el;
+          }}
+        >
+          <mesh raycast={() => null}>
+            <sphereGeometry args={[moon.size, 24, 24]} />
+            <meshBasicMaterial
+              map={moonTextures[idx]?.colorMap}
+              color="#c4c0b8"
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
 
       {(hovered || isSelected) && (
         <Html position={[0, radius + 1.1, 0]} center zIndexRange={[100, 0]}>

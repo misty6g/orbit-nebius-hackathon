@@ -27,9 +27,9 @@ function lerpColor(c1: RGB, c2: RGB, t: number): RGB {
   };
 }
 
-/** Soft desaturate — keep enough chroma that lit faces stay readable at overview. */
+/** Soft desaturate toward Zen cinematic earth tones. */
 function mute(c: RGB, amt: number): RGB {
-  const softAmt = Math.max(0, Math.min(1, amt * 0.55));
+  const softAmt = Math.max(0, Math.min(1, amt));
   const lum = Math.round(0.299 * c.r + 0.587 * c.g + 0.114 * c.b);
   return lerpColor(c, { r: lum, g: lum, b: lum }, softAmt);
 }
@@ -87,19 +87,31 @@ function warp2(u: number, v: number, s: number, ox: number, oy: number): { x: nu
 }
 
 /**
- * Final tonal pass shared by every archetype: mid-scale mottling plus fine
- * grain so surfaces read as weathered regolith / turbulent cloud instead of
- * flat fills, with a lifted floor so night sides never crush to pure black.
+ * Final tonal pass: soft mottling + lifted floor so night sides stay readable.
+ * `roughness` softens micro-contrast; `relief` gently lifts highland luminance.
  */
-function finishColor(c: RGB, mottle: number, grain: number, drift: number, lat: number): RGB {
-  // Zen overview: soft tonal provinces, muted grain — detail resolves up close via mipmaps.
+function finishColor(
+  c: RGB,
+  mottle: number,
+  grain: number,
+  drift: number,
+  lat: number,
+  roughness: number,
+  relief: number
+): RGB {
   const eq = 1 - Math.abs(lat);
-  const m = 1.08 + (mottle - 0.5) * 0.18 + (grain - 0.5) * 0.08 + (drift - 0.5) * 0.14;
-  const lift = 36;
+  const soft = 0.55 + roughness * 0.45;
+  const m =
+    1.0 +
+    (mottle - 0.5) * (0.12 / soft) +
+    (grain - 0.5) * (0.05 / soft) +
+    (drift - 0.5) * 0.1 +
+    relief * 0.08;
+  const lift = 28;
   return {
-    r: Math.max(42, Math.min(255, Math.round(c.r * m * (1 + (eq - 0.5) * 0.06)) + lift)),
-    g: Math.max(40, Math.min(255, Math.round(c.g * m) + lift)),
-    b: Math.max(40, Math.min(255, Math.round(c.b * m * (1 + (0.5 - eq) * 0.06)) + lift)),
+    r: Math.max(38, Math.min(240, Math.round(c.r * m * (1 + (eq - 0.5) * 0.04)) + lift)),
+    g: Math.max(36, Math.min(240, Math.round(c.g * m) + lift)),
+    b: Math.max(36, Math.min(240, Math.round(c.b * m * (1 + (0.5 - eq) * 0.04)) + lift)),
   };
 }
 
@@ -113,18 +125,33 @@ const textureCache = new Map<string, ExoplanetMaterialTextures>();
 const ringTextureCache = new Map<string, THREE.CanvasTexture>();
 // Bump whenever the generator algorithm changes so stale in-memory or
 // persisted canvases from an older build can never be reused.
-const TEXTURE_GEN_VERSION = "v7-zen";
+const TEXTURE_GEN_VERSION = "v8b-zen-cinematic";
 
 /**
- * Procedural fictional exoplanet textures with per-archetype realistic surface
- * stories (desaturated palettes, craters/storms/caps/fissures/cracks) driven
- * entirely by the Studio customization. Roughness maps carry real variation
- * (scalar roughness multiplies them) so nothing renders as flat plastic.
+ * Procedural fictional exoplanet textures — Zen soft-lit cinematic look.
+ * Studio knobs (palette, bumpScale, roughness, chromaMute, cloudCover) are
+ * baked into the albedo so the MeshBasic soft-lit path stays driven live.
  */
 export function generateExoplanetTextures(
   customization: PlanetCustomization
 ): ExoplanetMaterialTextures {
-  const cacheKey = `${TEXTURE_GEN_VERSION}_${customization.id}_${customization.archetype}_${customization.primaryColor}_${customization.secondaryColor}_${customization.accentColor}`;
+  const chromaMute = customization.chromaMute ?? 0.4;
+  const bumpScale = customization.bumpScale ?? 0.15;
+  const roughness = customization.roughness ?? 0.85;
+  const cloudCover = customization.cloudCover ?? 0.2;
+
+  const cacheKey = [
+    TEXTURE_GEN_VERSION,
+    customization.id,
+    customization.archetype,
+    customization.primaryColor,
+    customization.secondaryColor,
+    customization.accentColor,
+    bumpScale.toFixed(3),
+    roughness.toFixed(3),
+    chromaMute.toFixed(3),
+    cloudCover.toFixed(3),
+  ].join("_");
   if (textureCache.has(cacheKey)) {
     return textureCache.get(cacheKey)!;
   }
@@ -158,11 +185,13 @@ export function generateExoplanetTextures(
   const roughImg = roughCtx.createImageData(width, height);
   const rData = roughImg.data;
 
-  const rawPrimary = hexToRgb(customization.primaryColor);
-  const rawSecondary = hexToRgb(customization.secondaryColor);
-  const cAccent = hexToRgb(customization.accentColor);
+  const baseMute = 0.28 + chromaMute * 0.5;
+  const rawPrimary = mute(hexToRgb(customization.primaryColor), baseMute);
+  const rawSecondary = mute(hexToRgb(customization.secondaryColor), baseMute * 0.9);
+  const cAccent = mute(hexToRgb(customization.accentColor), baseMute * 0.75);
 
   const archetype: PlanetArchetype = customization.archetype || "gas_giant";
+  const reliefAmt = Math.max(0, Math.min(1, bumpScale / 0.45));
 
   // Deterministic per-palette variation seed (storm placement, maria drift).
   const seed = ((rawPrimary.r * 7 + rawPrimary.g * 13 + rawPrimary.b * 29) % 100) / 100;
@@ -187,55 +216,66 @@ export function generateExoplanetTextures(
       let roughVal = 230;
 
       if (archetype === "gas_giant") {
-        // Bespin-like: muted turbulent bands + oval storms with bright cores.
-        const cPrimary = mute(rawPrimary, 0.18);
+        // Soft cinematic bands — wide, low-contrast haze, no candy marble/zebra.
+        const cPrimary = mute(rawPrimary, 0.2);
         const cSecondary = mute(rawSecondary, 0.18);
-        const w = warp2(u, v, 3, 5.2, 1.3);
-        const bandCoord = v * Math.PI * 10 + (fbm(w.x * 6, w.y * 3, 4) - 0.5) * 2.4;
-        const wave1 = Math.sin(bandCoord + Math.sin(u * Math.PI * 4 + fbm(w.x * 5, w.y * 5, 3) * 4) * 0.4);
-        const wave2 = Math.cos(bandCoord * 1.8 + Math.cos(u * Math.PI * 6) * 0.25);
-        const turbulence = fbm(w.x * 12, w.y * 6, 5) * 0.4;
-        const tBand = (wave1 * 0.55 + wave2 * 0.45 + turbulence + 1) * 0.5;
+        const softAccent = mute(cAccent, 0.25);
+        const w = warp2(u, v, 2.0, 5.2, 1.3);
+        const bandCoord = v * Math.PI * 3.6 + (fbm(w.x * 3.2, w.y * 1.8, 3) - 0.5) * 0.9;
+        const wave1 = Math.sin(bandCoord + Math.sin(u * Math.PI * 1.8 + fbm(w.x * 2.8, w.y * 2.8, 3) * 1.6) * 0.18);
+        const wave2 = Math.cos(bandCoord * 1.15 + Math.cos(u * Math.PI * 2.4) * 0.12);
+        const turbulence = fbm(w.x * 5.5, w.y * 3, 3) * 0.18;
+        const tBand = (wave1 * 0.4 + wave2 * 0.3 + turbulence + 1) * 0.5;
+        // Pull extremes toward mid palette so bands stay soft at overview.
+        const mid = lerpColor(cPrimary, cSecondary, 0.5);
 
-        if (tBand > 0.65) {
-          const factor = (tBand - 0.65) / 0.35;
-          colorRgb = lerpColor(cSecondary, cAccent, Math.min(1, factor * 1.1));
-        } else if (tBand > 0.35) {
-          const factor = (tBand - 0.35) / 0.3;
-          colorRgb = lerpColor(cPrimary, cSecondary, factor);
+        if (tBand > 0.58) {
+          const factor = (tBand - 0.58) / 0.42;
+          colorRgb = lerpColor(mid, softAccent, Math.min(1, factor * 0.45));
+        } else if (tBand > 0.4) {
+          const factor = (tBand - 0.4) / 0.18;
+          colorRgb = lerpColor(cPrimary, cSecondary, factor * 0.55);
         } else {
-          const factor = tBand / 0.35;
-          colorRgb = lerpColor({ r: Math.round(cPrimary.r * 0.62), g: Math.round(cPrimary.g * 0.62), b: Math.round(cPrimary.b * 0.62) }, cPrimary, factor);
+          const factor = tBand / 0.4;
+          colorRgb = lerpColor(lerpColor(cPrimary, mid, 0.35), cPrimary, factor);
         }
+        // Flatten residual contrast toward mid.
+        colorRgb = lerpColor(colorRgb, mid, 0.35);
 
-        // Oval storms: elliptical masks with swirled rims and pale cores.
+        // Soft oval storms — muted cores, no neon highlights.
         const storms = [
-          { su: 0.18 + seed * 0.35, sv: 0.34 + seed * 0.1, ru: 0.115, rv: 0.075 },
-          { su: 0.62 - seed * 0.2, sv: 0.62, ru: 0.085, rv: 0.058 },
+          { su: 0.18 + seed * 0.35, sv: 0.34 + seed * 0.1, ru: 0.12, rv: 0.08 },
+          { su: 0.62 - seed * 0.2, sv: 0.62, ru: 0.09, rv: 0.06 },
         ];
         let stormCore = 0;
         for (const st of storms) {
           let du = Math.abs(u - st.su);
-          if (du > 0.5) du = 1 - du; // wrap longitude
+          if (du > 0.5) du = 1 - du;
           const dv = v - st.sv;
           const d = Math.sqrt((du * du) / (st.ru * st.ru) + (dv * dv) / (st.rv * st.rv));
           if (d < 1) {
-            const swirl = 0.5 + 0.5 * Math.sin(d * 11 - turbulence * 9);
-            const rimMix = smoothstep(1, 0.55, d) * (0.45 + 0.3 * swirl);
-            colorRgb = lerpColor(colorRgb, cSecondary, Math.min(1, rimMix));
-            const core = smoothstep(0.42, 0.1, d);
-            stormCore = Math.max(stormCore, smoothstep(0.5, 0.1, d));
-            colorRgb = lerpColor(colorRgb, { r: Math.min(255, cAccent.r + 40), g: Math.min(255, cAccent.g + 40), b: Math.min(255, cAccent.b + 40) }, core * 0.85);
-            bumpVal -= Math.round(core * 25);
+            const swirl = 0.5 + 0.5 * Math.sin(d * 8 - turbulence * 6);
+            const rimMix = smoothstep(1, 0.55, d) * (0.3 + 0.25 * swirl);
+            colorRgb = lerpColor(colorRgb, cSecondary, Math.min(1, rimMix * 0.7));
+            const core = smoothstep(0.42, 0.12, d);
+            stormCore = Math.max(stormCore, core);
+            colorRgb = lerpColor(colorRgb, softAccent, core * 0.28);
+            bumpVal -= Math.round(core * 12);
           }
         }
 
-        bumpVal = Math.round(128 + wave1 * 18 + (turbulence - 0.2) * 40);
-        roughVal = Math.round(195 + turbulence * 60 - stormCore * 60); // calm glossy cores vs rough wakes
+        // Thin haze from Studio cloudCover.
+        if (cloudCover > 0.05) {
+          const haze = smoothstep(0.45, 0.8, fbm(u * 7 + 2.1, v * 4 + 5.5, 3)) * cloudCover;
+          colorRgb = lerpColor(colorRgb, softAccent, haze * 0.25);
+        }
+
+        bumpVal = Math.round(128 + wave1 * (10 + reliefAmt * 16) + (turbulence - 0.15) * 28);
+        roughVal = Math.round(200 + turbulence * 40 - stormCore * 40);
       } else if (archetype === "rocky") {
-        // Jedha/Nevarro-like: muted regolith, rimmed craters, dark maria plains.
-        const cPrimary = mute(rawPrimary, 0.16);
-        const cSecondary = mute(rawSecondary, 0.16);
+        // Soft regolith, rimmed craters, dark maria — Studio palette fully drives hue.
+        const cPrimary = rawPrimary;
+        const cSecondary = rawSecondary;
         const w = warp2(u, v, 4, 2.9, 7.7);
         const macroRelief = fbm(w.x * 4.5, w.y * 4.5, 6);
         const detail = fbm(w.x * 18 + 9.1, w.y * 18 + 4.4, 5);
@@ -245,37 +285,48 @@ export function generateExoplanetTextures(
         // Bright rim ring + shadowed bowl per crater.
         const rim = smoothstep(0.72, 0.9, craterShape) - smoothstep(0.9, 0.99, craterShape);
         const bowl = smoothstep(0.72, 0.25, craterShape);
-        const elevation = Math.pow(Math.max(0, Math.min(1, macroRelief * 0.62 + crater * 0.2 + detail * 0.18)), 1.35);
+        const elevation = Math.pow(
+          Math.max(0, Math.min(1, macroRelief * 0.62 + crater * 0.2 + detail * 0.18)),
+          1.2 + reliefAmt * 0.35
+        );
 
-        if (elevation > 0.6) {
-          const t = (elevation - 0.6) / 0.4;
-          colorRgb = lerpColor(cSecondary, cAccent, Math.min(1, t * 1.15));
+        if (elevation > 0.58) {
+          const t = (elevation - 0.58) / 0.42;
+          colorRgb = lerpColor(cSecondary, cAccent, Math.min(1, t * 0.85));
         } else {
-          const t = elevation / 0.6;
+          const t = elevation / 0.58;
           colorRgb = lerpColor(cPrimary, cSecondary, t);
         }
-        // Dark basaltic maria plains in low basins.
-        const maria = smoothstep(0.56, 0.74, fbm(u * 3 + 11.7, v * 3 + 5.2, 4)) * smoothstep(0.45, 0.25, elevation);
+        const maria =
+          smoothstep(0.56, 0.74, fbm(u * 3 + 11.7, v * 3 + 5.2, 4)) *
+          smoothstep(0.45, 0.25, elevation);
         colorRgb = {
-          r: Math.round(colorRgb.r * (1 - maria * 0.28)),
-          g: Math.round(colorRgb.g * (1 - maria * 0.28)),
-          b: Math.round(colorRgb.b * (1 - maria * 0.24)),
+          r: Math.round(colorRgb.r * (1 - maria * 0.22)),
+          g: Math.round(colorRgb.g * (1 - maria * 0.22)),
+          b: Math.round(colorRgb.b * (1 - maria * 0.2)),
         };
-        // Crater rims catch light; bowls sit in shadow.
-        colorRgb = lerpColor(colorRgb, { r: Math.min(255, cAccent.r + 25), g: Math.min(255, cAccent.g + 25), b: Math.min(255, cAccent.b + 25) }, rim * 0.35);
+        colorRgb = lerpColor(colorRgb, cAccent, rim * 0.22);
         colorRgb = {
-          r: Math.round(colorRgb.r * (1 - bowl * 0.22)),
-          g: Math.round(colorRgb.g * (1 - bowl * 0.22)),
-          b: Math.round(colorRgb.b * (1 - bowl * 0.22)),
+          r: Math.round(colorRgb.r * (1 - bowl * 0.16)),
+          g: Math.round(colorRgb.g * (1 - bowl * 0.16)),
+          b: Math.round(colorRgb.b * (1 - bowl * 0.16)),
         };
 
-        bumpVal = Math.round(Math.max(0, Math.min(1, elevation)) * 255 + rim * 45 - bowl * 30);
+        if (cloudCover > 0.05) {
+          const dust =
+            smoothstep(0.55, 0.85, fbm(u * 8 + 2.4, v * 3.5 + 9.1, 3)) * cloudCover * 0.55;
+          colorRgb = lerpColor(colorRgb, cAccent, dust);
+        }
+
+        bumpVal = Math.round(
+          Math.max(0, Math.min(1, elevation)) * (180 + reliefAmt * 75) + rim * 35 - bowl * 24
+        );
         const pond = smoothstep(0.42, 0.25, detail) * smoothstep(0.4, 0.2, elevation);
-        roughVal = Math.round(255 - pond * 105 - maria * 25); // glassy dust ponds vs matte crags
+        roughVal = Math.round(245 - pond * 80 - maria * 20);
       } else if (archetype === "oceanic") {
-        // Scarif/Mon Cala-like: hard coastlines, depth-graded oceans, polar caps.
-        const cPrimary = mute(rawPrimary, 0.1);
-        const cSecondary = mute(rawSecondary, 0.14);
+        // Soft coastlines, depth-graded seas, thin polar haze.
+        const cPrimary = rawPrimary;
+        const cSecondary = rawSecondary;
         const w = warp2(u, v, 3, 8.8, 3.1);
         const landmass = fbm(w.x * 3.2, w.y * 3.2, 5);
         const cloudSwirl = fbm(w.x * 10 + 2.1, w.y * 6 + 1.2, 4);
@@ -284,42 +335,47 @@ export function generateExoplanetTextures(
 
         const isLand = landmass > 0.52;
         if (cap > 0) {
-          // Polar ice cap with frosted interior.
-          colorRgb = lerpColor(lerpColor(cSecondary, cAccent, 0.55), { r: 238, g: 244, b: 250 }, cap * 0.75);
-          bumpVal = Math.round(190 + cap * 40);
-          roughVal = Math.round(200 - cap * 30);
+          colorRgb = lerpColor(
+            lerpColor(cSecondary, cAccent, 0.4),
+            { r: 210, g: 218, b: 224 },
+            cap * 0.55
+          );
+          bumpVal = Math.round(170 + cap * 30);
+          roughVal = Math.round(200 - cap * 25);
         } else if (isLand) {
           const t = (landmass - 0.52) / 0.48;
-          colorRgb = lerpColor(mute(cSecondary, 0.15), cAccent, t * 0.7);
-          bumpVal = Math.round(160 + t * 90);
-          roughVal = Math.round(215 + t * 40);
-        } else if (landmass > 0.485) {
-          // Narrow shallow shelf — hard coastline, no mushy blend.
-          const t = (landmass - 0.485) / 0.035;
-          colorRgb = lerpColor(cPrimary, cSecondary, 0.25 + t * 0.45);
-          bumpVal = 95;
-          roughVal = 130;
+          colorRgb = lerpColor(cSecondary, cAccent, t * 0.55);
+          bumpVal = Math.round(150 + t * (60 + reliefAmt * 40));
+          roughVal = Math.round(210 + t * 30);
+        } else if (landmass > 0.47) {
+          const t = (landmass - 0.47) / 0.05;
+          colorRgb = lerpColor(cPrimary, cSecondary, 0.2 + t * 0.4);
+          bumpVal = 90;
+          roughVal = 140;
         } else {
-          // Depth-graded ocean: abyss darker and greyer than sunlit shallows.
-          const depth = smoothstep(0.485, 0.15, landmass);
-          const deep = mute({ r: Math.round(cPrimary.r * 0.45), g: Math.round(cPrimary.g * 0.45), b: Math.round(cPrimary.b * 0.45) }, 0.25);
+          const depth = smoothstep(0.47, 0.15, landmass);
+          const deep = {
+            r: Math.round(cPrimary.r * 0.55),
+            g: Math.round(cPrimary.g * 0.55),
+            b: Math.round(cPrimary.b * 0.55),
+          };
           colorRgb = lerpColor(cPrimary, deep, depth);
-          bumpVal = 55;
-          roughVal = Math.round(45 + depth * 25 + (mottle - 0.5) * 50); // streaky water
+          bumpVal = 50;
+          roughVal = Math.round(60 + depth * 20 + (mottle - 0.5) * 40);
         }
 
-        // Broken cloud deck, kept off the caps.
-        if (cloudSwirl > 0.6 && cap < 0.4) {
-          const cloudFactor = (cloudSwirl - 0.6) / 0.4;
-          const broken = smoothstep(0.35, 0.75, fbm(u * 18 + 1.1, v * 18 + 6.6, 3));
-          const cover = cloudFactor * (0.35 + 0.65 * broken);
-          colorRgb = lerpColor(colorRgb, { r: 244, g: 247, b: 252 }, cover * 0.75);
-          roughVal = Math.round(roughVal * (1 - cover * 0.4) + 205 * cover * 0.4);
+        // Studio-driven broken cloud deck.
+        if (cloudCover > 0.05 && cloudSwirl > 0.5 - cloudCover * 0.25 && cap < 0.45) {
+          const cloudFactor = Math.max(0, cloudSwirl - (0.5 - cloudCover * 0.25));
+          const broken = smoothstep(0.3, 0.75, fbm(u * 14 + 1.1, v * 14 + 6.6, 3));
+          const cover = Math.min(1, cloudFactor * (0.4 + 0.6 * broken) * cloudCover);
+          colorRgb = lerpColor(colorRgb, { r: 220, g: 226, b: 232 }, cover * 0.55);
+          roughVal = Math.round(roughVal * (1 - cover * 0.35) + 200 * cover * 0.35);
         }
       } else if (archetype === "volcanic") {
-        // Mustafar-like: grey basalt crust, glowing fissures, ember speckle.
-        const cPrimary = mute(rawPrimary, 0.32);
-        const cSecondary = mute(rawSecondary, 0.2);
+        // Basalt crust, restrained ember fissures (no neon lava candy).
+        const cPrimary = mute(rawPrimary, 0.15);
+        const cSecondary = mute(rawSecondary, 0.12);
         const w = warp2(u, v, 4, 4.4, 9.9);
         const plates = fbm(w.x * 4, w.y * 4, 5);
         const fissure = Math.abs(smoothNoise(w.x * 22, w.y * 22) - 0.5) * 2;
@@ -327,37 +383,49 @@ export function generateExoplanetTextures(
 
         if (isLava) {
           const lavaHeat = 1 - fissure / 0.16;
-          colorRgb = lerpColor(cSecondary, cAccent, Math.min(1, 0.35 + lavaHeat * 0.65));
-          bumpVal = 40; // Depressed rift trench
-          roughVal = Math.round(30 + lavaHeat * 20); // molten glass
+          colorRgb = lerpColor(cSecondary, cAccent, Math.min(1, 0.25 + lavaHeat * 0.45));
+          bumpVal = 40;
+          roughVal = Math.round(40 + lavaHeat * 20);
         } else if (fissure < 0.3) {
-          // Cooling halo: crust → ember → lava approaching the rift.
           const halo = 1 - (fissure - 0.16) / 0.14;
-          const crust = lerpColor(cPrimary, { r: Math.round(cPrimary.r * 0.45), g: Math.round(cPrimary.g * 0.45), b: Math.round(cPrimary.b * 0.45) }, plates);
-          colorRgb = lerpColor(crust, cSecondary, halo * 0.75);
-          bumpVal = Math.round(140 + plates * 60);
-          roughVal = Math.round(190 - halo * 60);
+          const crust = lerpColor(
+            cPrimary,
+            {
+              r: Math.round(cPrimary.r * 0.5),
+              g: Math.round(cPrimary.g * 0.5),
+              b: Math.round(cPrimary.b * 0.5),
+            },
+            plates
+          );
+          colorRgb = lerpColor(crust, cSecondary, halo * 0.55);
+          bumpVal = Math.round(140 + plates * (40 + reliefAmt * 30));
+          roughVal = Math.round(190 - halo * 40);
         } else {
-          colorRgb = lerpColor(cPrimary, { r: Math.round(cPrimary.r * 0.45), g: Math.round(cPrimary.g * 0.45), b: Math.round(cPrimary.b * 0.45) }, plates);
-          // Wind-blown ash streaks across the crust.
+          colorRgb = lerpColor(
+            cPrimary,
+            {
+              r: Math.round(cPrimary.r * 0.5),
+              g: Math.round(cPrimary.g * 0.5),
+              b: Math.round(cPrimary.b * 0.5),
+            },
+            plates
+          );
           const ash = smoothstep(0.55, 0.85, fbm(u * 16 + 9.7, v * 5 + 2.2, 3));
-          colorRgb = lerpColor(colorRgb, { r: 120, g: 118, b: 116 }, ash * 0.3);
-          bumpVal = Math.round(180 + plates * 70);
-          roughVal = Math.round(235 + plates * 20); // matte carbonized crust
+          colorRgb = lerpColor(colorRgb, { r: 110, g: 108, b: 106 }, ash * 0.25);
+          bumpVal = Math.round(170 + plates * (50 + reliefAmt * 30));
+          roughVal = Math.round(230 + plates * 15);
         }
-        // Ember speckle scattered near active rifts.
-        if (!isLava && fissure < 0.45) {
-          const ember = smoothstep(0.93, 0.99, smoothNoise(u * 140 + 3.1, v * 140 + 8.7));
+        if (!isLava && fissure < 0.4) {
+          const ember = smoothstep(0.94, 0.995, smoothNoise(u * 120 + 3.1, v * 120 + 8.7));
           if (ember > 0) {
-            colorRgb = lerpColor(colorRgb, cAccent, ember * 0.8);
-            bumpVal += Math.round(ember * 30);
-            roughVal = Math.round(roughVal * (1 - ember * 0.7) + 40 * ember * 0.7);
+            colorRgb = lerpColor(colorRgb, cAccent, ember * 0.45);
+            bumpVal += Math.round(ember * 20);
           }
         }
       } else {
-        // Hoth/Ilum-like: blue-shadowed frost, crack network, pressure ridges.
-        const cPrimary = mute(rawPrimary, 0.14);
-        const cSecondary = mute(rawSecondary, 0.14);
+        // Soft frost world — blue-shadowed ice, pressure ridges.
+        const cPrimary = rawPrimary;
+        const cSecondary = rawSecondary;
         const w = warp2(u, v, 3, 6.6, 5.5);
         const polar = Math.abs(lat);
         const iceStrata = Math.sin((v + (fbm(w.x * 4, w.y * 4, 3) - 0.5) * 0.2) * Math.PI * 8) * 0.08;
@@ -378,15 +446,19 @@ export function generateExoplanetTextures(
           const shadow = mute({ r: Math.round(cPrimary.r * 0.5), g: Math.round(cPrimary.g * 0.55), b: Math.round(cPrimary.b * 0.7) }, 0.1);
           colorRgb = lerpColor(colorRgb, shadow, crack * 0.7);
         }
-        // Wind-carved sastrugi streaks.
         const sastrugi = smoothstep(0.6, 0.9, fbm(u * 30 + 4.8, v * 7 + 1.9, 3));
-        colorRgb = lerpColor(colorRgb, { r: 235, g: 242, b: 250 }, sastrugi * 0.18);
+        colorRgb = lerpColor(colorRgb, cAccent, sastrugi * 0.14);
 
-        bumpVal = Math.round(128 + iceStrata * 60 - crack * 70 + sastrugi * 25);
-        roughVal = Math.round(165 + haze * 120 + crack * 40 - sastrugi * 35); // wind-polished streaks vs chalk
+        if (cloudCover > 0.05) {
+          const veil = smoothstep(0.5, 0.85, fbm(u * 6 + 1.2, v * 5 + 3.3, 3)) * cloudCover;
+          colorRgb = lerpColor(colorRgb, { r: 210, g: 218, b: 226 }, veil * 0.4);
+        }
+
+        bumpVal = Math.round(128 + iceStrata * (40 + reliefAmt * 30) - crack * 55 + sastrugi * 18);
+        roughVal = Math.round(170 + haze * 90 + crack * 30 - sastrugi * 25);
       }
 
-      colorRgb = finishColor(colorRgb, mottle, grain, drift, lat);
+      colorRgb = finishColor(colorRgb, mottle, grain, drift, lat, roughness, reliefAmt);
 
       cData[idx] = colorRgb.r;
       cData[idx + 1] = colorRgb.g;

@@ -41,16 +41,50 @@ export interface CustomMoonConfig {
 export interface PlanetCustomization {
   id: SpecialistId;
   archetype: PlanetArchetype;
+  /** Deep basins / ocean / band lows */
   primaryColor: string;
+  /** Highlands / plates / mid bands */
   secondaryColor: string;
+  /** Dust, frost, storm cores, cloud tint */
   accentColor: string;
+  /** Baked into albedo relief contrast (MeshBasic soft-lit path). 0–0.5 */
   bumpScale: number;
+  /** Surface matte — higher = softer tonal contrast. 0.2–1 */
   roughness: number;
+  /** Limb mist strength. 0–1 */
+  atmosphereIntensity: number;
+  /** Thin cloud / dust veil cover. 0–1 */
+  cloudCover: number;
+  /** Extra desaturation toward Zen muted earth tones. 0–1 */
+  chromaMute: number;
   hasRings: boolean;
   ringStyle: RingStyle;
   ringColor: string;
   ringTilt: number;
   moons: CustomMoonConfig[];
+}
+
+/** Merge persisted Studio JSON with current defaults so new knobs stay live. */
+export function normalizePlanetCustomization(
+  partial: Partial<PlanetCustomization> | undefined,
+  fallback: PlanetCustomization
+): PlanetCustomization {
+  const merged: PlanetCustomization = {
+    ...fallback,
+    ...partial,
+    id: (partial?.id as SpecialistId) || fallback.id,
+    moons: Array.isArray(partial?.moons) ? partial!.moons! : fallback.moons,
+  };
+  if (merged.atmosphereIntensity == null || Number.isNaN(merged.atmosphereIntensity)) {
+    merged.atmosphereIntensity = fallback.atmosphereIntensity;
+  }
+  if (merged.cloudCover == null || Number.isNaN(merged.cloudCover)) {
+    merged.cloudCover = fallback.cloudCover;
+  }
+  if (merged.chromaMute == null || Number.isNaN(merged.chromaMute)) {
+    merged.chromaMute = fallback.chromaMute;
+  }
+  return merged;
 }
 
 /** User-tunable NebulaField split colors (persisted in localStorage). */
@@ -107,157 +141,181 @@ export const NEBULA_COLOR_PRESETS: Array<{
 ];
 
 export const DEFAULT_PLANET_CUSTOMIZATIONS: Record<string, PlanetCustomization> = {
-  // Muted teal ocean world with invented archipelagos (not Earth continents).
+  // Mossy ocean world — desaturated teal, soft archipelagos (Zen).
   health: {
     id: "health",
     archetype: "oceanic",
-    primaryColor: "#1a5c66",
-    secondaryColor: "#2f8f7a",
-    accentColor: "#9fd9c4",
-    bumpScale: 0.16,
-    roughness: 0.78,
+    primaryColor: "#2a4a4e",
+    secondaryColor: "#4a6b52",
+    accentColor: "#8a9e88",
+    bumpScale: 0.14,
+    roughness: 0.82,
+    atmosphereIntensity: 0.55,
+    cloudCover: 0.35,
+    chromaMute: 0.45,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#34d399",
+    ringColor: "#6b8f7a",
     ringTilt: 0.2,
     moons: [],
   },
-  // Rusty mineral terrain — hero AlienPlanet overrides visuals in canvas.
+  // Rust / ochre rocky hero — Studio palette drives the soft-lit surface.
   move: {
     id: "move",
     archetype: "rocky",
-    primaryColor: "#9a4520",
-    secondaryColor: "#c96a32",
-    accentColor: "#e8c49a",
-    bumpScale: 0.32,
-    roughness: 0.94,
+    primaryColor: "#6b3a28",
+    secondaryColor: "#a06038",
+    accentColor: "#c9a078",
+    bumpScale: 0.3,
+    roughness: 0.92,
+    atmosphereIntensity: 0.4,
+    cloudCover: 0.18,
+    chromaMute: 0.35,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#f97316",
+    ringColor: "#a06038",
     ringTilt: 0.15,
     moons: [
       {
         id: "m-move-1",
         name: "Phobos",
         size: 0.22,
-        color: "#c4a484",
+        color: "#a89078",
         distance: 2.2,
         speed: 1.4,
       },
     ],
   },
-  // Gas giant with irregular cool atmospheric bands.
+  // Cool slate gas giant — soft bands, no candy stripes.
   schedule: {
     id: "schedule",
     archetype: "gas_giant",
-    primaryColor: "#243a6e",
-    secondaryColor: "#4a6fb5",
-    accentColor: "#c5d4f0",
+    primaryColor: "#2a3550",
+    secondaryColor: "#4a5a78",
+    accentColor: "#8a96a8",
     bumpScale: 0.04,
-    roughness: 0.85,
+    roughness: 0.88,
+    atmosphereIntensity: 0.5,
+    cloudCover: 0.2,
+    chromaMute: 0.4,
     hasRings: true,
     ringStyle: "meridian",
-    ringColor: "#8aa8d8",
+    ringColor: "#6a7a90",
     ringTilt: 0.35,
     moons: [],
   },
-  // Cloudy pale ice-haze world.
+  // Pale ice-haze world.
   study: {
     id: "study",
     archetype: "ice_giant",
-    primaryColor: "#6a8fa8",
-    secondaryColor: "#a8c4d4",
-    accentColor: "#e8f1f6",
+    primaryColor: "#4a5e6c",
+    secondaryColor: "#7a8e9a",
+    accentColor: "#c8d4dc",
     bumpScale: 0.05,
-    roughness: 0.55,
+    roughness: 0.62,
+    atmosphereIntensity: 0.65,
+    cloudCover: 0.45,
+    chromaMute: 0.3,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#b6d4e3",
+    ringColor: "#9ab0b8",
     ringTilt: 0.1,
     moons: [
       {
         id: "m-study-1",
         name: "Mimas",
         size: 0.2,
-        color: "#d0dde6",
+        color: "#b8c4cc",
         distance: 2.1,
         speed: 1.1,
       },
     ],
   },
-  // Warm-banded gas giant with irregular storms.
+  // Warm ochre banded giant — muted storms.
   wallet: {
     id: "wallet",
     archetype: "gas_giant",
-    primaryColor: "#5c4a32",
-    secondaryColor: "#c4923a",
-    accentColor: "#f0dfb0",
+    primaryColor: "#4a3a28",
+    secondaryColor: "#8a6a40",
+    accentColor: "#c4a878",
     bumpScale: 0.04,
-    roughness: 0.7,
+    roughness: 0.78,
+    atmosphereIntensity: 0.45,
+    cloudCover: 0.15,
+    chromaMute: 0.38,
     hasRings: true,
     ringStyle: "saturnian",
-    ringColor: "#d4b06a",
+    ringColor: "#a88858",
     ringTilt: 0.45,
     moons: [
       {
         id: "m-wallet-1",
         name: "Titan",
         size: 0.28,
-        color: "#c9b896",
+        color: "#a89878",
         distance: 2.5,
         speed: 0.9,
       },
     ],
   },
-  // Volcanic basalt with isolated lava (emissive reserved for fissure color only).
+  // Basalt volcanic with ember accents (restrained).
   explore: {
     id: "explore",
     archetype: "volcanic",
-    primaryColor: "#3a3548",
-    secondaryColor: "#8b3d2f",
-    accentColor: "#e8a060",
-    bumpScale: 0.28,
-    roughness: 0.88,
+    primaryColor: "#2e2a34",
+    secondaryColor: "#6a3a30",
+    accentColor: "#b07048",
+    bumpScale: 0.26,
+    roughness: 0.9,
+    atmosphereIntensity: 0.35,
+    cloudCover: 0.08,
+    chromaMute: 0.4,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#a78bfa",
+    ringColor: "#6a5a70",
     ringTilt: 0.25,
     moons: [],
   },
-  // Pale dusty cloud-world (soft bands, no Earth geography).
+  // Dusty pale cloud-world.
   travel: {
     id: "travel",
     archetype: "gas_giant",
-    primaryColor: "#8a7e72",
-    secondaryColor: "#c4b8a8",
-    accentColor: "#f2ebe0",
+    primaryColor: "#5a5248",
+    secondaryColor: "#8a8070",
+    accentColor: "#d0c4b0",
     bumpScale: 0.03,
-    roughness: 0.65,
+    roughness: 0.72,
+    atmosphereIntensity: 0.55,
+    cloudCover: 0.55,
+    chromaMute: 0.42,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#d6cfc4",
+    ringColor: "#a09888",
     ringTilt: 0.15,
     moons: [],
   },
-  // Cratered charcoal rocky world.
+  // Charcoal rocky world.
   career: {
     id: "career",
     archetype: "rocky",
-    primaryColor: "#3a3f48",
-    secondaryColor: "#6b7280",
-    accentColor: "#c5cad3",
-    bumpScale: 0.32,
-    roughness: 0.98,
+    primaryColor: "#2e3238",
+    secondaryColor: "#555a62",
+    accentColor: "#9aa0a8",
+    bumpScale: 0.3,
+    roughness: 0.96,
+    atmosphereIntensity: 0.3,
+    cloudCover: 0.1,
+    chromaMute: 0.45,
     hasRings: false,
     ringStyle: "none",
-    ringColor: "#94a3b8",
+    ringColor: "#6a7280",
     ringTilt: 0.2,
     moons: [
       {
         id: "m-career-1",
         name: "Apollo",
         size: 0.24,
-        color: "#9aa3ad",
+        color: "#848a92",
         distance: 2.3,
         speed: 1.2,
       },

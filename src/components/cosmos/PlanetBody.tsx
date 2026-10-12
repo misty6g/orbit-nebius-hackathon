@@ -4,7 +4,13 @@ import React, { useRef, useState, useMemo, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
-import { SpecialistConfig, SpecialistId, PlanetCustomization, DEFAULT_PLANET_CUSTOMIZATIONS } from "@/types/orbit";
+import {
+  SpecialistConfig,
+  SpecialistId,
+  PlanetCustomization,
+  DEFAULT_PLANET_CUSTOMIZATIONS,
+  normalizePlanetCustomization,
+} from "@/types/orbit";
 import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/exoplanetTextures";
 import {
   createNightFillMaterial,
@@ -69,25 +75,27 @@ export function PlanetBody({
   const currentScaleRef = useRef(1.0);
   const tempVec = useMemo(() => new THREE.Vector3(), []);
 
-  // Effective customization config — this drives the fictional look.
   const custom = useMemo(() => {
-    return (
-      customization ||
-      DEFAULT_PLANET_CUSTOMIZATIONS[config.id] || {
+    const fallback =
+      DEFAULT_PLANET_CUSTOMIZATIONS[config.id] ||
+      ({
         id: config.id,
         archetype: "gas_giant" as const,
         primaryColor: config.color,
         secondaryColor: config.glowColor,
-        accentColor: "#ffffff",
+        accentColor: "#c8b8a0",
         bumpScale: 0.06,
         roughness: 0.9,
+        atmosphereIntensity: 0.4,
+        cloudCover: 0.15,
+        chromaMute: 0.4,
         hasRings: false,
         ringStyle: "none" as const,
         ringColor: config.color,
         ringTilt: 0.2,
         moons: [],
-      }
-    );
+      } satisfies PlanetCustomization);
+    return normalizePlanetCustomization(customization, fallback);
   }, [customization, config.id, config.color, config.glowColor]);
 
   // Fictional procedural surface: archetype + Studio palette + relief/roughness.
@@ -128,9 +136,12 @@ export function PlanetBody({
           archetype: "rocky",
           primaryColor: new THREE.Color(moon.color).multiplyScalar(0.45).getStyle(),
           secondaryColor: moon.color,
-          accentColor: "#ffffff",
+          accentColor: "#d0c8bc",
           bumpScale: 0.05,
           roughness: 1.0,
+          atmosphereIntensity: 0.1,
+          cloudCover: 0,
+          chromaMute: 0.5,
           hasRings: false,
           ringStyle: "none",
           ringColor: moon.color,

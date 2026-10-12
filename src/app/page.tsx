@@ -7,6 +7,7 @@ import {
   MorningBriefData,
   PlanetCustomization,
   DEFAULT_PLANET_CUSTOMIZATIONS,
+  normalizePlanetCustomization,
   NebulaCustomization,
   DEFAULT_NEBULA_CUSTOMIZATION,
 } from "@/types/orbit";
@@ -128,11 +129,34 @@ export default function OrbitHome() {
       setShowAwakening(true);
     }
 
-    const savedCustom = localStorage.getItem("orbit_planet_customizations");
-    if (savedCustom) {
-      try {
-        setPlanetCustomizations((prev) => ({ ...prev, ...JSON.parse(savedCustom) }));
-      } catch {}
+    // v8-zen: soft-lit cinematic defaults — drop older candy Studio saves once.
+    const PLANET_CUSTOM_VERSION = "v8-zen-cinematic";
+    const savedCustomVersion = localStorage.getItem("orbit_planet_custom_version");
+    if (savedCustomVersion !== PLANET_CUSTOM_VERSION) {
+      localStorage.removeItem("orbit_planet_customizations");
+      localStorage.setItem("orbit_planet_custom_version", PLANET_CUSTOM_VERSION);
+      setPlanetCustomizations(DEFAULT_PLANET_CUSTOMIZATIONS);
+    } else {
+      const savedCustom = localStorage.getItem("orbit_planet_customizations");
+      if (savedCustom) {
+        try {
+          const parsed = JSON.parse(savedCustom) as Record<
+            string,
+            Partial<PlanetCustomization>
+          >;
+          setPlanetCustomizations((prev) => {
+            const next: Record<string, PlanetCustomization> = { ...prev };
+            for (const [id, partial] of Object.entries(parsed)) {
+              const fallback =
+                DEFAULT_PLANET_CUSTOMIZATIONS[id] ||
+                prev[id] ||
+                DEFAULT_PLANET_CUSTOMIZATIONS.health;
+              next[id] = normalizePlanetCustomization(partial, fallback);
+            }
+            return next;
+          });
+        } catch {}
+      }
     }
 
     const savedNebula = localStorage.getItem("orbit_nebula_customization");
@@ -221,6 +245,7 @@ export default function OrbitHome() {
     setPlanetCustomizations((prev) => {
       const next = { ...prev, [id]: updated };
       localStorage.setItem("orbit_planet_customizations", JSON.stringify(next));
+      localStorage.setItem("orbit_planet_custom_version", "v8-zen-cinematic");
       return next;
     });
   };

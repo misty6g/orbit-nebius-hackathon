@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
-/** Night ≈ day × 0.75 (≈25–30% darker; readable texture on dark hemisphere). */
-export const NIGHT_FLOOR = 0.75;
+/** Night ≈ day × 0.7 — soft fill keeps texture readable on the dark hemisphere. */
+export const NIGHT_FLOOR = 0.7;
 
 const DAY_BOOST_VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -28,8 +28,8 @@ const DAY_BOOST_FRAGMENT = /* glsl */ `
     vec3 N = normalize(vNormalW);
     vec3 L = normalize(-vWorldPos);
     float ndl = clamp(dot(N, L), 0.0, 1.0);
-    float day = smoothstep(0.0, 0.85, ndl);
-    // Additive boost only — base MeshBasic already shows nightFloor × albedo
+    // Very wide wrap → soft cinematic terminator (no hard candy cut).
+    float day = smoothstep(-0.35, 1.05, ndl);
     float boost = (1.0 - nightFloor) * day;
     gl_FragColor = vec4(albedo * boost, 1.0);
   }
@@ -51,26 +51,25 @@ export function createNightFillMaterial(
   nightFloor: number = NIGHT_FLOOR
 ): THREE.MeshBasicMaterial {
   prepMap(colorMap);
-  const g = nightFloor; // multiply color
-  const mat = new THREE.MeshBasicMaterial({
+  const g = nightFloor;
+  return new THREE.MeshBasicMaterial({
     map: colorMap,
     color: new THREE.Color(g, g, g),
     fog: false,
     toneMapped: false,
   });
-  return mat;
 }
 
 /**
- * Additive day boost layer: adds the remaining (1-nightFloor)×albedo×ndl.
- * Combined with night fill → night = 0.7×albedo, day = 1.0×albedo.
+ * Additive day boost: adds the remaining (1-nightFloor)×albedo×softDay.
+ * Combined with night fill → night ≈ 0.7×albedo, day ≈ 1.0×albedo.
  */
 export function createDayBoostMaterial(
   colorMap: THREE.Texture,
   nightFloor: number = NIGHT_FLOOR
 ): THREE.ShaderMaterial {
   prepMap(colorMap);
-  const mat = new THREE.ShaderMaterial({
+  return new THREE.ShaderMaterial({
     uniforms: {
       map: { value: colorMap },
       nightFloor: { value: nightFloor },
@@ -84,17 +83,15 @@ export function createDayBoostMaterial(
     depthWrite: false,
     toneMapped: false,
   });
-  return mat;
 }
 
-/** @deprecated use createNightFillMaterial + createDayBoostMaterial */
+/** Single-shader soft wrap (preview / fallback). */
 export function createSoftLitMaterial(
   colorMap: THREE.Texture,
   nightFloor: number = NIGHT_FLOOR
 ): THREE.ShaderMaterial {
-  // Single-shader fallback kept for callers; prefer dual-layer.
   prepMap(colorMap);
-  const mat = new THREE.ShaderMaterial({
+  return new THREE.ShaderMaterial({
     uniforms: {
       map: { value: colorMap },
       nightFloor: { value: nightFloor },
@@ -111,7 +108,7 @@ export function createSoftLitMaterial(
         vec3 N = normalize(vNormalW);
         vec3 L = normalize(-vWorldPos);
         float ndl = clamp(dot(N, L), 0.0, 1.0);
-        float wrap = mix(nightFloor, 1.0, smoothstep(0.0, 0.85, ndl));
+        float wrap = mix(nightFloor, 1.0, smoothstep(-0.15, 0.95, ndl));
         gl_FragColor = vec4(albedo * wrap, 1.0);
       }
     `,
@@ -119,5 +116,4 @@ export function createSoftLitMaterial(
     lights: false,
     toneMapped: false,
   });
-  return mat;
 }
