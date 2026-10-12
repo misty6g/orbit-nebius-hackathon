@@ -5,10 +5,10 @@ export const NIGHT_FLOOR = 0.7;
 
 /**
  * Icosahedron subdivision — uniform tris, no longitude meridian strips.
- * Detail 6 ≈ 80k tris: smooth silhouette at Studio zoom without UV-sphere
- * vertical facet columns that read as terminator banding.
+ * Detail 7 ≈ 328k tris: edge length stays ~sub-pixel at Studio zoom (~400px)
+ * so triangle Mach bands cannot form ~8px vertical terminator steps.
  */
-export const PLANET_ICO_DETAIL = 6;
+export const PLANET_ICO_DETAIL = 7;
 
 /** Atmosphere / cloud shell. */
 export const PLANET_SHELL_ICO_DETAIL = 5;
@@ -96,28 +96,34 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     vec3 L = normalize(uSunPos - vWorldPos);
     float ndl = dot(N, L);
 
+    // Screen-space box blur on N·L — erases triangle-edge Mach bands.
+    float ndlBlur =
+      (ndl +
+        (ndl - dFdx(ndl)) + (ndl + dFdx(ndl)) +
+        (ndl - dFdy(ndl)) + (ndl + dFdy(ndl))) *
+      0.2;
+
     // Break perfectly-vertical N·L iso-contours (screen-fixed bands).
     vec3 V = normalize(cameraPosition - vWorldPos);
     float rim = pow(clamp(1.0 - abs(dot(N, V)), 0.0, 1.0), 1.5);
     float brk = ignoise(localDir.xy * 48.0 + localDir.yz * 19.0) - 0.5;
-    ndl += brk * 0.04 + (localDir.y * 0.03) * brk + rim * 0.02;
+    ndlBlur += brk * 0.045 + localDir.y * brk * 0.03 + rim * 0.025;
 
     // Very wide half-Lambert — shallow slope ⇒ fewer SDR steps per pixel.
-    float hl = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
+    float hl = clamp(ndlBlur * 0.5 + 0.5, 0.0, 1.0);
     float day = hl * hl;
-    float aa = max(fwidth(day) * 2.0, 0.02);
-    day = smoothstep(-0.05 - aa, 1.05 + aa, day);
+    float aa = max(fwidth(day) * 2.5, 0.03);
+    day = smoothstep(-0.08 - aa, 1.08 + aa, day);
 
     float wrap = mix(nightFloor, 1.0, day);
     vec3 color = albedo * wrap;
 
-    // Strong triangular dither (~±5 LSB) — primary defense against posterization.
+    // Strong triangular dither (~±6 LSB) — primary defense against posterization.
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
     float t2 = ignoise(gl_FragCoord.xy + vec2(11.3, 53.7));
-    float dith = (t0 + t1 - 1.0) * (4.0 / 255.0) + (t2 - 0.5) * (2.0 / 255.0);
-    // Extra dither where the lighting gradient is steepest.
-    dith *= 1.0 + fwidth(wrap) * 40.0;
+    float dith = (t0 + t1 - 1.0) * (5.0 / 255.0) + (t2 - 0.5) * (2.5 / 255.0);
+    dith *= 1.0 + fwidth(wrap) * 50.0;
     color += vec3(dith);
 
     gl_FragColor = vec4(color, 1.0);
