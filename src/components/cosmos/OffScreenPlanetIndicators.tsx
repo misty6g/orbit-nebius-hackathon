@@ -150,16 +150,11 @@ export function PlanetScreenTracker({
         chevron = normY > 0 ? "▼" : "▲";
       }
 
-      const distAU = Math.max(1, Math.round(camera.position.distanceTo(vectors.planetPos)));
-
       badgeEl.style.display = "flex";
       badgeEl.style.transform = `translate3d(${screenX}px, ${screenY}px, 0) translate(-50%, -50%)`;
 
       const chevronEl = badgeEl.querySelector(".badge-chevron");
       if (chevronEl) chevronEl.textContent = chevron;
-
-      const distEl = badgeEl.querySelector(".badge-dist");
-      if (distEl) distEl.textContent = `${distAU} AU`;
     }
   });
 
@@ -205,9 +200,6 @@ export function OffScreenIndicatorsOverlay({
           />
           <span className="text-xs font-medium text-zinc-200 group-hover:text-white whitespace-nowrap">
             {planet.name.replace("Orbit ", "")}
-          </span>
-          <span className="badge-dist text-[10px] font-mono text-zinc-400 group-hover:text-amber-300">
-            --
           </span>
         </button>
       ))}
