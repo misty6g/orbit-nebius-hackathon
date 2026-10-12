@@ -95,13 +95,12 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     vec3 V = normalize(cameraPosition - vWorldPos);
 
     float ndl = dot(N, L);
-    // Facing-led wrap → circular iso-contours (not screen-vertical sun columns).
-    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.7);
-    float sun = smoothstep(-0.5, 1.0, ndl);
-    sun = sun * sun;
+    // Facing fill = circular iso-contours. Any meaningful sun N·L weight redraws
+    // the cheap vertical terminator columns under 8-bit SDR, so sun is a tint only.
+    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.65);
+    float sun = smoothstep(-0.35, 1.0, ndl);
     float brk = ignoise(localDir.xy * 40.0 + localDir.yz * 17.0) - 0.5;
-    // Keep sun as a whisper — vertical N·L columns are what read as cheap banding.
-    float day = clamp(sun * 0.18 + face * 0.82 + brk * 0.04, 0.0, 1.0);
+    float day = clamp(face * 0.92 + sun * 0.08 + brk * 0.045, 0.0, 1.0);
 
     float wrap = mix(nightFloor, 1.0, day);
 
