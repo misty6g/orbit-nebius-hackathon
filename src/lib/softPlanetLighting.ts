@@ -5,7 +5,7 @@ export const NIGHT_FLOOR = 0.7;
 
 /**
  * Icosahedron subdivision — uniform tris, no longitude meridian strips.
- * Detail 6 ≈ 80k tris: smooth enough at Studio zoom without crushing SwiftShader.
+ * Detail 6 ≈ 80k tris: smooth silhouette at Studio zoom.
  */
 export const PLANET_ICO_DETAIL = 6;
 
@@ -30,9 +30,14 @@ export const COSMOS_SUN_POS = new THREE.Vector3(0, 0, 0);
 export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
 
 /**
- * Soft-lit planet shader (WebGL1/SwiftShader-safe — no dFdx/fwidth).
- * Analytic sphere UV + normal. Facing-led wrap avoids screen-vertical
- * sun N·L iso-bands; triangular dither breaks residual SDR steps.
+ * Soft-lit planet shader.
+ *
+ * Directional sun N·L wraps posterize into screen-vertical terminator columns
+ * under 8-bit SDR (the annotated “cheap jagged banding”). Form comes from:
+ *  - gentle view-facing fill (circular iso-contours only)
+ *  - nightFloor lift
+ *  - wrap-space dither
+ *  - the separate fresnel atmosphere shell on the mesh
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
   varying highp vec3 vLocalPos;
@@ -58,7 +63,6 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
 
   uniform sampler2D map;
   uniform float nightFloor;
-  uniform vec3 uSunPos;
   varying highp vec3 vLocalPos;
   varying highp vec3 vWorldPos;
   varying highp vec3 vM0;
@@ -91,23 +95,19 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
 
     mat3 m = mat3(vM0, vM1, vM2);
     vec3 N = normalize(m * localDir);
-    vec3 L = normalize(uSunPos - vWorldPos);
     vec3 V = normalize(cameraPosition - vWorldPos);
 
-    float ndl = dot(N, L);
-    // Facing fill = circular iso-contours. Any meaningful sun N·L weight redraws
-    // the cheap vertical terminator columns under 8-bit SDR, so sun is a tint only.
-    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.65);
-    float sun = smoothstep(-0.35, 1.0, ndl);
-    float brk = ignoise(localDir.xy * 40.0 + localDir.yz * 17.0) - 0.5;
-    float day = clamp(face * 0.92 + sun * 0.08 + brk * 0.045, 0.0, 1.0);
-
+    // Circular facing fill only — never sun N·L (that drew vertical columns).
+    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.55);
+    float brk = ignoise(localDir.xy * 36.0 + localDir.yz * 14.0) - 0.5;
+    // Compress the wrap range so SDR has fewer steps across the disk.
+    // face=0 → ~nightFloor+0.12 ; face=1 → 1.0
+    float day = clamp(0.4 + 0.6 * face + brk * 0.04, 0.0, 1.0);
     float wrap = mix(nightFloor, 1.0, day);
 
-    // Wrap-space triangular dither (~±5 LSB).
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
-    wrap = clamp(wrap + (t0 + t1 - 1.0) * (5.0 / 255.0), 0.0, 1.15);
+    wrap = clamp(wrap + (t0 + t1 - 1.0) * (4.0 / 255.0), 0.0, 1.1);
 
     gl_FragColor = vec4(albedo * wrap, 1.0);
   }
@@ -128,13 +128,12 @@ function prepMap(colorMap: THREE.Texture): void {
 
 export interface SoftLitOptions {
   nightFloor?: number;
-  /** World-space sun / key light position. */
+  /** Kept for API compat; directional sun wrap removed (caused vertical bands). */
   sunPos?: THREE.Vector3;
 }
 
 /**
- * Single-pass soft-lit planet material.
- * Night ≈ nightFloor × albedo; day ramps via facing-led soft wrap.
+ * Soft-lit planet material — facing fill + nightFloor, no sun N·L wrap.
  */
 export function createSoftLitMaterial(
   colorMap: THREE.Texture,
@@ -146,13 +145,11 @@ export function createSoftLitMaterial(
       ? { nightFloor: nightFloorOrOpts }
       : nightFloorOrOpts;
   const nightFloor = opts.nightFloor ?? NIGHT_FLOOR;
-  const sunPos = opts.sunPos?.clone() ?? COSMOS_SUN_POS.clone();
 
   return new THREE.ShaderMaterial({
     uniforms: {
       map: { value: colorMap },
       nightFloor: { value: nightFloor },
-      uSunPos: { value: sunPos },
     },
     vertexShader: SOFT_LIT_VERTEX,
     fragmentShader: SOFT_LIT_FRAGMENT,
