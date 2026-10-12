@@ -125,7 +125,7 @@ const textureCache = new Map<string, ExoplanetMaterialTextures>();
 const ringTextureCache = new Map<string, THREE.CanvasTexture>();
 // Bump whenever the generator algorithm changes so stale in-memory or
 // persisted canvases from an older build can never be reused.
-const TEXTURE_GEN_VERSION = "v8b-zen-cinematic";
+const TEXTURE_GEN_VERSION = "v8c-vibrant-defaults";
 
 /**
  * Procedural fictional exoplanet textures — Zen soft-lit cinematic look.
@@ -185,10 +185,11 @@ export function generateExoplanetTextures(
   const roughImg = roughCtx.createImageData(width, height);
   const rData = roughImg.data;
 
-  const baseMute = 0.28 + chromaMute * 0.5;
+  // chromaMute=0 → keep Studio hex picks; defaults use a light mute only.
+  const baseMute = Math.max(0, Math.min(0.85, chromaMute * 0.55));
   const rawPrimary = mute(hexToRgb(customization.primaryColor), baseMute);
-  const rawSecondary = mute(hexToRgb(customization.secondaryColor), baseMute * 0.9);
-  const cAccent = mute(hexToRgb(customization.accentColor), baseMute * 0.75);
+  const rawSecondary = mute(hexToRgb(customization.secondaryColor), baseMute * 0.85);
+  const cAccent = mute(hexToRgb(customization.accentColor), baseMute * 0.65);
 
   const archetype: PlanetArchetype = customization.archetype || "gas_giant";
   const reliefAmt = Math.max(0, Math.min(1, bumpScale / 0.45));
@@ -217,9 +218,9 @@ export function generateExoplanetTextures(
 
       if (archetype === "gas_giant") {
         // Soft cinematic bands — wide, low-contrast haze, no candy marble/zebra.
-        const cPrimary = mute(rawPrimary, 0.2);
-        const cSecondary = mute(rawSecondary, 0.18);
-        const softAccent = mute(cAccent, 0.25);
+        const cPrimary = rawPrimary;
+        const cSecondary = rawSecondary;
+        const softAccent = mute(cAccent, 0.08);
         const w = warp2(u, v, 2.0, 5.2, 1.3);
         const bandCoord = v * Math.PI * 3.6 + (fbm(w.x * 3.2, w.y * 1.8, 3) - 0.5) * 0.9;
         const wave1 = Math.sin(bandCoord + Math.sin(u * Math.PI * 1.8 + fbm(w.x * 2.8, w.y * 2.8, 3) * 1.6) * 0.18);
@@ -374,8 +375,8 @@ export function generateExoplanetTextures(
         }
       } else if (archetype === "volcanic") {
         // Basalt crust, restrained ember fissures (no neon lava candy).
-        const cPrimary = mute(rawPrimary, 0.15);
-        const cSecondary = mute(rawSecondary, 0.12);
+        const cPrimary = rawPrimary;
+        const cSecondary = rawSecondary;
         const w = warp2(u, v, 4, 4.4, 9.9);
         const plates = fbm(w.x * 4, w.y * 4, 5);
         const fissure = Math.abs(smoothNoise(w.x * 22, w.y * 22) - 0.5) * 2;

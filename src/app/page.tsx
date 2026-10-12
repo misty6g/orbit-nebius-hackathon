@@ -129,8 +129,8 @@ export default function OrbitHome() {
       setShowAwakening(true);
     }
 
-    // v8-zen: soft-lit cinematic defaults — drop older candy Studio saves once.
-    const PLANET_CUSTOM_VERSION = "v8-zen-cinematic";
+    // Bump to refresh default palettes (vibrant Zen defaults).
+    const PLANET_CUSTOM_VERSION = "v8c-vibrant-defaults";
     const savedCustomVersion = localStorage.getItem("orbit_planet_custom_version");
     if (savedCustomVersion !== PLANET_CUSTOM_VERSION) {
       localStorage.removeItem("orbit_planet_customizations");
@@ -245,7 +245,7 @@ export default function OrbitHome() {
     setPlanetCustomizations((prev) => {
       const next = { ...prev, [id]: updated };
       localStorage.setItem("orbit_planet_customizations", JSON.stringify(next));
-      localStorage.setItem("orbit_planet_custom_version", "v8-zen-cinematic");
+      localStorage.setItem("orbit_planet_custom_version", "v8c-vibrant-defaults");
       return next;
     });
   };
