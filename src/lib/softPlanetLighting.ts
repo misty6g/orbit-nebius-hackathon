@@ -5,22 +5,21 @@ export const NIGHT_FLOOR = 0.7;
 
 /**
  * Icosahedron subdivision — uniform tris, no longitude meridian strips.
- * Detail 7 ≈ 328k tris: edge length stays ~sub-pixel at Studio zoom (~400px)
- * so triangle Mach bands cannot form ~8px vertical terminator steps.
+ * Detail 6 ≈ 80k tris: smooth enough at Studio zoom without crushing SwiftShader.
  */
-export const PLANET_ICO_DETAIL = 7;
+export const PLANET_ICO_DETAIL = 6;
 
 /** Atmosphere / cloud shell. */
-export const PLANET_SHELL_ICO_DETAIL = 5;
+export const PLANET_SHELL_ICO_DETAIL = 4;
 
 /** @deprecated Prefer PLANET_ICO_DETAIL. */
-export const PLANET_SPHERE_WIDTH = 384;
+export const PLANET_SPHERE_WIDTH = 192;
 /** @deprecated Prefer PLANET_ICO_DETAIL. */
-export const PLANET_SPHERE_HEIGHT = 256;
+export const PLANET_SPHERE_HEIGHT = 128;
 /** @deprecated Prefer PLANET_SHELL_ICO_DETAIL. */
-export const PLANET_SHELL_WIDTH = 192;
+export const PLANET_SHELL_WIDTH = 96;
 /** @deprecated Prefer PLANET_SHELL_ICO_DETAIL. */
-export const PLANET_SHELL_HEIGHT = 128;
+export const PLANET_SHELL_HEIGHT = 64;
 /** @deprecated */
 export const PLANET_SPHERE_SEGMENTS = PLANET_SPHERE_WIDTH;
 
@@ -31,13 +30,11 @@ export const COSMOS_SUN_POS = new THREE.Vector3(0, 0, 0);
 export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
 
 /**
- * Soft-lit planet shader.
- * Analytic sphere UV + normal (mesh topology only for silhouette).
- * Lighting uses a wide half-Lambert, view-space contour break, and strong
- * triangular dither so SDR cannot posterize into vertical terminator bands.
+ * Soft-lit planet shader (WebGL1/SwiftShader-safe — no dFdx/fwidth).
+ * Analytic sphere UV + normal. Facing-led wrap avoids screen-vertical
+ * sun N·L iso-bands; triangular dither breaks residual SDR steps.
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
-  // highp varyings — mediump defaults posterize soft N·L into ~8px bands.
   varying highp vec3 vLocalPos;
   varying highp vec3 vWorldPos;
   varying highp vec3 vM0;
@@ -98,34 +95,21 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
     vec3 V = normalize(cameraPosition - vWorldPos);
 
     float ndl = dot(N, L);
-    // Screen-space blur — erases triangle-edge Mach bands.
-    float ndlBlur =
-      (ndl +
-        (ndl - dFdx(ndl)) + (ndl + dFdx(ndl)) +
-        (ndl - dFdy(ndl)) + (ndl + dFdy(ndl))) *
-      0.2;
-
-    // View-facing fill dominates (circular iso-contours). A pure sun N·L wrap
-    // draws screen-vertical bands on the terminator under 8-bit SDR.
-    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.75);
-    float sun = smoothstep(-0.55, 1.05, ndlBlur);
-    float brk = ignoise(localDir.xy * 48.0 + localDir.yz * 19.0) - 0.5;
-    float day = clamp(sun * 0.38 + face * 0.62 + brk * 0.03, 0.0, 1.0);
-    float aa = max(fwidth(day) * 2.0, 0.025);
-    day = smoothstep(-0.05 - aa, 1.05 + aa, day);
+    // Facing-led wrap → circular iso-contours (not screen-vertical sun columns).
+    float face = pow(clamp(dot(N, V) * 0.5 + 0.5, 0.0, 1.0), 0.7);
+    float sun = smoothstep(-0.5, 1.0, ndl);
+    sun = sun * sun;
+    float brk = ignoise(localDir.xy * 40.0 + localDir.yz * 17.0) - 0.5;
+    float day = clamp(sun * 0.32 + face * 0.68 + brk * 0.035, 0.0, 1.0);
 
     float wrap = mix(nightFloor, 1.0, day);
 
-    // Wrap-space triangular dither.
+    // Wrap-space triangular dither (~±5 LSB).
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
-    float t2 = ignoise(gl_FragCoord.xy + vec2(11.3, 53.7));
-    float dith = (t0 + t1 - 1.0) * (5.0 / 255.0) + (t2 - 0.5) * (2.5 / 255.0);
-    dith *= 1.0 + fwidth(wrap) * 45.0;
-    wrap = clamp(wrap + dith, 0.0, 1.2);
+    wrap = clamp(wrap + (t0 + t1 - 1.0) * (5.0 / 255.0), 0.0, 1.15);
 
-    vec3 color = albedo * wrap;
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(albedo * wrap, 1.0);
   }
 `;
 
@@ -138,7 +122,7 @@ function prepMap(colorMap: THREE.Texture): void {
   colorMap.generateMipmaps = true;
   colorMap.minFilter = THREE.LinearMipmapLinearFilter;
   colorMap.magFilter = THREE.LinearFilter;
-  colorMap.anisotropy = Math.max(colorMap.anisotropy || 0, 16);
+  colorMap.anisotropy = Math.max(colorMap.anisotropy || 0, 8);
   colorMap.needsUpdate = true;
 }
 
@@ -150,7 +134,7 @@ export interface SoftLitOptions {
 
 /**
  * Single-pass soft-lit planet material.
- * Night ≈ nightFloor × albedo; day ramps via analytical sphere N·L.
+ * Night ≈ nightFloor × albedo; day ramps via facing-led soft wrap.
  */
 export function createSoftLitMaterial(
   colorMap: THREE.Texture,
