@@ -4,22 +4,25 @@ import * as THREE from "three";
 export const NIGHT_FLOOR = 0.7;
 
 /**
- * High-segment UV sphere for planet bodies.
- * Screen period of longitude facets ≈ π·diameter_px / WIDTH — keep WIDTH high
- * enough that facets stay sub-pixel at Studio zoom (≈400px planet ⇒ WIDTH≥320).
- * Analytical sphereUV / normals ignore mesh UVs, so the UV seam does not imprint.
+ * Icosahedron subdivision — uniform tris, no longitude meridian strips.
+ * Detail 6 ≈ 80k tris: smooth silhouette at Studio zoom without UV-sphere
+ * vertical facet columns that read as terminator banding.
  */
-export const PLANET_SPHERE_WIDTH = 384;
-export const PLANET_SPHERE_HEIGHT = 256;
+export const PLANET_ICO_DETAIL = 6;
 
-/** Atmosphere / cloud shell — slightly fewer segments is fine. */
-export const PLANET_SHELL_WIDTH = 192;
-export const PLANET_SHELL_HEIGHT = 128;
-
-/** @deprecated Prefer PLANET_SPHERE_WIDTH / HEIGHT. */
-export const PLANET_ICO_DETAIL = 7;
-/** @deprecated Prefer PLANET_SHELL_WIDTH / HEIGHT. */
+/** Atmosphere / cloud shell. */
 export const PLANET_SHELL_ICO_DETAIL = 5;
+
+/** @deprecated Prefer PLANET_ICO_DETAIL. */
+export const PLANET_SPHERE_WIDTH = 384;
+/** @deprecated Prefer PLANET_ICO_DETAIL. */
+export const PLANET_SPHERE_HEIGHT = 256;
+/** @deprecated Prefer PLANET_SHELL_ICO_DETAIL. */
+export const PLANET_SHELL_WIDTH = 192;
+/** @deprecated Prefer PLANET_SHELL_ICO_DETAIL. */
+export const PLANET_SHELL_HEIGHT = 128;
+/** @deprecated */
+export const PLANET_SPHERE_SEGMENTS = PLANET_SPHERE_WIDTH;
 
 /** Default sun position in the cosmos (world origin). */
 export const COSMOS_SUN_POS = new THREE.Vector3(0, 0, 0);
@@ -29,15 +32,13 @@ export const STUDIO_SUN_POS = new THREE.Vector3(4.5, 3.2, 5.5);
 
 /**
  * Soft-lit planet shader.
- * - Object-space sphere direction re-normalized per fragment (no chord sag)
- * - Equirect UV from that direction (no mesh-UV meridian imprint)
- * - World normal via varying (modelMatrix is vertex-only in ShaderMaterial)
- * - Half-Lambert wrap + fwidth AA + triangular SDR dither
+ * Analytic sphere UV + normal (mesh topology only for silhouette).
+ * Lighting uses a wide half-Lambert, view-space contour break, and strong
+ * triangular dither so SDR cannot posterize into vertical terminator bands.
  */
 const SOFT_LIT_VERTEX = /* glsl */ `
   varying vec3 vLocalPos;
   varying vec3 vWorldPos;
-  // modelMatrix columns — ShaderMaterial only injects modelMatrix in the vertex stage.
   varying vec3 vM0;
   varying vec3 vM1;
   varying vec3 vM2;
@@ -79,7 +80,6 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
   }
 
   void main() {
-    // Re-normalize every fragment — kills longitude stair-steps from chord lerps.
     vec3 localDir = normalize(vLocalPos);
     vec2 uv = sphereUV(localDir);
     vec3 albedo = texture2D(map, uv).rgb;
@@ -91,28 +91,34 @@ const SOFT_LIT_FRAGMENT = /* glsl */ `
       albedo = mix(albedo, 0.5 * (aL + aR), seam);
     }
 
-    // Analytic world normal from object-space sphere dir (not lerped vertex N).
     mat3 m = mat3(vM0, vM1, vM2);
     vec3 N = normalize(m * localDir);
     vec3 L = normalize(uSunPos - vWorldPos);
     float ndl = dot(N, L);
 
-    // Half-Lambert spreads the terminator; fwidth softens triangle-edge Mach bands.
+    // Break perfectly-vertical N·L iso-contours (screen-fixed bands).
+    vec3 V = normalize(cameraPosition - vWorldPos);
+    float rim = pow(clamp(1.0 - abs(dot(N, V)), 0.0, 1.0), 1.5);
+    float brk = ignoise(localDir.xy * 48.0 + localDir.yz * 19.0) - 0.5;
+    ndl += brk * 0.04 + (localDir.y * 0.03) * brk + rim * 0.02;
+
+    // Very wide half-Lambert — shallow slope ⇒ fewer SDR steps per pixel.
     float hl = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
     float day = hl * hl;
-    float aa = max(fwidth(day) * 1.35, 0.01);
-    day = smoothstep(0.03 - aa, 0.97 + aa, day);
-
-    float brk = ignoise(localDir.xy * 64.0 + localDir.yz * 28.0) - 0.5;
-    day = clamp(day + brk * 0.02, 0.0, 1.0);
+    float aa = max(fwidth(day) * 2.0, 0.02);
+    day = smoothstep(-0.05 - aa, 1.05 + aa, day);
 
     float wrap = mix(nightFloor, 1.0, day);
     vec3 color = albedo * wrap;
 
-    // Triangular dither ≈ ±3 LSB — breaks residual SDR posterization.
+    // Strong triangular dither (~±5 LSB) — primary defense against posterization.
     float t0 = ignoise(gl_FragCoord.xy);
     float t1 = ignoise(gl_FragCoord.xy + vec2(37.19, 17.57));
-    color += vec3((t0 + t1 - 1.0) * (3.0 / 255.0));
+    float t2 = ignoise(gl_FragCoord.xy + vec2(11.3, 53.7));
+    float dith = (t0 + t1 - 1.0) * (4.0 / 255.0) + (t2 - 0.5) * (2.0 / 255.0);
+    // Extra dither where the lighting gradient is steepest.
+    dith *= 1.0 + fwidth(wrap) * 40.0;
+    color += vec3(dith);
 
     gl_FragColor = vec4(color, 1.0);
   }
@@ -189,6 +195,3 @@ export function createDayBoostMaterial(
     visible: false,
   });
 }
-
-/** Back-compat alias. */
-export const PLANET_SPHERE_SEGMENTS = PLANET_SPHERE_WIDTH;

@@ -19,10 +19,8 @@ import {
 import {
   createSoftLitMaterial,
   NIGHT_FLOOR,
-  PLANET_SPHERE_WIDTH,
-  PLANET_SPHERE_HEIGHT,
-  PLANET_SHELL_WIDTH,
-  PLANET_SHELL_HEIGHT,
+  PLANET_ICO_DETAIL,
+  PLANET_SHELL_ICO_DETAIL,
 } from "@/lib/softPlanetLighting";
 
 export interface AlienPlanetProps {
@@ -363,13 +361,13 @@ export function AlienPlanet({
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry args={[radius, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]} />
+        <icosahedronGeometry args={[radius, PLANET_ICO_DETAIL]} />
       </mesh>
 
       {wantsClouds && softClouds && (
         <mesh ref={cloudsMeshRef} raycast={() => null}>
           {/* Equirect cloud map needs SphereGeometry UVs */}
-          <sphereGeometry args={[radius * 1.014, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
+          <sphereGeometry args={[radius * 1.014, 96, 64]} />
           <meshBasicMaterial
             map={softClouds}
             transparent
@@ -385,7 +383,7 @@ export function AlienPlanet({
       )}
 
       <mesh ref={atmosphereMeshRef} material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[radius * 1.032, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
+        <icosahedronGeometry args={[radius * 1.032, PLANET_SHELL_ICO_DETAIL]} />
       </mesh>
 
       {custom.hasRings && ringTexture && (

@@ -125,7 +125,7 @@ const textureCache = new Map<string, ExoplanetMaterialTextures>();
 const ringTextureCache = new Map<string, THREE.CanvasTexture>();
 // Bump whenever the generator algorithm changes so stale in-memory or
 // persisted canvases from an older build can never be reused.
-const TEXTURE_GEN_VERSION = "v8e-smooth-noband";
+const TEXTURE_GEN_VERSION = "v8f-ico-dither";
 
 /**
  * Procedural fictional exoplanet textures — Zen soft-lit cinematic look.
@@ -462,9 +462,11 @@ export function generateExoplanetTextures(
 
       colorRgb = finishColor(colorRgb, mottle, grain, drift, lat, roughness, reliefAmt);
 
-      cData[idx] = colorRgb.r;
-      cData[idx + 1] = colorRgb.g;
-      cData[idx + 2] = colorRgb.b;
+      // Sub-LSB hash dither in the albedo — breaks flat posterization when lit.
+      const texDith = (noise2D(x * 0.37 + 2.1, y * 0.41 + 5.7) - 0.5) * 3.0;
+      cData[idx] = clamp255(colorRgb.r + texDith);
+      cData[idx + 1] = clamp255(colorRgb.g + texDith * 0.9);
+      cData[idx + 2] = clamp255(colorRgb.b + texDith * 1.1);
       cData[idx + 3] = 255;
 
       // Micro grain folded into relief so the bump reads at all distances.

@@ -21,10 +21,8 @@ import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/e
 import {
   createSoftLitMaterial,
   NIGHT_FLOOR,
-  PLANET_SPHERE_WIDTH,
-  PLANET_SPHERE_HEIGHT,
-  PLANET_SHELL_WIDTH,
-  PLANET_SHELL_HEIGHT,
+  PLANET_ICO_DETAIL,
+  PLANET_SHELL_ICO_DETAIL,
   STUDIO_SUN_POS,
 } from "@/lib/softPlanetLighting";
 import {
@@ -215,12 +213,12 @@ function CustomizerPreviewMesh({
       <directionalLight position={[4, 3, 5]} intensity={0.3} color="#ffe9c4" />
 
       <mesh ref={meshRef} material={softLitMaterial}>
-        <sphereGeometry args={[1.7, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]} />
+        <icosahedronGeometry args={[1.7, PLANET_ICO_DETAIL]} />
       </mesh>
 
       {cloudMap && (
         <mesh raycast={() => null}>
-          <sphereGeometry args={[1.72, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
+          <sphereGeometry args={[1.72, 96, 64]} />
           <meshBasicMaterial
             map={cloudMap}
             transparent
@@ -235,7 +233,7 @@ function CustomizerPreviewMesh({
       )}
 
       <mesh material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry args={[1.76, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]} />
+        <icosahedronGeometry args={[1.76, PLANET_SHELL_ICO_DETAIL]} />
       </mesh>
 
       {custom.hasRings && ringTexture && (

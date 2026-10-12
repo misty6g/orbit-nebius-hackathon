@@ -270,6 +270,18 @@ export default function OrbitHome() {
     setShowCustomizer(true);
   };
 
+  // Deep-link: /?studio=health opens Planet Studio on that specialist.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const studioId = params.get("studio");
+    if (!studioId) return;
+    const id = studioId as SpecialistId;
+    if (!SPECIALISTS[id] && !DEFAULT_PLANET_CUSTOMIZATIONS[id]) return;
+    setCustomizerPlanetId(id);
+    setShowCustomizer(true);
+  }, []);
+
   const handleSelectSpecialist = (id: SpecialistId) => {
     if (isTouring) return;
     cosmicAudio.playWarp();

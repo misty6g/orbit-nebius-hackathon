@@ -15,10 +15,8 @@ import { generateExoplanetTextures, generateExoplanetRingTexture } from "@/lib/e
 import {
   createSoftLitMaterial,
   NIGHT_FLOOR,
-  PLANET_SPHERE_WIDTH,
-  PLANET_SPHERE_HEIGHT,
-  PLANET_SHELL_WIDTH,
-  PLANET_SHELL_HEIGHT,
+  PLANET_ICO_DETAIL,
+  PLANET_SHELL_ICO_DETAIL,
 } from "@/lib/softPlanetLighting";
 
 interface PlanetBodyProps {
@@ -257,16 +255,12 @@ export function PlanetBody({
           document.body.style.cursor = "auto";
         }}
       >
-        <sphereGeometry
-          args={[config.size, PLANET_SPHERE_WIDTH, PLANET_SPHERE_HEIGHT]}
-        />
+        <icosahedronGeometry args={[config.size, PLANET_ICO_DETAIL]} />
       </mesh>
 
       {/* Soft sunlit-limb atmosphere — complements lighting, not a full outline */}
       <mesh ref={atmosphereMeshRef} material={fresnelMaterial} raycast={() => null}>
-        <sphereGeometry
-          args={[config.size * 1.032, PLANET_SHELL_WIDTH, PLANET_SHELL_HEIGHT]}
-        />
+        <icosahedronGeometry args={[config.size * 1.032, PLANET_SHELL_ICO_DETAIL]} />
       </mesh>
 
       {/* Procedural ring system in the Studio ring color */}
