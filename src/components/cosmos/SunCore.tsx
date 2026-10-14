@@ -123,13 +123,13 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
           }
           stream = clamp(stream * 0.55, 0.0, 1.2);
 
-          // Soft base corona under the rays
-          float base = pow(halo, 1.35) * 0.55;
-          float rays = pow(halo, 0.85) * stream;
+          // Soft base corona under the rays — keep gaps so rays read as streamers
+          float base = pow(halo, 1.45) * 0.42;
+          float rays = pow(halo, 0.75) * stream;
           float a = (base + rays) * uIntensity;
 
-          vec3 col = mix(uColorOuter, uColorMid, smoothstep(0.9, 0.45, r));
-          col = mix(col, uColorCore, clamp(rays * 0.85, 0.0, 1.0));
+          vec3 col = mix(uColorOuter, uColorMid, smoothstep(0.92, 0.48, r));
+          col = mix(col, uColorCore, clamp(rays * 0.9, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }
       `,
@@ -180,38 +180,40 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
 
           // Prominence arches — short curved lobes near the limb
           float prom = 0.0;
-          for (int i = 0; i < 6; i++) {
+          for (int i = 0; i < 7; i++) {
             float fi = float(i);
             float seed = hash(fi * 19.1 + 4.2);
             float center = seed * 6.28318 + uTime * (0.04 + seed * 0.025);
             float dAng = abs(atan(sin(ang - center), cos(ang - center)));
-            float width = 0.18 + seed * 0.12;
-            float arch = exp(-pow(dAng / width, 1.7));
-            // Peak height just outside the limb
-            float height = exp(-pow((r - (0.52 + seed * 0.06)) / 0.09, 2.0));
+            float width = 0.14 + seed * 0.1;
+            float arch = exp(-pow(dAng / width, 1.85));
+            // Loop-like radial profile: rise then fall (arched prominence)
+            float rr = (r - 0.48) / 0.14;
+            float loop = exp(-pow(rr - 0.55, 2.0) * 3.2) * smoothstep(0.0, 0.25, rr);
             float pulse = 0.65 + 0.35 * sin(uTime * (0.4 + seed) + fi * 1.7);
-            prom += arch * height * pulse;
+            prom += arch * loop * pulse;
           }
-          prom = clamp(prom * 0.7, 0.0, 1.0);
+          prom = clamp(prom * 0.85, 0.0, 1.0);
 
-          // Longer flare plumes
+          // Longer wispy flare plumes (narrower than light-shafts)
           float flares = 0.0;
-          for (int i = 0; i < 5; i++) {
+          for (int i = 0; i < 6; i++) {
             float fi = float(i);
             float seed = hash(fi * 27.3 + 8.8);
             float center = seed * 6.28318 + uTime * (0.05 + 0.02 * seed);
             float dAng = abs(atan(sin(ang - center), cos(ang - center)));
-            float spike = exp(-pow(dAng / (0.06 + seed * 0.04), 1.4));
-            // Stretch outward from the limb
-            float stretch = smoothstep(0.46, 0.58, r) * (1.0 - smoothstep(0.62, 0.97, r));
-            float swell = 0.45 + 0.55 * pow(0.5 + 0.5 * sin(uTime * (0.3 + seed * 0.45) + fi * 2.4), 2.0);
-            flares += spike * stretch * swell;
+            float spike = exp(-pow(dAng / (0.045 + seed * 0.03), 1.55));
+            // Soft filament noise along the plume
+            float filament = 0.75 + 0.25 * sin(r * 28.0 + ang * 6.0 + uTime * 0.6 + fi);
+            float stretch = smoothstep(0.46, 0.56, r) * (1.0 - smoothstep(0.68, 0.98, r));
+            float swell = 0.4 + 0.6 * pow(0.5 + 0.5 * sin(uTime * (0.28 + seed * 0.45) + fi * 2.4), 2.2);
+            flares += spike * stretch * swell * filament;
           }
           flares = clamp(flares, 0.0, 1.6);
 
-          float a = zone * (prom * 0.85 + flares) * uIntensity;
+          float a = zone * (prom * 1.05 + flares * 0.95) * uIntensity;
           if (a < 0.004) discard;
-          vec3 col = mix(uColorWarm, uColorHot, clamp(flares * 0.65 + prom * 0.35, 0.0, 1.0));
+          vec3 col = mix(uColorWarm, uColorHot, clamp(flares * 0.55 + prom * 0.45, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }
       `,
@@ -219,7 +221,7 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         uColorHot: { value: new THREE.Color("#fff2d8") },
         uColorWarm: { value: new THREE.Color("#f4a060") },
         uTime: { value: 0 },
-        uIntensity: { value: 1.15 },
+        uIntensity: { value: 1.25 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
