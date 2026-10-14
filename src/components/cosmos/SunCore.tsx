@@ -18,12 +18,11 @@ interface SunCoreProps {
  */
 export function SunCore({ onSelect, isSelected }: SunCoreProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const glowInnerRef = useRef<THREE.Mesh>(null);
-  const glowMidRef = useRef<THREE.Mesh>(null);
-  const glowOuterRef = useRef<THREE.Mesh>(null);
   const limbMeshRef = useRef<THREE.Mesh>(null);
-  const prominenceRef = useRef<THREE.Mesh>(null);
-  const flareRef = useRef<THREE.Mesh>(null);
+  const coronaBillboardRef = useRef<THREE.Mesh>(null);
+  const flareBillboardRef = useRef<THREE.Mesh>(null);
+  const glowSoftRef = useRef<THREE.Mesh>(null);
+  const flareRollRef = useRef(0);
   const [hovered, setHovered] = useState(false);
 
   const reducedMotion = useMemo(() => {
@@ -57,16 +56,15 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         void main() {
           vec3 V = normalize(cameraPosition - vWorldPos);
           float d = abs(dot(V, normalize(vNormalW)));
-          float limb = pow(smoothstep(0.82, 0.04, d), 1.15);
-          // Gentle breathing along the rim
+          float limb = pow(smoothstep(0.85, 0.02, d), 1.1);
           float breathe = 0.9 + 0.1 * sin(uTime * 0.4 + d * 6.0);
           float a = limb * uStrength * breathe;
           gl_FragColor = vec4(uColor, a);
         }
       `,
       uniforms: {
-        uColor: { value: new THREE.Color("#ffd0a0") },
-        uStrength: { value: 0.72 },
+        uColor: { value: new THREE.Color("#ffd2a4") },
+        uStrength: { value: 0.78 },
         uTime: { value: 0 },
       },
       transparent: true,
@@ -76,164 +74,94 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
     });
   }, []);
 
-  // Volumetric corona shells — streamers + soft bloom
-  const makeGlowMaterial = (
-    color: string,
-    intensity: number,
-    falloff: number,
-    streamers: boolean
-  ) =>
-    new THREE.ShaderMaterial({
-      vertexShader: /* glsl */ `
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
-        void main() {
-          vNormalW = normalize(mat3(modelMatrix) * normal);
-          vDir = normalize(position);
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vWorldPos = wp.xyz;
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        precision highp float;
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
-        uniform vec3 uColor;
-        uniform float uIntensity;
-        uniform float uFalloff;
-        uniform float uTime;
-        uniform float uStreamers;
-        void main() {
-          vec3 V = normalize(cameraPosition - vWorldPos);
-          float rim = pow(1.0 - abs(dot(V, normalize(vNormalW))), uFalloff);
-          float a = rim * uIntensity;
-          if (uStreamers > 0.5) {
-            float ang = atan(vDir.x, vDir.z);
-            float lat = vDir.y;
-            // Structured coronal streamers — readable rays, denser near poles
-            float polar = smoothstep(0.05, 0.75, abs(lat));
-            float s1 = sin(ang * 11.0 + sin(lat * 6.0 + uTime * 0.18) * 1.6 + uTime * 0.1);
-            float s2 = sin(ang * 5.5 - lat * 4.0 + uTime * 0.07);
-            float s3 = sin(ang * 17.0 + uTime * 0.05);
-            float rays = pow(0.5 + 0.5 * s1, 2.4) + 0.35 * pow(0.5 + 0.5 * s2, 2.0);
-            rays += 0.18 * pow(0.5 + 0.5 * s3, 3.0) * polar;
-            // Deep valleys between streamers so structure reads at system distance
-            float stream = mix(0.35, 1.35, clamp(rays, 0.0, 1.0));
-            a *= mix(0.7, stream, 0.65 + 0.35 * polar);
-          }
-          gl_FragColor = vec4(uColor * a, a);
-        }
-      `,
-      uniforms: {
-        uColor: { value: new THREE.Color(color) },
-        uIntensity: { value: intensity },
-        uFalloff: { value: falloff },
-        uTime: { value: 0 },
-        uStreamers: { value: streamers ? 1 : 0 },
-      },
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.BackSide,
-      toneMapped: false,
-      fog: false,
-    });
-
-  // Prominence loops — arched plasma near the limb
-  const prominenceMaterial = useMemo(() => {
+  // Camera-facing corona disc — streamers + soft halo (reads as atmosphere, not shells)
+  const coronaMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: /* glsl */ `
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
+        varying vec2 vUv;
         void main() {
-          vNormalW = normalize(mat3(modelMatrix) * normal);
-          vDir = normalize(position);
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vWorldPos = wp.xyz;
-          gl_Position = projectionMatrix * viewMatrix * wp;
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: /* glsl */ `
         precision highp float;
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
-        uniform vec3 uColor;
+        varying vec2 vUv;
+        uniform vec3 uColorCore;
+        uniform vec3 uColorMid;
+        uniform vec3 uColorOuter;
         uniform float uTime;
         uniform float uIntensity;
 
         float hash(float n) { return fract(sin(n) * 43758.5453); }
 
         void main() {
-          vec3 V = normalize(cameraPosition - vWorldPos);
-          vec3 N = normalize(vNormalW);
-          float rim = 1.0 - abs(dot(V, N));
-          // Only near the limb
-          float limbMask = smoothstep(0.35, 0.85, rim) * smoothstep(1.0, 0.72, rim);
+          vec2 p = vUv * 2.0 - 1.0;
+          float r = length(p);
+          if (r > 1.0) discard;
 
-          float ang = atan(vDir.x, vDir.z);
-          float lat = vDir.y;
+          float ang = atan(p.y, p.x);
+          // Soft radial falloff — hole for the photosphere disc (~r=0.385 at limb)
+          float discHole = smoothstep(0.37, 0.44, r);
+          float outerFade = 1.0 - smoothstep(0.58, 1.0, r);
+          float halo = discHole * outerFade;
 
-          // Slow-moving prominence arches along the limb
-          float prom = 0.0;
-          for (int i = 0; i < 6; i++) {
+          // Coronal streamers — irregular rays with polar preference
+          float stream = 0.0;
+          for (int i = 0; i < 8; i++) {
             float fi = float(i);
-            float seed = hash(fi * 17.13 + 2.7);
-            float center = seed * 6.28318 + uTime * (0.04 + seed * 0.03);
+            float seed = hash(fi * 13.7 + 1.3);
+            float center = seed * 6.28318 + uTime * (0.03 + 0.02 * seed);
             float dAng = abs(atan(sin(ang - center), cos(ang - center)));
-            float width = 0.16 + seed * 0.12;
-            float arch = exp(-pow(dAng / width, 1.8));
-            // Height bias: brighter mid-latitudes
-            float hBias = 0.5 + 0.5 * abs(sin(lat * 3.14159 + seed * 4.0));
-            float pulse = 0.7 + 0.3 * sin(uTime * (0.45 + seed) + fi * 2.1);
-            prom += arch * hBias * pulse;
+            float width = 0.1 + seed * 0.1;
+            float ray = exp(-pow(dAng / width, 1.55));
+            // Longer near poles of the billboard (approx solar poles when upright)
+            float polar = 0.55 + 0.45 * abs(sin(ang));
+            float lengthBias = smoothstep(0.42, 0.95, r);
+            float pulse = 0.7 + 0.3 * sin(uTime * (0.35 + seed * 0.5) + fi);
+            stream += ray * polar * lengthBias * pulse;
           }
-          prom = clamp(prom * 0.72, 0.0, 1.0);
+          stream = clamp(stream * 0.55, 0.0, 1.2);
 
-          float a = limbMask * prom * uIntensity;
-          // Warm rose-amber plasma — soft, not neon
-          vec3 col = mix(uColor * 0.7, uColor * 1.15, prom);
+          // Soft base corona under the rays
+          float base = pow(halo, 1.35) * 0.55;
+          float rays = pow(halo, 0.85) * stream;
+          float a = (base + rays) * uIntensity;
+
+          vec3 col = mix(uColorOuter, uColorMid, smoothstep(0.9, 0.45, r));
+          col = mix(col, uColorCore, clamp(rays * 0.85, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }
       `,
       uniforms: {
-        uColor: { value: new THREE.Color("#ffb888") },
+        uColorCore: { value: new THREE.Color("#fff1d4") },
+        uColorMid: { value: new THREE.Color("#f0a868") },
+        uColorOuter: { value: new THREE.Color("#c87858") },
         uTime: { value: 0 },
-        uIntensity: { value: 0.72 },
+        uIntensity: { value: 1.05 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      side: THREE.BackSide,
       toneMapped: false,
       fog: false,
+      side: THREE.DoubleSide,
     });
   }, []);
 
-  // Subtle solar flares — sparse radial plumes from the limb
+  // Camera-facing flare + prominence layer — arched plasma and sparse plumes
   const flareMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: /* glsl */ `
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
+        varying vec2 vUv;
         void main() {
-          vNormalW = normalize(mat3(modelMatrix) * normal);
-          vDir = normalize(position);
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vWorldPos = wp.xyz;
-          gl_Position = projectionMatrix * viewMatrix * wp;
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: /* glsl */ `
         precision highp float;
-        varying vec3 vNormalW;
-        varying vec3 vWorldPos;
-        varying vec3 vDir;
+        varying vec2 vUv;
         uniform vec3 uColorHot;
         uniform vec3 uColorWarm;
         uniform float uTime;
@@ -242,41 +170,95 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
         float hash(float n) { return fract(sin(n) * 43758.5453); }
 
         void main() {
-          vec3 V = normalize(cameraPosition - vWorldPos);
-          vec3 N = normalize(vNormalW);
-          float rim = 1.0 - abs(dot(V, N));
-          // Flares sit outside the hard disc and stretch into the corona
-          float zone = smoothstep(0.18, 0.5, rim) * smoothstep(1.1, 0.42, rim);
+          vec2 p = vUv * 2.0 - 1.0;
+          float r = length(p);
+          if (r > 1.0) discard;
 
-          float ang = atan(vDir.x, vDir.z);
-          float lat = vDir.y;
+          float ang = atan(p.y, p.x);
+          // Live just outside the photosphere (~r=0.455 at limb on this plane)
+          float zone = smoothstep(0.44, 0.52, r) * (1.0 - smoothstep(0.78, 0.99, r));
 
+          // Prominence arches — short curved lobes near the limb
+          float prom = 0.0;
+          for (int i = 0; i < 6; i++) {
+            float fi = float(i);
+            float seed = hash(fi * 19.1 + 4.2);
+            float center = seed * 6.28318 + uTime * (0.04 + seed * 0.025);
+            float dAng = abs(atan(sin(ang - center), cos(ang - center)));
+            float width = 0.18 + seed * 0.12;
+            float arch = exp(-pow(dAng / width, 1.7));
+            // Peak height just outside the limb
+            float height = exp(-pow((r - (0.52 + seed * 0.06)) / 0.09, 2.0));
+            float pulse = 0.65 + 0.35 * sin(uTime * (0.4 + seed) + fi * 1.7);
+            prom += arch * height * pulse;
+          }
+          prom = clamp(prom * 0.7, 0.0, 1.0);
+
+          // Longer flare plumes
           float flares = 0.0;
           for (int i = 0; i < 5; i++) {
             float fi = float(i);
-            float seed = hash(fi * 31.7 + 9.1);
+            float seed = hash(fi * 27.3 + 8.8);
             float center = seed * 6.28318 + uTime * (0.05 + 0.02 * seed);
-            float latC = (hash(fi * 5.3) - 0.5) * 1.1 + 0.12 * sin(uTime * 0.22 + fi);
             float dAng = abs(atan(sin(ang - center), cos(ang - center)));
-            float dLat = abs(lat - latC);
-            // Wider plumes so they read at system camera distance
-            float spike = exp(-pow(dAng / (0.07 + seed * 0.045), 1.45));
-            float plume = exp(-pow(dLat / (0.28 + seed * 0.14), 1.8));
-            float swell = 0.5 + 0.5 * pow(0.5 + 0.5 * sin(uTime * (0.32 + seed * 0.4) + fi * 2.7), 1.8);
-            flares += spike * plume * swell;
+            float spike = exp(-pow(dAng / (0.06 + seed * 0.04), 1.4));
+            // Stretch outward from the limb
+            float stretch = smoothstep(0.46, 0.58, r) * (1.0 - smoothstep(0.62, 0.97, r));
+            float swell = 0.45 + 0.55 * pow(0.5 + 0.5 * sin(uTime * (0.3 + seed * 0.45) + fi * 2.4), 2.0);
+            flares += spike * stretch * swell;
           }
-          flares = clamp(flares, 0.0, 1.8);
+          flares = clamp(flares, 0.0, 1.6);
 
-          float a = zone * flares * uIntensity;
-          vec3 col = mix(uColorWarm, uColorHot, clamp(flares * 0.75, 0.0, 1.0));
+          float a = zone * (prom * 0.85 + flares) * uIntensity;
+          if (a < 0.004) discard;
+          vec3 col = mix(uColorWarm, uColorHot, clamp(flares * 0.65 + prom * 0.35, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }
       `,
       uniforms: {
-        uColorHot: { value: new THREE.Color("#fff0d4") },
-        uColorWarm: { value: new THREE.Color("#f4a860") },
+        uColorHot: { value: new THREE.Color("#fff2d8") },
+        uColorWarm: { value: new THREE.Color("#f4a060") },
         uTime: { value: 0 },
-        uIntensity: { value: 0.85 },
+        uIntensity: { value: 1.15 },
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+      fog: false,
+      side: THREE.DoubleSide,
+    });
+  }, []);
+
+  // Very soft volumetric outer wash (low falloff — no hard shell ring)
+  const softGlowMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: /* glsl */ `
+        varying vec3 vNormalW;
+        varying vec3 vWorldPos;
+        void main() {
+          vNormalW = normalize(mat3(modelMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vWorldPos = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        varying vec3 vNormalW;
+        varying vec3 vWorldPos;
+        uniform vec3 uColor;
+        uniform float uIntensity;
+        void main() {
+          vec3 V = normalize(cameraPosition - vWorldPos);
+          float rim = pow(1.0 - abs(dot(V, normalize(vNormalW))), 1.55);
+          float a = rim * uIntensity;
+          gl_FragColor = vec4(uColor * a, a);
+        }
+      `,
+      uniforms: {
+        uColor: { value: new THREE.Color("#e09868") },
+        uIntensity: { value: 0.2 },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -287,25 +269,11 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
     });
   }, []);
 
-  // Peach core → amber mid → soft warm outer atmospheric bloom
-  const glowInnerMaterial = useMemo(
-    () => makeGlowMaterial("#ffe8c8", 0.85, 2.4, true),
-    []
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-  const glowMidMaterial = useMemo(
-    () => makeGlowMaterial("#f0a868", 0.48, 2.15, true),
-    []
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-  const glowOuterMaterial = useMemo(
-    () => makeGlowMaterial("#d89878", 0.22, 1.85, true),
-    []
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-
   useFrame((state, delta) => {
-    if (reducedMotion) return;
     const time = state.clock.getElapsedTime();
+    const cam = state.camera;
 
-    if (meshRef.current) {
+    if (!reducedMotion && meshRef.current) {
       meshRef.current.rotation.y += delta * 0.035;
       const pulse = 1 + Math.sin(time * 0.55) * 0.008;
       meshRef.current.scale.set(pulse, pulse, pulse);
@@ -316,33 +284,29 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
     }
 
     limbMaterial.uniforms.uTime.value = time;
+    coronaMaterial.uniforms.uTime.value = time;
+    flareMaterial.uniforms.uTime.value = time;
 
-    if (glowInnerRef.current) {
-      glowInnerRef.current.rotation.z -= delta * 0.018;
-      const s = 1.0 + Math.sin(time * 0.7) * 0.012;
-      glowInnerRef.current.scale.set(s, s, s);
-      glowInnerMaterial.uniforms.uTime.value = time;
+    // Billboard corona + flares toward camera
+    if (coronaBillboardRef.current) {
+      coronaBillboardRef.current.quaternion.copy(cam.quaternion);
+      if (!reducedMotion) {
+        const s = 1 + Math.sin(time * 0.45) * 0.015;
+        coronaBillboardRef.current.scale.setScalar(s);
+      }
     }
-    if (glowMidRef.current) {
-      glowMidRef.current.rotation.y += delta * 0.012;
-      const s = 1.0 + Math.cos(time * 0.5) * 0.018;
-      glowMidRef.current.scale.set(s, s, s);
-      glowMidMaterial.uniforms.uTime.value = time * 0.65;
+    if (flareBillboardRef.current) {
+      flareBillboardRef.current.quaternion.copy(cam.quaternion);
+      // Slow roll in camera space so plumes drift without fighting look-at
+      if (!reducedMotion) {
+        flareRollRef.current += delta * 0.012;
+      }
+      flareBillboardRef.current.rotateZ(flareRollRef.current);
     }
-    if (glowOuterRef.current) {
-      glowOuterRef.current.rotation.y -= delta * 0.008;
-      const s = 1.0 + Math.sin(time * 0.4) * 0.022;
-      glowOuterRef.current.scale.set(s, s, s);
-      glowOuterMaterial.uniforms.uTime.value = time * 0.4;
-    }
-
-    if (prominenceRef.current) {
-      prominenceRef.current.rotation.y += delta * 0.02;
-      prominenceMaterial.uniforms.uTime.value = time;
-    }
-    if (flareRef.current) {
-      flareRef.current.rotation.y -= delta * 0.015;
-      flareMaterial.uniforms.uTime.value = time;
+    if (glowSoftRef.current && !reducedMotion) {
+      glowSoftRef.current.rotation.y -= delta * 0.01;
+      const s = 1 + Math.sin(time * 0.35) * 0.02;
+      glowSoftRef.current.scale.set(s, s, s);
     }
   });
 
@@ -354,6 +318,21 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
       {/* Warm key for the system — soft enough to keep planet nights readable */}
       <pointLight color="#f5c07a" intensity={14} distance={320} decay={1.1} />
       <pointLight color="#e8a060" intensity={4} distance={120} decay={1.25} />
+
+      {/* Soft outer atmospheric wash */}
+      <mesh ref={glowSoftRef} material={softGlowMaterial} raycast={() => null}>
+        <sphereGeometry args={[R * 2.4, 40, 40]} />
+      </mesh>
+
+      {/* Camera-facing corona streamers */}
+      <mesh ref={coronaBillboardRef} material={coronaMaterial} raycast={() => null}>
+        <planeGeometry args={[R * 5.2, R * 5.2]} />
+      </mesh>
+
+      {/* Camera-facing prominences + flare plumes */}
+      <mesh ref={flareBillboardRef} material={flareMaterial} raycast={() => null}>
+        <planeGeometry args={[R * 4.4, R * 4.4]} />
+      </mesh>
 
       {/* Photosphere disc */}
       <mesh
@@ -383,28 +362,7 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
 
       {/* Chromosphere limb bloom */}
       <mesh ref={limbMeshRef} material={limbMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 1.012, 64, 64]} />
-      </mesh>
-
-      {/* Prominence arches just above the limb */}
-      <mesh ref={prominenceRef} material={prominenceMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 1.12, 80, 80]} />
-      </mesh>
-
-      {/* Animated solar flare plumes stretching into the corona */}
-      <mesh ref={flareRef} material={flareMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 1.85, 72, 72]} />
-      </mesh>
-
-      {/* Layered corona — streamers + soft atmospheric bloom */}
-      <mesh ref={glowInnerRef} material={glowInnerMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 1.22, 64, 64]} />
-      </mesh>
-      <mesh ref={glowMidRef} material={glowMidMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 1.7, 56, 56]} />
-      </mesh>
-      <mesh ref={glowOuterRef} material={glowOuterMaterial} raycast={() => null}>
-        <sphereGeometry args={[R * 2.55, 48, 48]} />
+        <sphereGeometry args={[R * 1.015, 64, 64]} />
       </mesh>
 
       {(hovered || isSelected) && (
