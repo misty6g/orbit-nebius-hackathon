@@ -13,7 +13,7 @@ export interface NebiusChatOptions {
 }
 
 const DEFAULT_NEBIUS_BASE_URL = "https://api.tokenfactory.nebius.com/v1";
-const DEFAULT_MODEL = "nvidia/llama-3.1-nemotron-70b-instruct";
+const DEFAULT_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B";
 
 export async function createNebiusCompletion({
   apiKey,

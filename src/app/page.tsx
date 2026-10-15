@@ -118,7 +118,8 @@ export default function OrbitHome() {
     if (savedMockMode !== null) {
       setMockMode(savedMockMode === "true");
     } else {
-      setMockMode(false);
+      // Default to mock / zero-credit mode until the user explicitly opts into Live Nebius.
+      setMockMode(true);
     }
 
     if (savedBrain) {

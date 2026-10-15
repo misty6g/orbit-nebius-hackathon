@@ -20,7 +20,7 @@ It replaces fragmented productivity silos with an interactive, photorealistic 3D
    - Smooth cinematic zoom-in that seamlessly transitions into a glassmorphic cockpit HUD.
 
 2. **NVIDIA Nemotron on Nebius Token Factory**
-   - High-reasoning inference powered by `nvidia/llama-3.1-nemotron-70b-instruct` and `nvidia/nemotron-4-340b-instruct` on Nebius GPU infrastructure.
+   - High-reasoning inference powered by `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (default; cheapest Nemotron on Token Factory) on Nebius GPU infrastructure.
    - Fast intent extraction and cross-domain routing.
    - In-stream reasoning traces reveal how Orbit Core extracts intent and routes to specialist domains.
 
@@ -87,6 +87,8 @@ NEBIUS_API_KEY=your_nebius_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
 ```
 
+The UI defaults to **Mock AI (0 Credits)** so demos and local testing never spend Nebius or Tavily credits until you toggle **Live Nebius**.
+
 *(Note: You can also enter or update keys directly inside Orbit's deep-space credentials modal at runtime).*
 
 ### 4. Run the Development Server
@@ -106,7 +108,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Icons:** `@phosphor-icons/react`
 - **Audio Synthesizer:** Native Web Audio API (zero external asset latency)
 - **AI Infrastructure:** Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`)
-- **Foundation Models:** NVIDIA Nemotron (`nvidia/llama-3.1-nemotron-70b-instruct`)
+- **Foundation Models:** NVIDIA Nemotron (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`)
 - **Live Search:** Tavily Search API
 
 ---

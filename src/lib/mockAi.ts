@@ -387,7 +387,7 @@ Ask me to coordinate travel, log meals, draft project specs, or check your sched
     content,
     detectedTargets: finalTargets,
     approvalRequest,
-    modelUsed: "nvidia/llama-3.1-nemotron-70b-instruct (Mock / Zero Credits)",
+    modelUsed: "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B (Mock / Zero Credits)",
     tavilySources,
   };
 }

@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
 
-    // Query Tavily for live external intelligence if relevant
+    // Query Tavily for live external intelligence if relevant.
+    // Skip in mock mode so zero-credit demos never spend Tavily credits.
     let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined = undefined;
     const isWebQuery =
       specialistId === "deals" ||
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
       lowerMsg.includes("meetup") ||
       lowerMsg.includes("event");
 
-    if (isWebQuery) {
+    if (isWebQuery && !isMock) {
       try {
         const tavilyKey = process.env.TAVILY_API_KEY;
         const tavilyRes = await searchTavily(message, tavilyKey);
@@ -158,7 +159,7 @@ Rules:
       try {
         const completionRes = await createNebiusCompletion({
           apiKey: keyToUse,
-          model: process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
+          model: process.env.NEBIUS_MODEL_REASONING || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           messages: [
             { role: "system", content: systemPrompt },
             ...historyMessages,
@@ -250,8 +251,8 @@ Rules:
               intent: lowerMsg.slice(0, 45),
               targetSpecialists: finalTargets,
               modelUsed: isMock
-                ? "nvidia/llama-3.1-nemotron-70b-instruct (Mock / Zero Credits)"
-                : (process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct"),
+                ? "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B (Mock / Zero Credits)"
+                : (process.env.NEBIUS_MODEL_REASONING || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"),
               confidence: 0.96,
             }
           : undefined,
