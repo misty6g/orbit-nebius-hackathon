@@ -110,6 +110,7 @@ export default function OrbitHome() {
 
     if (savedNebiusKey) setNebiusKey(savedNebiusKey);
     if (savedTavilyKey) setTavilyKey(savedTavilyKey);
+    localStorage.removeItem("orbit_mock_mode");
 
 
     if (savedBrain) {
