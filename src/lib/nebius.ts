@@ -13,7 +13,7 @@ export interface NebiusChatOptions {
 }
 
 const DEFAULT_NEBIUS_BASE_URL = "https://api.tokenfactory.nebius.com/v1";
-/** Cheapest available NVIDIA Nemotron on Token Factory (~$0.06 / $0.24 per M tokens). */
+/** Default NVIDIA Nemotron on Token Factory (cost-efficient Nano). */
 export const DEFAULT_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B";
 
 /** Reject missing/placeholder model IDs (e.g. misconfigured secrets). */
@@ -37,10 +37,6 @@ export async function createNebiusCompletion({
   const token = apiKey || process.env.NEBIUS_API_KEY;
   const baseUrl = process.env.NEBIUS_BASE_URL || DEFAULT_NEBIUS_BASE_URL;
   const resolvedModel = resolveNebiusModel(model || process.env.NEBIUS_MODEL_REASONING);
-
-  if (process.env.MOCK_NEBIUS === "true") {
-    throw new Error("MOCK_NEBIUS_ACTIVE: External Nebius API calls are blocked to preserve account credits.");
-  }
 
   if (!token) {
     throw new Error("NEBIUS_API_KEY_MISSING");

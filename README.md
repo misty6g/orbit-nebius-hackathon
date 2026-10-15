@@ -87,8 +87,6 @@ NEBIUS_API_KEY=your_nebius_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
 ```
 
-The UI defaults to **Mock AI (0 Credits)** so demos and local testing never spend Nebius or Tavily credits until you toggle **Live Nebius**.
-
 *(Note: You can also enter or update keys directly inside Orbit's deep-space credentials modal at runtime).*
 
 ### 4. Run the Development Server

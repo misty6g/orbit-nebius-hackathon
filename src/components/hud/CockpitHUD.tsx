@@ -19,7 +19,6 @@ import {
   SpeakerSlash,
   Key,
   Sparkle,
-  Lightning,
   X,
   SlidersHorizontal,
   Pause,
@@ -39,8 +38,6 @@ interface CockpitHUDProps {
   onActiveTargetsChange?: (targets: SpecialistId[]) => void;
   onOpenCustomizer?: (id: SpecialistId) => void;
   apiKey?: string;
-  mockMode?: boolean;
-  onToggleMockMode?: () => void;
 }
 
 export function CockpitHUD({
@@ -55,8 +52,6 @@ export function CockpitHUD({
   onActiveTargetsChange,
   onOpenCustomizer,
   apiKey,
-  mockMode = false,
-  onToggleMockMode,
 }: CockpitHUDProps) {
   const [activeRoom, setActiveRoom] = useState<RoomId>("general");
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
@@ -214,7 +209,6 @@ export function CockpitHUD({
           specialistId,
           brain,
           apiKey,
-          mockMode,
           history: messages.slice(-6).map((m) => ({ sender: m.sender, content: m.content })),
         }),
       });
@@ -245,7 +239,7 @@ export function CockpitHUD({
             id: `err-${Date.now()}`,
             sender: specialistId,
             senderName: "Orbit System",
-            content: `⚠️ **Notice:** ${data.details || data.message || "Nebius inference returned an error."}\n\n*Tip: You can toggle **Mock AI (0 Credits)** in the top right to test the full system offline.*`,
+            content: `⚠️ **Notice:** ${data.details || data.message || "Nebius inference returned an error."}`,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
@@ -258,7 +252,7 @@ export function CockpitHUD({
           id: `err-${Date.now()}`,
           sender: specialistId,
           senderName: "Orbit System",
-          content: `⚠️ **Network Notice:** Could not reach the API endpoint. You can toggle **Mock AI (0 Credits)** in the top right to test without API connection.`,
+          content: `⚠️ **Network Notice:** Could not reach the Orbit API endpoint.`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -424,28 +418,13 @@ export function CockpitHUD({
 
           {/* Action Controls and Telemetry */}
           <div className="flex items-center gap-2">
-            {/* Model Inference Badge / Mock Mode Toggle */}
-            <button
-              onClick={onToggleMockMode}
-              title={mockMode ? "Mock AI Active (Zero Credits) - Click to toggle Live Nebius" : "Live Nebius Active - Click to switch to Mock AI"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono transition active:scale-[0.98] ${
-                mockMode
-                  ? "bg-zinc-900/90 border-emerald-500/40 text-emerald-300 hover:bg-zinc-800/90"
-                  : "bg-zinc-900/90 border-amber-500/40 text-amber-300 hover:bg-zinc-800/90"
-              }`}
+            <div
+              title="Live NVIDIA Nemotron via Nebius Token Factory"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono bg-zinc-900/90 border-amber-500/40 text-amber-300"
             >
-              {mockMode ? (
-                <>
-                  <Lightning size={12} weight="fill" className="text-emerald-400" />
-                  <span>Simulated Nemotron (0 Credits)</span>
-                </>
-              ) : (
-                <>
-                  <Sparkle size={12} weight="fill" className="text-amber-400" />
-                  <span>NVIDIA Nemotron via Nebius</span>
-                </>
-              )}
-            </button>
+              <Sparkle size={12} weight="fill" className="text-amber-400" />
+              <span>NVIDIA Nemotron via Nebius</span>
+            </div>
 
             {/* Customize Planet Button */}
             {onOpenCustomizer && specialistId !== "core" && (
