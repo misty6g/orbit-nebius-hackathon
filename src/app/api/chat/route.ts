@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SPECIALISTS } from "@/lib/specialists";
 import { SpecialistId, ActionApproval } from "@/types/orbit";
-import { createNebiusCompletion } from "@/lib/nebius";
+import { createNebiusCompletion, resolveNebiusModel, DEFAULT_MODEL } from "@/lib/nebius";
 import { generateMockResponse } from "@/lib/mockAi";
 import { searchTavily } from "@/lib/tavily";
 
@@ -159,7 +159,7 @@ Rules:
       try {
         const completionRes = await createNebiusCompletion({
           apiKey: keyToUse,
-          model: process.env.NEBIUS_MODEL_REASONING || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          model: resolveNebiusModel(process.env.NEBIUS_MODEL_REASONING),
           messages: [
             { role: "system", content: systemPrompt },
             ...historyMessages,
@@ -251,8 +251,8 @@ Rules:
               intent: lowerMsg.slice(0, 45),
               targetSpecialists: finalTargets,
               modelUsed: isMock
-                ? "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B (Mock / Zero Credits)"
-                : (process.env.NEBIUS_MODEL_REASONING || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"),
+                ? `${DEFAULT_MODEL} (Mock / Zero Credits)`
+                : resolveNebiusModel(process.env.NEBIUS_MODEL_REASONING),
               confidence: 0.96,
             }
           : undefined,
