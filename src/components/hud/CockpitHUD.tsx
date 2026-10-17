@@ -57,6 +57,27 @@ export function CockpitHUD({
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
   const [isLoading, setIsLoading] = useState(false);
 
+  const roomContext: Record<RoomId, { label: string; greeting: string; focus: string }> = {
+    general: {
+      label: "Orbit Core (General)",
+      greeting:
+        "Orbit Core active. All 9 domain specialists are synchronized through your Sovereign Shared Brain. Ask me anything across your domains.",
+      focus: "cross-domain orchestration across health, schedule, study, wallet, travel, career",
+    },
+    academic_career: {
+      label: "Room: Orbit (Study & Career)",
+      greeting:
+        "Study & Career room online. I will prioritize academics, flashcards, internship pipeline, and resume/application gating.",
+      focus: "study plans, quizzes, deadlines, internship pipeline, resume/application drafting",
+    },
+    life: {
+      label: "Room: Orbit Life (Health & Fitness)",
+      greeting:
+        "Life room online. I will prioritize nutrition macros, lifting split, volleyball recovery, and schedule holds that protect training.",
+      focus: "nutrition macros, workouts, volleyball recovery, sleep/schedule protection",
+    },
+  };
+
   useEffect(() => {
     return cosmicAudio.subscribe((state) => {
       setAudioState(state);
@@ -172,6 +193,27 @@ export function CockpitHUD({
     initialMessages[specialistId] || initialMessages.core
   );
 
+  // Reset transcript when switching specialists
+  useEffect(() => {
+    setActiveRoom("general");
+    setMessages(initialMessages[specialistId] || initialMessages.core);
+  }, [specialistId]);
+
+  const handleSelectRoom = (room: RoomId) => {
+    setActiveRoom(room);
+    if (specialistId !== "core") return;
+    const ctx = roomContext[room];
+    setMessages([
+      {
+        id: `room-${room}-${Date.now()}`,
+        sender: "core",
+        senderName: "Orbit Core",
+        content: ctx.greeting,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ]);
+  };
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -209,6 +251,7 @@ export function CockpitHUD({
           specialistId,
           brain,
           apiKey,
+          room: specialistId === "core" ? activeRoom : undefined,
           history: messages.slice(-6).map((m) => ({ sender: m.sender, content: m.content })),
         }),
       });
@@ -497,7 +540,7 @@ export function CockpitHUD({
           {/* Left/Center Column: Conversational Routing Stream (Spacious) */}
           <div className="lg:col-span-7 flex flex-col h-full overflow-hidden border-b lg:border-b-0 lg:border-r border-white/5 pb-4 lg:pb-0 lg:pr-4">
             {specialistId === "core" && (
-              <RoomTabs activeRoom={activeRoom} onSelectRoom={setActiveRoom} />
+              <RoomTabs activeRoom={activeRoom} onSelectRoom={handleSelectRoom} />
             )}
             <div className="flex-1 min-h-0">
               <AgentChatStream

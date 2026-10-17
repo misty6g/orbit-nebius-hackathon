@@ -6,7 +6,7 @@ import { searchTavily } from "@/lib/tavily";
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, specialistId = "core", brain, apiKey, history = [] } = await req.json();
+    const { message, specialistId = "core", brain, apiKey, history = [], room } = await req.json();
 
     const activeSpecialist = SPECIALISTS[specialistId as SpecialistId] || SPECIALISTS.core;
     const student = brain?.student || {
@@ -107,6 +107,11 @@ Student Profile:
 
 Specialist Persona:
 ${activeSpecialist.tagline}
+${
+  specialistId === "core" && room
+    ? `Active Core Room: ${room}. Bias answers toward that room's focus while still using shared brain context.`
+    : ""
+}
 Rules:
 1. Always maintain sovereign privacy. Data stays with the student.
 2. Confirm before external writes: NEVER finalize calendar events, emails, flight bookings, or applications without proposing an authorization step.
