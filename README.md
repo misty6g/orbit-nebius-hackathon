@@ -20,7 +20,7 @@ It replaces fragmented productivity silos with an interactive, photorealistic 3D
    - Smooth cinematic zoom-in that seamlessly transitions into a glassmorphic cockpit HUD.
 
 2. **NVIDIA Nemotron on Nebius Token Factory**
-   - High-reasoning inference powered by `nvidia/llama-3.1-nemotron-70b-instruct` and `nvidia/nemotron-4-340b-instruct` on Nebius GPU infrastructure.
+   - High-reasoning inference powered by `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (default; cheapest Nemotron on Token Factory) on Nebius GPU infrastructure.
    - Fast intent extraction and cross-domain routing.
    - In-stream reasoning traces reveal how Orbit Core extracts intent and routes to specialist domains.
 
@@ -106,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Icons:** `@phosphor-icons/react`
 - **Audio Synthesizer:** Native Web Audio API (zero external asset latency)
 - **AI Infrastructure:** Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`)
-- **Foundation Models:** NVIDIA Nemotron (`nvidia/llama-3.1-nemotron-70b-instruct`)
+- **Foundation Models:** NVIDIA Nemotron (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`)
 - **Live Search:** Tavily Search API
 
 ---

@@ -28,7 +28,6 @@ import {
   FastForward,
   X,
   PlayCircle,
-  Lightning,
   Pause,
   Play,
   MagnifyingGlass,
@@ -61,8 +60,6 @@ export default function OrbitHome() {
   // Credentials & Mode
   const [nebiusKey, setNebiusKey] = useState<string>("");
   const [tavilyKey, setTavilyKey] = useState<string>("");
-  const [mockMode, setMockMode] = useState<boolean>(true);
-
   // Zen Ambient Audio State
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
@@ -113,13 +110,8 @@ export default function OrbitHome() {
 
     if (savedNebiusKey) setNebiusKey(savedNebiusKey);
     if (savedTavilyKey) setTavilyKey(savedTavilyKey);
+    localStorage.removeItem("orbit_mock_mode");
 
-    const savedMockMode = localStorage.getItem("orbit_mock_mode");
-    if (savedMockMode !== null) {
-      setMockMode(savedMockMode === "true");
-    } else {
-      setMockMode(false);
-    }
 
     if (savedBrain) {
       try {
@@ -211,14 +203,6 @@ export default function OrbitHome() {
     });
   }, []);
 
-  const handleToggleMockMode = () => {
-    cosmicAudio.playClick();
-    setMockMode((prev) => {
-      const next = !prev;
-      localStorage.setItem("orbit_mock_mode", String(next));
-      return next;
-    });
-  };
 
   const toggleAudio = () => {
     cosmicAudio.toggleMusic();
@@ -371,20 +355,6 @@ export default function OrbitHome() {
       {/* Top Right Zen Controls */}
       {!selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
-          {/* Zero-Credit Testing Mode Pill */}
-          <button
-            onClick={handleToggleMockMode}
-            title={mockMode ? "Mock AI Active (Zero Credits) - Click to toggle Live Nebius" : "Live Nebius Active - Click to switch to Mock AI"}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono backdrop-blur-2xl transition active:scale-[0.98] border ${
-              mockMode
-                ? "bg-[rgba(10,10,20,0.45)] border-emerald-500/30 text-emerald-300 hover:bg-[rgba(10,10,20,0.65)]"
-                : "bg-[rgba(10,10,20,0.45)] border-amber-500/30 text-amber-300 hover:bg-[rgba(10,10,20,0.65)]"
-            }`}
-          >
-            <Lightning size={12} weight="fill" className={mockMode ? "text-emerald-400" : "text-amber-400"} />
-            <span>{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
-          </button>
-
           {/* Planet Studio Customizer Button */}
           <button
             onClick={() => handleOpenCustomizer()}
@@ -698,8 +668,6 @@ export default function OrbitHome() {
           onActiveTargetsChange={setActiveConstellationTargets}
           onOpenCustomizer={handleOpenCustomizer}
           apiKey={nebiusKey}
-          mockMode={mockMode}
-          onToggleMockMode={handleToggleMockMode}
         />
       )}
 
@@ -718,8 +686,6 @@ export default function OrbitHome() {
         onSaveKeys={handleSaveKeys}
         currentNebiusKey={nebiusKey}
         currentTavilyKey={tavilyKey}
-        mockMode={mockMode}
-        onToggleMockMode={handleToggleMockMode}
       />
 
       {/* Shared Brain Inspector Modal */}
