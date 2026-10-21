@@ -135,6 +135,56 @@ export function AgentChatStream({
               >
                 <div className="whitespace-pre-wrap font-sans">{msg.content}</div>
 
+                {/* Connected account search citations */}
+                {msg.connectorSources && msg.connectorSources.length > 0 && (
+                  <div className="mt-3 pt-2.5 border-t border-white/10">
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-cyan-300 mb-2">
+                      <Sparkle size={12} weight="fill" className="text-cyan-400" />
+                      <span>Connected source search:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.connectorSources.map((source, idx) => {
+                        const inner = (
+                          <>
+                            <span className="text-[9px] uppercase text-zinc-500">
+                              {source.source}
+                            </span>
+                            <span className="truncate">{source.title}</span>
+                            {source.url && (
+                              <ArrowSquareOut
+                                size={11}
+                                className="shrink-0 text-zinc-500 group-hover/src:text-cyan-300 transition"
+                              />
+                            )}
+                          </>
+                        );
+                        const className =
+                          "flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-950/80 hover:bg-zinc-800 text-[10px] font-mono text-zinc-300 hover:text-white border border-white/10 hover:border-cyan-400/40 transition truncate max-w-[260px] group/src";
+                        return source.url ? (
+                          <a
+                            key={`${source.source}-${source.id || idx}`}
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={className}
+                            title={source.snippet || source.title}
+                          >
+                            {inner}
+                          </a>
+                        ) : (
+                          <span
+                            key={`${source.source}-${source.id || idx}`}
+                            className={className}
+                            title={source.snippet || source.title}
+                          >
+                            {inner}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Live Web Grounding Source Badges (Tavily Search API) */}
                 {msg.tavilySources && msg.tavilySources.length > 0 && (
                   <div className="mt-3 pt-2.5 border-t border-white/10">

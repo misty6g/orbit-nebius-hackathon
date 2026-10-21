@@ -2,7 +2,18 @@
 
 import React, { useState } from "react";
 import { ActionApproval } from "@/types/orbit";
-import { CheckCircle, XCircle, ShieldCheck, CalendarPlus, EnvelopeSimple, Briefcase, FileCode } from "@phosphor-icons/react";
+import {
+  CheckCircle,
+  XCircle,
+  ShieldCheck,
+  CalendarPlus,
+  EnvelopeSimple,
+  Briefcase,
+  FileCode,
+  Notebook,
+  ChatCircleDots,
+  HardDrives,
+} from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
 interface InStreamAuthCardProps {
@@ -38,6 +49,12 @@ export function InStreamAuthCard({
         return <CalendarPlus size={18} weight="duotone" className="text-cyan-400" />;
       case "Gmail":
         return <EnvelopeSimple size={18} weight="duotone" className="text-amber-400" />;
+      case "Google Drive":
+        return <HardDrives size={18} weight="duotone" className="text-emerald-400" />;
+      case "Notion":
+        return <Notebook size={18} weight="duotone" className="text-zinc-200" />;
+      case "Slack":
+        return <ChatCircleDots size={18} weight="duotone" className="text-amber-300" />;
       case "Job Portal":
         return <Briefcase size={18} weight="duotone" className="text-indigo-400" />;
       case "GitHub":

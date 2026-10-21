@@ -85,9 +85,36 @@ NEBIUS_API_KEY=your_nebius_api_key_here
 
 # Optional: Enables live web discovery for Deals, Travel & Explore
 TAVILY_API_KEY=your_tavily_api_key_here
+
+# Optional: Live personal connectors (Google Calendar/Gmail/Drive, Notion, Slack)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+CONNECTOR_SECRET=replace-with-a-long-random-string
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+NOTION_CLIENT_ID=
+NOTION_CLIENT_SECRET=
+SLACK_CLIENT_ID=
+SLACK_CLIENT_SECRET=
 ```
 
-*(Note: You can also enter or update keys directly inside Orbit's deep-space credentials modal at runtime).*
+*(Note: You can also enter or update Nebius/Tavily keys directly inside Orbit's deep-space credentials modal at runtime.)*
+
+### Connected account context
+
+Orbit agents can ground answers in your own tools when OAuth apps are configured:
+
+1. Open **Orbit Core** (or **Orbit Schedule**) and use the **Sovereign Connectors** dock.
+2. Connect **Google** (Calendar, Gmail, Drive), **Notion**, and/or **Slack**.
+3. Chat normally for a small live snapshot, or ask agents to search (for example: "find the email from Professor Mohan", "search Notion for volleyball", "any Slack about the hackathon").
+4. Approving an in-stream card can create a real Calendar event or Gmail **draft**. Notion and Slack stay read-only.
+
+Redirect URIs to register with each provider:
+
+- `{NEXT_PUBLIC_APP_URL}/api/connectors/google/callback`
+- `{NEXT_PUBLIC_APP_URL}/api/connectors/notion/callback`
+- `{NEXT_PUBLIC_APP_URL}/api/connectors/slack/callback`
+
+Missing OAuth credentials show a clear "setup" state in the dock instead of a broken redirect. Run `npm run verify:connectors` to exercise the search intent router and prompt formatters.
 
 ### 4. Run the Development Server
 ```bash
@@ -108,6 +135,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **AI Infrastructure:** Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`)
 - **Foundation Models:** NVIDIA Nemotron (`nvidia/llama-3.1-nemotron-70b-instruct`)
 - **Live Search:** Tavily Search API
+- **Personal Connectors:** Google Calendar / Gmail / Drive, Notion, and Slack OAuth (read + search; Calendar/Gmail draft writes after approval)
 
 ---
 

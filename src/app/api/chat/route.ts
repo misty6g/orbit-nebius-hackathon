@@ -1,13 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SPECIALISTS } from "@/lib/specialists";
-import { SpecialistId, ActionApproval } from "@/types/orbit";
+import { ActionApproval, ConnectorCitation, SpecialistId } from "@/types/orbit";
 import { createNebiusCompletion } from "@/lib/nebius";
 import { generateMockResponse } from "@/lib/mockAi";
 import { searchTavily } from "@/lib/tavily";
+import {
+  assembleConnectorContext,
+  detectSearchIntent,
+  formatSnapshotForPrompt,
+  parseOrbitSearchMarker,
+  readConnectorSession,
+  searchConnectors,
+  stripOrbitSearchMarker,
+} from "@/lib/connectors";
+
+function defaultHoldWindow() {
+  const start = new Date();
+  start.setHours(20, 30, 0, 0);
+  if (start.getTime() < Date.now()) {
+    start.setDate(start.getDate() + 1);
+  }
+  const end = new Date(start.getTime() + 90 * 60 * 1000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, specialistId = "core", brain, apiKey, mockMode = false, history = [] } = await req.json();
+    const { message, specialistId = "core", brain, apiKey, mockMode = false, history = [] } =
+      await req.json();
 
     const activeSpecialist = SPECIALISTS[specialistId as SpecialistId] || SPECIALISTS.core;
     const student = brain?.student || {
@@ -17,34 +37,80 @@ export async function POST(req: NextRequest) {
       homeAirport: "BOS",
     };
 
-    // Routing and domain detection
     const isCore = specialistId === "core";
     const lowerMsg = (message || "").toLowerCase();
 
-    // Check for cross-domain queries
     const detectedTargets: SpecialistId[] = [];
-    if (lowerMsg.includes("fly") || lowerMsg.includes("flight") || lowerMsg.includes("travel") || lowerMsg.includes("home")) {
+    if (
+      lowerMsg.includes("fly") ||
+      lowerMsg.includes("flight") ||
+      lowerMsg.includes("travel") ||
+      lowerMsg.includes("home")
+    ) {
       detectedTargets.push("travel");
     }
-    if (lowerMsg.includes("study") || lowerMsg.includes("exam") || lowerMsg.includes("slide") || lowerMsg.includes("quiz") || lowerMsg.includes("class")) {
+    if (
+      lowerMsg.includes("study") ||
+      lowerMsg.includes("exam") ||
+      lowerMsg.includes("slide") ||
+      lowerMsg.includes("quiz") ||
+      lowerMsg.includes("class")
+    ) {
       detectedTargets.push("study");
     }
-    if (lowerMsg.includes("calendar") || lowerMsg.includes("schedule") || lowerMsg.includes("free time") || lowerMsg.includes("hold")) {
+    if (
+      lowerMsg.includes("calendar") ||
+      lowerMsg.includes("schedule") ||
+      lowerMsg.includes("free time") ||
+      lowerMsg.includes("hold")
+    ) {
       detectedTargets.push("schedule");
     }
-    if (lowerMsg.includes("spend") || lowerMsg.includes("budget") || lowerMsg.includes("wallet") || lowerMsg.includes("cost") || lowerMsg.includes("money") || lowerMsg.includes("$")) {
+    if (
+      lowerMsg.includes("spend") ||
+      lowerMsg.includes("budget") ||
+      lowerMsg.includes("wallet") ||
+      lowerMsg.includes("cost") ||
+      lowerMsg.includes("money") ||
+      lowerMsg.includes("$")
+    ) {
       detectedTargets.push("wallet");
     }
-    if (lowerMsg.includes("eat") || lowerMsg.includes("food") || lowerMsg.includes("meal") || lowerMsg.includes("macro") || lowerMsg.includes("calorie") || lowerMsg.includes("protein") || lowerMsg.includes("bulk")) {
+    if (
+      lowerMsg.includes("eat") ||
+      lowerMsg.includes("food") ||
+      lowerMsg.includes("meal") ||
+      lowerMsg.includes("macro") ||
+      lowerMsg.includes("calorie") ||
+      lowerMsg.includes("protein") ||
+      lowerMsg.includes("bulk")
+    ) {
       detectedTargets.push("health");
     }
-    if (lowerMsg.includes("workout") || lowerMsg.includes("lift") || lowerMsg.includes("volleyball") || lowerMsg.includes("exercise") || lowerMsg.includes("gym")) {
+    if (
+      lowerMsg.includes("workout") ||
+      lowerMsg.includes("lift") ||
+      lowerMsg.includes("volleyball") ||
+      lowerMsg.includes("exercise") ||
+      lowerMsg.includes("gym")
+    ) {
       detectedTargets.push("move");
     }
-    if (lowerMsg.includes("job") || lowerMsg.includes("intern") || lowerMsg.includes("resume") || lowerMsg.includes("apply") || lowerMsg.includes("career")) {
+    if (
+      lowerMsg.includes("job") ||
+      lowerMsg.includes("intern") ||
+      lowerMsg.includes("resume") ||
+      lowerMsg.includes("apply") ||
+      lowerMsg.includes("career")
+    ) {
       detectedTargets.push("career");
     }
-    if (lowerMsg.includes("build") || lowerMsg.includes("portfolio") || lowerMsg.includes("project spec") || lowerMsg.includes("github")) {
+    if (
+      lowerMsg.includes("build") ||
+      lowerMsg.includes("portfolio") ||
+      lowerMsg.includes("project spec") ||
+      lowerMsg.includes("github")
+    ) {
       detectedTargets.push("build");
     }
     if (lowerMsg.includes("deal") || lowerMsg.includes("discount") || lowerMsg.includes(".edu")) {
@@ -54,9 +120,9 @@ export async function POST(req: NextRequest) {
       detectedTargets.push("explore");
     }
 
-    const finalTargets = detectedTargets.length > 0 ? detectedTargets : [specialistId as SpecialistId];
+    const finalTargets =
+      detectedTargets.length > 0 ? detectedTargets : [specialistId as SpecialistId];
 
-    // Check if Mock Mode is active (explicit flag, env var, or zero keys provided)
     const isMock =
       mockMode === true ||
       process.env.MOCK_NEBIUS === "true" ||
@@ -65,9 +131,41 @@ export async function POST(req: NextRequest) {
 
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
+    let connectorSources: ConnectorCitation[] | undefined = undefined;
 
-    // Query Tavily for live external intelligence if relevant
-    let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined = undefined;
+    // Connected account snapshot + optional on-demand search
+    let connectorSnapshotBlock = "";
+    let connectorSearchBlock = "";
+    try {
+      const session = readConnectorSession();
+      const hasAny =
+        Boolean(session.google?.accessToken) ||
+        Boolean(session.notion?.accessToken) ||
+        Boolean(session.slack?.accessToken);
+
+      if (hasAny) {
+        const snapshot = await assembleConnectorContext(session);
+        connectorSnapshotBlock = formatSnapshotForPrompt(snapshot);
+
+        const intent = detectSearchIntent(message || "", specialistId as SpecialistId);
+        if (intent.shouldSearch && intent.sources.length > 0) {
+          const searchResult = await searchConnectors({
+            session,
+            query: intent.query || message,
+            sources: intent.sources,
+          });
+          connectorSearchBlock = searchResult.formatted;
+          if (searchResult.citations.length > 0) {
+            connectorSources = searchResult.citations;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Connector context error:", err);
+    }
+
+    let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined =
+      undefined;
     const isWebQuery =
       specialistId === "deals" ||
       specialistId === "travel" ||
@@ -94,32 +192,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (isMock) {
-      // Offline / zero-credit simulation
       const mockResult = generateMockResponse({
         specialistId: specialistId as SpecialistId,
         message,
         brain,
       });
       aiContent = mockResult.content;
+      if (connectorSearchBlock) {
+        aiContent += `\n\n_Connected source search was available for this turn. Connect live Nebius mode for full grounded synthesis._`;
+      }
       approvalRequest = mockResult.approvalRequest;
       if (mockResult.tavilySources) {
         tavilySources = mockResult.tavilySources;
       }
     } else {
-      // Live Nebius Inference Mode
       const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
 
       if (!keyToUse) {
         return NextResponse.json(
           {
             error: "NEBIUS_API_KEY_REQUIRED",
-            message: "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
+            message:
+              "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
           },
           { status: 401 }
         );
       }
 
-      // Construct system prompt grounded in orbit.txt rules
       const systemPrompt = `You are ${activeSpecialist.name}, part of Orbit - the Sovereign Personal Student OS.
 Student Profile:
 - Name: ${student.name}
@@ -138,18 +237,31 @@ Rules:
 2. Confirm before external writes: NEVER finalize calendar events, emails, flight bookings, or applications without proposing an authorization step.
 3. Keep answers concise, actionable, and formatted in clean markdown.
 4. For health, always provide honest estimated ranges (e.g. 750-850 kcal) rather than false precision.
-5. Em-dash character is forbidden. Use a regular hyphen or clean punctuation.`;
+5. Em-dash character is forbidden. Use a regular hyphen or clean punctuation.
+6. When connected account snapshot or search results are provided, ground your answer in them and cite titles.
+7. If you need one extra lookup, you may append a single marker: <!--orbit-search:{"sources":["gmail"],"query":"..."}-->`;
 
-      const userPrompt =
-        tavilySources && tavilySources.length > 0
-          ? `${message}\n\n[Live Web Results from Tavily Search]:\n${tavilySources
-              .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
-              .join("\n")}\nSynthesize these live verified results directly in your response.`
-          : message;
+      let userPrompt = message as string;
+      const contextBlocks: string[] = [];
+      if (connectorSnapshotBlock) contextBlocks.push(connectorSnapshotBlock);
+      if (connectorSearchBlock) contextBlocks.push(connectorSearchBlock);
+      if (tavilySources && tavilySources.length > 0) {
+        contextBlocks.push(
+          `[Live Web Results from Tavily Search]:\n${tavilySources
+            .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
+            .join("\n")}\nSynthesize these live verified results directly in your response.`
+        );
+      }
+      if (contextBlocks.length) {
+        userPrompt = `${message}\n\n${contextBlocks.join("\n\n")}`;
+      }
 
-      // Format past turns for multi-turn conversational context
       const historyMessages = (history || [])
-        .filter((m: any) => m.content && (m.sender === "user" || m.sender === specialistId || m.sender === "core"))
+        .filter(
+          (m: any) =>
+            m.content &&
+            (m.sender === "user" || m.sender === specialistId || m.sender === "core")
+        )
         .map((m: any) => ({
           role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
           content: m.content as string,
@@ -158,7 +270,8 @@ Rules:
       try {
         const completionRes = await createNebiusCompletion({
           apiKey: keyToUse,
-          model: process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
+          model:
+            process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
           messages: [
             { role: "system", content: systemPrompt },
             ...historyMessages,
@@ -170,6 +283,54 @@ Rules:
 
         const data = await completionRes.json();
         aiContent = data.choices?.[0]?.message?.content || "";
+
+        // Optional one follow-up connector search if the model requests it
+        const followUp = parseOrbitSearchMarker(aiContent);
+        if (followUp) {
+          try {
+            const session = readConnectorSession();
+            const searchResult = await searchConnectors({
+              session,
+              query: followUp.query,
+              sources: followUp.sources,
+            });
+            connectorSources = [
+              ...(connectorSources || []),
+              ...searchResult.citations,
+            ].slice(0, 24);
+
+            const secondRes = await createNebiusCompletion({
+              apiKey: keyToUse,
+              model:
+                process.env.NEBIUS_MODEL_REASONING ||
+                "nvidia/llama-3.1-nemotron-70b-instruct",
+              messages: [
+                { role: "system", content: systemPrompt },
+                ...historyMessages,
+                { role: "user", content: userPrompt },
+                {
+                  role: "assistant",
+                  content: stripOrbitSearchMarker(aiContent),
+                },
+                {
+                  role: "user",
+                  content: `${searchResult.formatted}\nSynthesize these additional connected-source results. Do not emit another orbit-search marker.`,
+                },
+              ],
+              temperature: 0.6,
+              maxTokens: 1200,
+            });
+            const secondData = await secondRes.json();
+            aiContent =
+              secondData.choices?.[0]?.message?.content ||
+              stripOrbitSearchMarker(aiContent);
+          } catch (followErr) {
+            console.error("Connector follow-up search error:", followErr);
+            aiContent = stripOrbitSearchMarker(aiContent);
+          }
+        } else {
+          aiContent = stripOrbitSearchMarker(aiContent);
+        }
       } catch (err: any) {
         console.error("Nebius API execution error:", err);
         return NextResponse.json(
@@ -181,7 +342,6 @@ Rules:
         );
       }
 
-      // Detect if external action approval is required in live mode
       if (
         lowerMsg.includes("hold") ||
         lowerMsg.includes("schedule") ||
@@ -189,16 +349,45 @@ Rules:
         lowerMsg.includes("fly") ||
         lowerMsg.includes("apply") ||
         lowerMsg.includes("calendar") ||
-        lowerMsg.includes("commit")
+        lowerMsg.includes("commit") ||
+        lowerMsg.includes("draft email") ||
+        lowerMsg.includes("email draft")
       ) {
-        if (lowerMsg.includes("fly") || lowerMsg.includes("flight") || lowerMsg.includes("home")) {
+        const hold = defaultHoldWindow();
+        if (lowerMsg.includes("draft email") || lowerMsg.includes("email draft")) {
+          approvalRequest = {
+            id: `auth-${Date.now()}`,
+            specialistId: (detectedTargets[0] as SpecialistId) || "career",
+            title: "Authorize Gmail Draft",
+            description:
+              "Orbit staged a Gmail draft for your review. Nothing is sent until you open Gmail and send it yourself.",
+            service: "Gmail",
+            payload: {
+              to: student.name ? `${student.name.toLowerCase()}@rit.edu` : "me@example.com",
+              subject: "Orbit draft follow-up",
+              body: "Draft prepared by Orbit for your review.",
+            },
+            status: "pending",
+            safetyCheck: "Draft only. Zero send. User must review in Gmail.",
+            timestamp: "Just now",
+          };
+        } else if (
+          lowerMsg.includes("fly") ||
+          lowerMsg.includes("flight") ||
+          lowerMsg.includes("home")
+        ) {
           approvalRequest = {
             id: `auth-${Date.now()}`,
             specialistId: "travel",
             title: "Hold Calendar for Break Travel: ROC to BOS",
-            description: "Staged non-stop flight window (Dec 19 - Jan 3). Fits within $800 monthly cap and clears finals schedule.",
+            description:
+              "Staged non-stop flight window (Dec 19 - Jan 3). Fits within $800 monthly cap and clears finals schedule.",
             service: "Google Calendar",
             payload: {
+              title: "Confirmed Hold: ROC -> BOS Break Travel",
+              description: "Orbit Travel provisional break window",
+              start: "2026-12-19",
+              end: "2026-12-20",
               route: "ROC -> BOS",
               dates: "Dec 19 - Jan 3",
               priceEstimate: "$142",
@@ -207,12 +396,17 @@ Rules:
             safetyCheck: "Verified no volleyball game conflicts. Budget buffer remaining: $415.",
             timestamp: "Just now",
           };
-        } else if (lowerMsg.includes("apply") || lowerMsg.includes("resume") || lowerMsg.includes("job")) {
+        } else if (
+          lowerMsg.includes("apply") ||
+          lowerMsg.includes("resume") ||
+          lowerMsg.includes("job")
+        ) {
           approvalRequest = {
             id: `auth-${Date.now()}`,
             specialistId: "career",
             title: "Authorize Application Submission",
-            description: "Tailored 1-page ML Engineer application drafted for review. Zero silent submissions.",
+            description:
+              "Tailored 1-page ML Engineer application drafted for review. Zero silent submissions.",
             service: "Job Portal",
             payload: {
               role: "SWE / ML Intern Summer 2027",
@@ -227,9 +421,16 @@ Rules:
             id: `auth-${Date.now()}`,
             specialistId: (detectedTargets[0] as SpecialistId) || "schedule",
             title: "Authorize Calendar Mutation",
-            description: `Orbit ${activeSpecialist.name} requested adding a confirmed time block to your primary calendar.`,
+            description: `${activeSpecialist.name} requested adding a confirmed time block to your primary calendar.`,
             service: "Google Calendar",
-            payload: { action: "create_event", source: activeSpecialist.name },
+            payload: {
+              action: "create_event",
+              source: activeSpecialist.name,
+              title: "Confirmed Hold: CSCI 320 Evening Study Block",
+              description: `Study hold proposed by ${activeSpecialist.name}`,
+              start: hold.start,
+              end: hold.end,
+            },
             status: "pending",
             safetyCheck: "Checked for time conflicts with classes and athletic practices.",
             timestamp: "Just now",
@@ -244,19 +445,24 @@ Rules:
         sender: specialistId,
         senderName: activeSpecialist.name,
         content: aiContent,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         routingTrace: isCore
           ? {
               intent: lowerMsg.slice(0, 45),
               targetSpecialists: finalTargets,
               modelUsed: isMock
                 ? "nvidia/llama-3.1-nemotron-70b-instruct (Mock / Zero Credits)"
-                : (process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct"),
+                : process.env.NEBIUS_MODEL_REASONING ||
+                  "nvidia/llama-3.1-nemotron-70b-instruct",
               confidence: 0.96,
             }
           : undefined,
         approvalRequest,
         tavilySources,
+        connectorSources,
       },
     });
   } catch (error: any) {
