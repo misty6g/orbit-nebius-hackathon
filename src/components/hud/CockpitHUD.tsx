@@ -13,6 +13,7 @@ import { StudyFlashcards } from "./widgets/StudyFlashcards";
 import { WalletBudgetMeter } from "./widgets/WalletBudgetMeter";
 import { CareerPipelineBoard } from "./widgets/CareerPipelineBoard";
 import { TavilySearchWidget } from "./widgets/TavilySearchWidget";
+import { ConnectorDock } from "./widgets/ConnectorDock";
 import {
   ArrowLeft,
   SpeakerHigh,
@@ -304,17 +305,56 @@ export function CockpitHUD({
     }
   };
 
-  const handleAuthorizeAction = (id: string) => {
+  const handleAuthorizeAction = async (id: string) => {
     const targetMsg = messages.find((m) => m.approvalRequest?.id === id);
     const approval = targetMsg?.approvalRequest;
 
+    let actNote: string | null = null;
+    if (
+      approval &&
+      (approval.service === "Google Calendar" || approval.service === "Gmail")
+    ) {
+      try {
+        const res = await fetch("/api/connectors/act", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            service: approval.service,
+            description: approval.description,
+            payload: approval.payload,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok) {
+          actNote =
+            approval.service === "Gmail"
+              ? "Gmail draft created in your connected account."
+              : "Calendar event written to your connected Google Calendar.";
+        } else if (data.error === "GOOGLE_NOT_CONNECTED") {
+          actNote =
+            "Google is not connected. Hold saved locally in your Shared Brain only.";
+        } else if (!res.ok) {
+          actNote = `Live write skipped: ${data.message || data.error || "unknown error"}. Local brain updated.`;
+        }
+      } catch {
+        actNote =
+          "Could not reach connector act route. Hold saved locally in your Shared Brain.";
+      }
+    }
+
     let updatedCalendar = [...brain.activity.calendar];
     if (approval && approval.service === "Google Calendar") {
-      const isFlight = approval.title.toLowerCase().includes("flight") || approval.title.toLowerCase().includes("travel");
+      const isFlight =
+        approval.title.toLowerCase().includes("flight") ||
+        approval.title.toLowerCase().includes("travel");
       updatedCalendar.push({
         id: `hold-${Date.now()}`,
-        title: isFlight ? "Confirmed Hold: ROC -> BOS Break Travel" : "Confirmed Hold: CSCI 320 Evening Study Block",
-        time: isFlight ? "Dec 19 - Jan 3 (Provisional Window)" : "8:30 PM - 10:00 PM Tonight",
+        title: isFlight
+          ? "Confirmed Hold: ROC -> BOS Break Travel"
+          : approval.payload?.title || "Confirmed Hold: CSCI 320 Evening Study Block",
+        time: isFlight
+          ? "Dec 19 - Jan 3 (Provisional Window)"
+          : "8:30 PM - 10:00 PM Tonight",
         category: isFlight ? "life" : "study",
         isHold: true,
       });
@@ -331,6 +371,22 @@ export function CockpitHUD({
       ),
     };
     onUpdateBrain(updated);
+
+    if (actNote) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `act-${Date.now()}`,
+          sender: specialistId,
+          senderName: "Orbit Connectors",
+          content: actNote!,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        },
+      ]);
+    }
   };
 
   const handleRejectAction = (id: string) => {
@@ -347,12 +403,15 @@ export function CockpitHUD({
     switch (specialistId) {
       case "core":
         return (
-          <CoreBriefWidget
-            brain={brain}
-            brief={brief}
-            onPlayMorningTour={onPlayMorningTour}
-            onOpenBrainInspector={onOpenBrainInspector}
-          />
+          <div className="space-y-4">
+            <ConnectorDock />
+            <CoreBriefWidget
+              brain={brain}
+              brief={brief}
+              onPlayMorningTour={onPlayMorningTour}
+              onOpenBrainInspector={onOpenBrainInspector}
+            />
+          </div>
         );
       case "health":
         return <HealthMacroRings brain={brain} onUpdateBrain={onUpdateBrain} />;

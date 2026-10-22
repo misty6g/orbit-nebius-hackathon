@@ -323,12 +323,30 @@ export const DEFAULT_PLANET_CUSTOMIZATIONS: Record<string, PlanetCustomization> 
   },
 };
 
+export type ApprovalService =
+  | "Google Calendar"
+  | "Google Drive"
+  | "Gmail"
+  | "Notion"
+  | "Slack"
+  | "GitHub"
+  | "Job Portal"
+  | "Flight Booking";
+
+export interface ConnectorCitation {
+  title: string;
+  url?: string;
+  id?: string;
+  source: "calendar" | "gmail" | "drive" | "notion" | "slack";
+  snippet?: string;
+}
+
 export interface ActionApproval {
   id: string;
   specialistId: SpecialistId;
   title: string;
   description: string;
-  service: "Google Calendar" | "Google Drive" | "Gmail" | "GitHub" | "Job Portal" | "Flight Booking";
+  service: ApprovalService;
   payload: Record<string, any>;
   status: "pending" | "approved" | "rejected";
   safetyCheck: string;
@@ -436,6 +454,7 @@ export interface ChatMessage {
     url: string;
     snippet: string;
   }>;
+  connectorSources?: ConnectorCitation[];
 }
 
 export interface MorningBriefData {
