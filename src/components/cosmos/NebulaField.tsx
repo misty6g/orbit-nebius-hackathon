@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { MILKY_WAY_TEXTURE } from "@/lib/planetAssets";
 import {
@@ -126,11 +125,35 @@ export function NebulaField({
   colors = DEFAULT_NEBULA_CUSTOMIZATION,
 }: NebulaFieldProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const skyMap = useTexture(MILKY_WAY_TEXTURE);
+  // Non-suspense load so a stalled texture never blanks the whole cosmos.
+  const [skyMap, setSkyMap] = useState<THREE.Texture | null>(null);
   const reducedMotion = useMemo(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function")
       return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      MILKY_WAY_TEXTURE,
+      (tex) => {
+        if (cancelled) {
+          tex.dispose();
+          return;
+        }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        setSkyMap(tex);
+      },
+      undefined,
+      () => {
+        if (!cancelled) setSkyMap(null);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const nebulaMaterial = useMemo(() => {
@@ -168,21 +191,23 @@ export function NebulaField({
 
   return (
     <group ref={groupRef}>
-      {/* Dim milky-way shell — higher tessellation + low opacity to hide pole pinch */}
-      <mesh>
-        <sphereGeometry args={[620, 96, 64]} />
-        <meshBasicMaterial
-          map={skyMap}
-          side={THREE.BackSide}
-          color="#3a3a48"
-          transparent
-          opacity={0.22}
-          depthWrite={false}
-          fog={false}
-        />
-      </mesh>
+      {/* Dim milky-way shell — optional; procedural nebula always renders */}
+      {skyMap && (
+        <mesh>
+          <sphereGeometry args={[620, 64, 48]} />
+          <meshBasicMaterial
+            map={skyMap}
+            side={THREE.BackSide}
+            color="#3a3a48"
+            transparent
+            opacity={0.22}
+            depthWrite={false}
+            fog={false}
+          />
+        </mesh>
+      )}
       <mesh material={nebulaMaterial}>
-        <sphereGeometry args={[600, 96, 64]} />
+        <sphereGeometry args={[600, 64, 48]} />
       </mesh>
     </group>
   );

@@ -111,6 +111,20 @@ export default function OrbitHome() {
 
   // Initial load
   useEffect(() => {
+    // Optional hard reset back to Cosmic Awakening (e.g. /?reset=1)
+    const params = new URLSearchParams(window.location.search);
+    const forceAwaken = params.get("reset") === "1" || params.get("awaken") === "1";
+    if (forceAwaken) {
+      localStorage.removeItem("orbit_brain");
+      localStorage.removeItem("orbit_awakened");
+      params.delete("reset");
+      params.delete("awaken");
+      const next = `${window.location.pathname}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      window.history.replaceState({}, "", next);
+    }
+
     // Check localStorage for brain
     const savedBrain = localStorage.getItem("orbit_brain");
     const savedAwakened = localStorage.getItem("orbit_awakened");
@@ -121,8 +135,9 @@ export default function OrbitHome() {
     if (savedTavilyKey) setTavilyKey(savedTavilyKey);
     localStorage.removeItem("orbit_mock_mode");
 
-
-    if (savedBrain) {
+    if (forceAwaken) {
+      setShowAwakening(true);
+    } else if (savedBrain) {
       try {
         setBrain(JSON.parse(savedBrain));
       } catch {}
@@ -195,6 +210,18 @@ export default function OrbitHome() {
     // Allow WebGL only after we know whether onboarding must block it.
     setBootstrapped(true);
   }, []);
+
+  const handleRecalibrateIdentity = () => {
+    localStorage.removeItem("orbit_brain");
+    localStorage.removeItem("orbit_awakened");
+    setSelectedSpecialistId(null);
+    setShowAwakening(true);
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleUpdateBrain = (updated: SharedBrainProfile) => {
     setBrain(updated);
@@ -348,17 +375,15 @@ export default function OrbitHome() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#07080a] font-sans">
-      {/* Soft static backdrop while WebGL is deferred (onboarding / Studio). */}
-      {(!bootstrapped || showAwakening || showCustomizer) && (
-        <div
-          aria-hidden
-          className="absolute inset-0 z-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 40%, #1a2238 0%, #0a0c14 55%, #050608 100%)",
-          }}
-        />
-      )}
+      {/* Always-on soft backdrop so a stalled WebGL mount never looks like a hard crash. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 40%, #1a2238 0%, #0a0c14 55%, #050608 100%)",
+        }}
+      />
 
       {/* 3D Solar System WebGL Canvas — unmount during Cosmic Awakening and
           while Studio is open so onboarding stays interactive and Studio
@@ -377,9 +402,14 @@ export default function OrbitHome() {
       )}
 
       {/* Top Left Zen Brand Glyph */}
-      {!selectedSpecialistId && !isTouring && (
+      {!showAwakening && !selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 left-6 z-10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.6)] border border-white/5 backdrop-blur-2xl flex items-center justify-center shadow-zen-dock hover:border-white/10 transition cursor-pointer active:scale-[0.96]">
+          <button
+            type="button"
+            title="Recalibrate identity (show startup)"
+            onClick={handleRecalibrateIdentity}
+            className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.6)] border border-white/5 backdrop-blur-2xl flex items-center justify-center shadow-zen-dock hover:border-amber-400/40 transition cursor-pointer active:scale-[0.96]"
+          >
             <svg
               viewBox="0 0 24 24"
               className="w-4 h-4 text-amber-400 fill-none stroke-current stroke-[1.75]"
@@ -388,7 +418,7 @@ export default function OrbitHome() {
               <circle cx="12" cy="12" r="3.5" fill="currentColor" fillOpacity="0.4" />
               <path d="M12 3a9 9 0 0 1 9 9" />
             </svg>
-          </div>
+          </button>
           <div className="flex flex-col">
             <span className="text-xs font-mono font-semibold text-zinc-200 tracking-wider">
               ORBIT
@@ -401,7 +431,7 @@ export default function OrbitHome() {
       )}
 
       {/* Top Right Zen Controls */}
-      {!selectedSpecialistId && !isTouring && (
+      {!showAwakening && !selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
           {/* Planet Studio Customizer Button */}
           <button
@@ -479,7 +509,7 @@ export default function OrbitHome() {
       )}
 
       {/* Bottom Left Zen Ambient Music Player with Volume + Track Picker */}
-      {!selectedSpecialistId && !isTouring && (
+      {!showAwakening && !selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-6 z-10 flex items-end gap-2">
           {/* Circular Play / Pause Button */}
           <button
@@ -646,7 +676,7 @@ export default function OrbitHome() {
       )}
 
       {/* Center Bottom Integrated Zen Command Dock (Perplexity Zen style) */}
-      {!selectedSpecialistId && !isTouring && (
+      {!showAwakening && !selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-4 flex flex-col items-center">
           <div className="w-full p-2 rounded-2xl bg-[rgba(10,10,20,0.45)] border border-white/5 backdrop-blur-2xl shadow-zen-dock space-y-2">
             {/* Zen Command Bar Input */}
