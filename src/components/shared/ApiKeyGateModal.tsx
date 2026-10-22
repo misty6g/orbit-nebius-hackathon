@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Key, ShieldCheck, X, Sparkle, GlobeHemisphereWest, Lightning } from "@phosphor-icons/react";
+import { Key, ShieldCheck, X, Sparkle, GlobeHemisphereWest } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
 interface ApiKeyGateModalProps {
@@ -10,8 +10,6 @@ interface ApiKeyGateModalProps {
   onSaveKeys: (nebiusKey: string, tavilyKey: string) => void;
   currentNebiusKey: string;
   currentTavilyKey: string;
-  mockMode?: boolean;
-  onToggleMockMode?: () => void;
 }
 
 export function ApiKeyGateModal({
@@ -20,8 +18,6 @@ export function ApiKeyGateModal({
   onSaveKeys,
   currentNebiusKey,
   currentTavilyKey,
-  mockMode = false,
-  onToggleMockMode,
 }: ApiKeyGateModalProps) {
   const [nebiusKey, setNebiusKey] = useState(currentNebiusKey);
   const [tavilyKey, setTavilyKey] = useState(currentTavilyKey);
@@ -55,34 +51,6 @@ export function ApiKeyGateModal({
           </button>
         </div>
 
-        {/* Inference Mode Toggle Card */}
-        <div className="mb-4 p-3 rounded-xl bg-space-900/60 border border-white/[0.06] space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-200">
-              Testing Mode
-            </span>
-            {onToggleMockMode && (
-              <button
-                type="button"
-                onClick={onToggleMockMode}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono transition border ${
-                  mockMode
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-amber-400/10 border-amber-400/30 text-amber-300"
-                }`}
-              >
-                <Lightning size={11} weight="fill" className={mockMode ? "text-emerald-400 animate-pulse" : "text-amber-400"} />
-                <span>{mockMode ? "Mock AI (0 Credits)" : "Live Nebius"}</span>
-              </button>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            {mockMode
-              ? "Mock Mode Active: Local synthetic generation for fluid UI testing with zero API credit consumption."
-              : "Live Cloud Mode: Live inference calls to NVIDIA Nemotron-70B on Nebius Token Factory."}
-          </p>
-        </div>
-
         <form onSubmit={handleSave} className="space-y-4 text-xs">
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -107,7 +75,7 @@ export function ApiKeyGateModal({
               className="w-full px-3 py-2 rounded-lg bg-space-950 border border-white/10 text-white placeholder:text-slate-600 font-mono text-[11px] focus:outline-none focus:border-amber-400/50 transition"
             />
             <span className="text-[10px] font-mono text-slate-500 mt-1 block">
-              Powers NVIDIA Nemotron-70B model orchestration on high performance GPUs.
+              Powers NVIDIA Nemotron model orchestration on high performance GPUs.
             </span>
           </div>
 

@@ -124,11 +124,19 @@ export function CosmicAwakeningModal({
 
           {/* Quick Demo Fill for Judges */}
           <button
-            onClick={() => {
-              cosmicAudio.playChime();
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Complete first so audio / WebGL jank cannot block onboarding.
               onQuickDemoFill();
+              try {
+                cosmicAudio.playChime();
+              } catch {
+                /* ignore audio policy errors */
+              }
             }}
-            className="zen-btn flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-[11px] font-mono transition"
+            className="zen-btn relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-[11px] font-mono transition"
           >
             <FastForward size={13} weight="bold" />
             <span>Demo Fill (Gyan @ RIT)</span>
