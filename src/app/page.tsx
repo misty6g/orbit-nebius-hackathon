@@ -46,6 +46,8 @@ export default function OrbitHome() {
 
   // Modal States
   const [showAwakening, setShowAwakening] = useState<boolean>(false);
+  /** Gate WebGL until localStorage bootstrap finishes so onboarding stays clickable. */
+  const [bootstrapped, setBootstrapped] = useState<boolean>(false);
   const [showApiKeyGate, setShowApiKeyGate] = useState<boolean>(false);
   const [showBrainInspector, setShowBrainInspector] = useState<boolean>(false);
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
@@ -189,6 +191,9 @@ export default function OrbitHome() {
         });
       })
       .catch(() => {});
+
+    // Allow WebGL only after we know whether onboarding must block it.
+    setBootstrapped(true);
   }, []);
 
   const handleUpdateBrain = (updated: SharedBrainProfile) => {
@@ -201,7 +206,11 @@ export default function OrbitHome() {
     localStorage.setItem("orbit_brain", JSON.stringify(newProfile));
     localStorage.setItem("orbit_awakened", "true");
     setShowAwakening(false);
-    cosmicAudio.playWarp();
+    try {
+      cosmicAudio.playWarp();
+    } catch {
+      /* ignore audio policy errors */
+    }
   };
 
   const handleQuickDemoFill = () => {
@@ -209,7 +218,11 @@ export default function OrbitHome() {
     localStorage.setItem("orbit_brain", JSON.stringify(INITIAL_DEMO_BRAIN));
     localStorage.setItem("orbit_awakened", "true");
     setShowAwakening(false);
-    cosmicAudio.playChime();
+    try {
+      cosmicAudio.playChime();
+    } catch {
+      /* ignore audio policy errors */
+    }
   };
 
   const handleSaveKeys = (newNebius: string, newTavily: string) => {
@@ -335,9 +348,22 @@ export default function OrbitHome() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#07080a] font-sans">
-      {/* 3D Solar System WebGL Canvas — unmount while Studio is open so the
-          preview gets a dedicated GL context (dual Canvas blacks out Studio). */}
-      {!showCustomizer && (
+      {/* Soft static backdrop while WebGL is deferred (onboarding / Studio). */}
+      {(!bootstrapped || showAwakening || showCustomizer) && (
+        <div
+          aria-hidden
+          className="absolute inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 40%, #1a2238 0%, #0a0c14 55%, #050608 100%)",
+          }}
+        />
+      )}
+
+      {/* 3D Solar System WebGL Canvas — unmount during Cosmic Awakening and
+          while Studio is open so onboarding stays interactive and Studio
+          keeps a dedicated GL context (dual Canvas blacks out Studio). */}
+      {bootstrapped && !showAwakening && !showCustomizer && (
         <SolarSystemCanvas
           selectedSpecialistId={selectedSpecialistId}
           onSelectSpecialist={handleSelectSpecialist}
