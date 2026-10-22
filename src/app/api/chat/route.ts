@@ -68,11 +68,18 @@ async function runOrbitCoreDecision(opts: {
         },
       ],
       temperature: 0.1,
-      maxTokens: 200,
+      maxTokens: 280,
+      // Classifier must emit JSON, not a long chain-of-thought.
+      enableThinking: false,
     });
     const decisionData = await decisionRes.json();
-    const raw = decisionData.choices?.[0]?.message?.content || "";
-    return parseOrbitRoutingDecision(raw, fallbackInput);
+    const message = decisionData.choices?.[0]?.message || {};
+    const raw =
+      message.content ||
+      message.reasoning ||
+      message.reasoning_content ||
+      "";
+    return parseOrbitRoutingDecision(String(raw), fallbackInput);
   } catch (err) {
     console.error("Orbit Core Nano decision error:", err);
     return heuristicRoutingDecision(fallbackInput);

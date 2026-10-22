@@ -59,6 +59,10 @@ function looksLikeNemotron3Nano(id: string): boolean {
   return /nemotron-3-nano|NVIDIA-Nemotron-3-Nano/i.test(id);
 }
 
+function looksLikeNemotron3Ultra(id: string): boolean {
+  return /nemotron-3-ultra|Nemotron-3-Ultra/i.test(id);
+}
+
 /** Resolve model ids from env with safe defaults. */
 export function resolveTierModels() {
   const nanoDefault = DEFAULT_MODEL;
@@ -71,20 +75,19 @@ export function resolveTierModels() {
       nanoDefault
   );
 
+  const ultraEnv = process.env.NEBIUS_MODEL_ULTRA?.trim();
   const reasoning = process.env.NEBIUS_MODEL_REASONING?.trim();
-  const ultraCandidate =
-    process.env.NEBIUS_MODEL_ULTRA ||
-    (reasoning &&
-    resolveNebiusModel(reasoning) !== nano &&
-    !looksLikeNemotron3Nano(reasoning)
-      ? reasoning
-      : undefined) ||
-    NEMOTRON_MODELS.ultra;
+  // Prefer explicit ULTRA; honor legacy REASONING only when it is already Nemotron 3 Ultra.
+  const ultra = resolveNebiusModel(
+    ultraEnv ||
+      (reasoning && looksLikeNemotron3Ultra(reasoning) ? reasoning : undefined) ||
+      NEMOTRON_MODELS.ultra
+  );
 
   return {
     nano,
     super: resolveNebiusModel(process.env.NEBIUS_MODEL_SUPER || NEMOTRON_MODELS.super),
-    ultra: resolveNebiusModel(ultraCandidate),
+    ultra,
     decision: nano,
   };
 }
@@ -369,24 +372,23 @@ export function parseOrbitRoutingDecision(
 }
 
 export function buildOrbitDecisionSystemPrompt(specialistId: SpecialistId, room?: string): string {
-  return `You are Orbit Core's routing classifier on Nebius Token Factory (NVIDIA Nemotron 3 Nano).
-Decide which specialist planets should handle the user request AND which response model tier should answer.
+  return `You are Orbit Core's routing classifier. Output ONE JSON object and nothing else.
 
-Valid specialist ids (use only these):
+Valid targetSpecialists (copy exactly, never invent names):
 ${VALID_SPECIALIST_IDS.join(", ")}
 
-Tier rules:
-- ultra: serious multi-constraint reasoning, cross-domain plans, strategy, architecture/spec, resume tailoring, quiz/flashcard synthesis, long pasted context
-- super: everyday synthesis that still needs a solid answer (web/connector grounding, non-trivial single-domain questions)
+Valid tier values (copy exactly): nano | super | ultra
+- ultra: cross-domain plans, multi-constraint tradeoffs, strategy, architecture/spec, resume tailoring, quiz/flashcard synthesis, long pasted context
+- super: everyday synthesis that still needs a solid answer
 - nano: short status, greetings, simple one-domain lookups
 
 Active cockpit specialist: ${specialistId}
 ${room ? `Active Core room: ${room}` : ""}
-When the user is in Orbit Core, prefer multi-planet plans when constraints span domains.
-When already inside a planet cockpit, include that specialist and add helpers only if needed.
+If cockpit is not core, always include that specialist id in targetSpecialists.
+If constraints span domains (travel + budget + academics), include every relevant planet and set tier to ultra.
 
-Respond with ONLY a single JSON object, no markdown fences, no prose:
-{"intent":"short phrase","targetSpecialists":["travel","study"],"tier":"ultra","confidence":0.9,"reason":"brief why"}`;
+Required JSON shape:
+{"intent":"short phrase","targetSpecialists":["travel","study","wallet"],"tier":"ultra","confidence":0.9,"reason":"brief why"}`;
 }
 
 export function buildOrbitDecisionUserPrompt(message: string, studentBlurb: string): string {

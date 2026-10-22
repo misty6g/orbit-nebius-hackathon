@@ -12,6 +12,11 @@ export interface NebiusChatOptions {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  /**
+   * Nemotron 3 thinking toggle (chat_template_kwargs.enable_thinking).
+   * Decision / classifier calls should pass false so JSON fits in max_tokens.
+   */
+  enableThinking?: boolean;
 }
 
 export type NemotronTier = "nano" | "super" | "ultra";
@@ -52,6 +57,7 @@ export async function createNebiusCompletion({
   temperature = 0.6,
   maxTokens = 1500,
   stream = false,
+  enableThinking,
 }: NebiusChatOptions) {
   const token = apiKey || process.env.NEBIUS_API_KEY;
   const baseUrl =
@@ -64,19 +70,24 @@ export async function createNebiusCompletion({
     throw new Error("NEBIUS_API_KEY_MISSING");
   }
 
+  const body: Record<string, unknown> = {
+    model: resolvedModel,
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+    stream,
+  };
+  if (typeof enableThinking === "boolean") {
+    body.chat_template_kwargs = { enable_thinking: enableThinking };
+  }
+
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      model: resolvedModel,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-      stream,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
