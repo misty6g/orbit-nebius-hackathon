@@ -18,10 +18,10 @@ Students live across calendars, budgets, workouts, flights home, and internship 
 
 ## What it does
 
-- **Orbit Core** routes natural language across 9 domain specialists (Health, Move, Schedule, Study, Wallet/Deals, Explore, Travel, Career/Build).
+- **Orbit Core** uses **Nemotron 3 Nano** as a dual decision model: which specialist planets handle the turn, and whether the answer should use **Nano**, **Super**, or **Ultra**.
 - **Sovereign Shared Brain** is the single memory layer every specialist reads and updates (demo profile via Demo Fill; local vault export).
 - **Confirm-before-write:** Calendar holds, Gmail drafts, bookings, and applications surface as in-stream authorization cards — never silent mutations.
-- **Live inference:** Chat always hits **Nebius Token Factory** (`https://api.tokenfactory.nebius.com/v1`) with **NVIDIA Nemotron** (default `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`). Production ships with `NEBIUS_API_KEY` so judges do not bring keys.
+- **Live inference:** Chat hits **Nebius Token Factory** with **NVIDIA Nemotron 3** — Nano for routing + everyday calls, Super for synthesis, Ultra for serious multi-constraint reasoning. Production ships with `NEBIUS_API_KEY` so judges do not bring keys.
 - **Tavily** grounds Deals (.edu discounts), Travel (ROC↔BOS), and Explore (Rochester meetups) with live web sources in the stream.
 - **Connectors (optional):** Google Calendar/Gmail/Drive, Notion, Slack OAuth. If OAuth is not configured on the demo domain, agents use the Shared Brain path — “connect your own accounts” when self-hosting.
 
@@ -32,7 +32,7 @@ Students live across calendars, budgets, workouts, flights home, and internship 
 | Layer | Choice |
 |-------|--------|
 | Inference API | **Nebius Token Factory** OpenAI-compatible chat completions |
-| Models | **NVIDIA Nemotron** — `NEBIUS_MODEL_REASONING` / `NEBIUS_MODEL_ROUTER` (default Nano 30B-A3B; override to Super/Lightning if desired) |
+| Models | **NVIDIA Nemotron 3** — Nano decision + everyday (`NEBIUS_MODEL_NANO`), Super (`NEBIUS_MODEL_SUPER`), Ultra (`NEBIUS_MODEL_ULTRA`) |
 | Search | **Tavily Search API** for Deals / Travel / Explore |
 | App | Next.js 14 App Router on Vercel |
 | UX | Three.js / R3F photoreal solar system + glass cockpit HUD |
@@ -74,7 +74,7 @@ Durable always-on memory backend, reusable skills packs, deeper Nebius tooling (
 ## Built with
 
 - Nebius Token Factory
-- NVIDIA Nemotron (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`)
+- NVIDIA Nemotron 3 Nano / Super / Ultra (Core dual routing)
 - Tavily Search
 - Next.js, React, Three.js, @react-three/fiber, Tailwind CSS
 - Google / Notion / Slack OAuth (optional)

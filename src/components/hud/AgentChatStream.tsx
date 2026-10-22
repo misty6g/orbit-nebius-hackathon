@@ -219,7 +219,7 @@ export function AgentChatStream({
                   />
                 )}
 
-                {/* Expandable Nemotron Reasoning Trace */}
+                {/* Expandable Orbit Core dual-routing trace */}
                 {msg.routingTrace && (
                   <div className="mt-2.5 pt-2 border-t border-white/10">
                     <button
@@ -229,16 +229,51 @@ export function AgentChatStream({
                       className="flex items-center gap-1.5 text-[10px] font-mono text-amber-400 hover:text-amber-300 transition"
                     >
                       <Cpu size={13} weight="bold" />
-                      <span>Nemotron Routing & Reasoning Trace</span>
+                      <span>
+                        Orbit Core Route ·{" "}
+                        {msg.routingTrace.tier === "ultra"
+                          ? "Nemotron 3 Ultra"
+                          : msg.routingTrace.tier === "super"
+                            ? "Nemotron 3 Super"
+                            : msg.routingTrace.tier === "nano"
+                              ? "Nemotron 3 Nano"
+                              : "Nemotron"}
+                      </span>
                       {openTraceId === msg.id ? <CaretUp size={11} /> : <CaretDown size={11} />}
                     </button>
 
                     {openTraceId === msg.id && (
                       <div className="mt-2 p-2.5 rounded-xl bg-zinc-950/80 border border-white/10 text-[10px] font-mono text-zinc-300 space-y-1">
                         <div>
-                          <span className="text-zinc-500">Inference Engine: </span>
-                          <span className="text-amber-300">{msg.routingTrace.modelUsed}</span>
+                          <span className="text-zinc-500">Response Tier: </span>
+                          <span className="text-amber-300">
+                            {msg.routingTrace.tier === "ultra"
+                              ? "Nemotron 3 Ultra"
+                              : msg.routingTrace.tier === "super"
+                                ? "Nemotron 3 Super"
+                                : msg.routingTrace.tier === "nano"
+                                  ? "Nemotron 3 Nano"
+                                  : "Nemotron"}{" "}
+                            ({msg.routingTrace.modelUsed})
+                          </span>
                         </div>
+                        {msg.routingTrace.tierReason && (
+                          <div>
+                            <span className="text-zinc-500">Tier Reason: </span>
+                            <span>{msg.routingTrace.tierReason}</span>
+                          </div>
+                        )}
+                        {msg.routingTrace.decisionModel && (
+                          <div>
+                            <span className="text-zinc-500">Decision Model: </span>
+                            <span className="text-zinc-200">
+                              {msg.routingTrace.decisionModel} via{" "}
+                              {msg.routingTrace.routedBy === "nano"
+                                ? "Nano classifier"
+                                : "heuristic fallback"}
+                            </span>
+                          </div>
+                        )}
                         <div>
                           <span className="text-zinc-500">Extracted Intent: </span>
                           <span>"{msg.routingTrace.intent}"</span>
@@ -265,7 +300,7 @@ export function AgentChatStream({
         {isLoading && (
           <div className="flex items-center gap-2 text-xs font-mono text-amber-400 p-2">
             <Sparkle size={14} className="animate-spin" />
-            <span>Orbit Core is routing via NVIDIA Nemotron...</span>
+            <span>Orbit Core is choosing planets and model tier...</span>
           </div>
         )}
       </div>

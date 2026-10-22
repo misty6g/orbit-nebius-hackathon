@@ -18,20 +18,23 @@ At the center sits **Orbit Core** (a radiant star), surrounded by 9 specialized 
 
 | Item | Value |
 |------|--------|
-| API base | `https://api.tokenfactory.nebius.com/v1` |
+| API base (Nano) | `https://api.tokenfactory.nebius.com/v1` |
+| API base (Super / Ultra) | `https://api.tokenfactory.us-central1.nebius.com/v1` |
 | Auth | `Authorization: Bearer $NEBIUS_API_KEY` |
-| Default reasoning / router model | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` |
-| Optional overrides | `NEBIUS_MODEL_REASONING`, `NEBIUS_MODEL_ROUTER` (e.g. Super / Lightning Nemotron IDs on Token Factory) |
-| Client helper | `src/lib/nebius.ts` → `createNebiusCompletion` |
+| Decision + everyday | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (`NEBIUS_MODEL_NANO`) |
+| Everyday synthesis | `nvidia/nemotron-3-super-120b-a12b` (`NEBIUS_MODEL_SUPER`) |
+| Serious reasoning | `nvidia/Nemotron-3-Ultra-550b-a55b` (`NEBIUS_MODEL_ULTRA`) |
+| Orbit Core routing | One Nano call picks **specialist planets** + **response tier**; answer runs on that tier |
+| Client helper | `src/lib/nebius.ts` → `createNebiusCompletion`; `src/lib/orbitCoreRouter.ts` |
 | Chat path | `POST /api/chat` — **requires** a server or client Nebius key (no synthetic mock replies) |
-| Judge probe | `GET /api/runtime` — reports whether server Token Factory + Tavily keys are live (never leaks secrets) |
+| Judge probe | `GET /api/runtime` — reports Nano/Super/Ultra ids + whether keys are live (never leaks secrets) |
 
 **Production checklist (Vercel):**
 
 1. Project → Settings → Environment Variables → **Production**
 2. Set `NEBIUS_API_KEY` (encrypted/sensitive)
 3. Set `TAVILY_API_KEY` (for Deals / Travel / Explore + Best Use of Tavily)
-4. Optionally set `NEBIUS_MODEL_REASONING` / `NEBIUS_MODEL_ROUTER`
+4. Optionally set `NEBIUS_MODEL_NANO` / `NEBIUS_MODEL_SUPER` / `NEBIUS_MODEL_ULTRA`
 5. Redeploy production
 
 UI badge **Live Nebius Token Factory** appears when `/api/runtime` reports `inference.live: true`.
@@ -56,8 +59,8 @@ Sell hard in the video and Devpost: **sovereignty**, **multi-agent routing**, **
 
 1. **NVIDIA Nemotron on Nebius Token Factory**
    - Live chat completions (not mock mode).
-   - Fast intent extraction and cross-domain routing from Orbit Core.
-   - Model ID resolved server-side with safe fallbacks if env placeholders are mis-set.
+   - Orbit Core uses **Nano** as a dual decision model: which planets handle the turn, and whether the answer uses **Nano**, **Super**, or **Ultra**.
+   - Serious multi-constraint plans hit Ultra; everyday lookups stay on Nano/Super so the UI stays responsive and credits stretch further.
 
 2. **Sovereign Shared Brain + confirm-before-write**
    - One memory layer for Health, Schedule, Wallet, Travel, Career, and the rest.
@@ -120,8 +123,9 @@ cp .env.example .env.local
 Minimum for live Token Factory inference:
 ```env
 NEBIUS_API_KEY=your_nebius_api_key_here
-NEBIUS_MODEL_REASONING=nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
-NEBIUS_MODEL_ROUTER=nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
+NEBIUS_MODEL_NANO=nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
+NEBIUS_MODEL_SUPER=nvidia/nemotron-3-super-120b-a12b
+NEBIUS_MODEL_ULTRA=nvidia/Nemotron-3-Ultra-550b-a55b
 
 # Strongly recommended for Tavily award track
 TAVILY_API_KEY=your_tavily_api_key_here
@@ -177,7 +181,7 @@ Open [http://localhost:3000](http://localhost:3000). Use **Demo Fill** for the R
 ## Tech Stack
 
 - **AI Infrastructure:** Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`)
-- **Foundation Models:** NVIDIA Nemotron (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` default)
+- **Foundation Models:** NVIDIA Nemotron 3 Nano (decision + everyday), Super (synthesis), Ultra (serious reasoning)
 - **Live Search:** Tavily Search API
 - **Framework:** Next.js 14 (App Router) + React 18
 - **3D Graphics & Shaders:** Three.js, `@react-three/fiber`, `@react-three/drei`

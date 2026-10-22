@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { resolveNebiusModel } from "@/lib/nebius";
+import { resolveTierModels, TIER_LABELS } from "@/lib/orbitCoreRouter";
+import { NEMOTRON_BASE_URLS } from "@/lib/nebius";
 import {
   isGoogleConfigured,
   isNotionConfigured,
@@ -13,15 +14,25 @@ import {
 export async function GET() {
   const nebiusConfigured = Boolean(process.env.NEBIUS_API_KEY?.trim());
   const tavilyConfigured = Boolean(process.env.TAVILY_API_KEY?.trim());
-  const model = resolveNebiusModel(process.env.NEBIUS_MODEL_REASONING);
+  const models = resolveTierModels();
   const baseUrl =
-    process.env.NEBIUS_BASE_URL || "https://api.tokenfactory.nebius.com/v1";
+    process.env.NEBIUS_BASE_URL || NEMOTRON_BASE_URLS.nano;
 
   return NextResponse.json({
     inference: {
       provider: "Nebius Token Factory",
       baseUrl,
-      model,
+      /** Primary everyday / decision model (Nano). */
+      model: models.nano,
+      models: {
+        nano: models.nano,
+        super: models.super,
+        ultra: models.ultra,
+        decision: models.decision,
+      },
+      labels: TIER_LABELS,
+      routing:
+        "Orbit Core uses Nano to choose specialist planets and response tier (Nano / Super / Ultra).",
       live: nebiusConfigured,
       requiresJudgeKey: !nebiusConfigured,
     },

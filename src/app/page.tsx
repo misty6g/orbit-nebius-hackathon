@@ -64,6 +64,7 @@ export default function OrbitHome() {
     nebius: boolean;
     tavily: boolean;
     model: string;
+    routing?: string;
   } | null>(null);
 
   // Zen Ambient Audio State
@@ -182,6 +183,9 @@ export default function OrbitHome() {
           nebius: Boolean(data?.inference?.live),
           tavily: Boolean(data?.search?.live),
           model: data?.inference?.model || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+          routing:
+            data?.inference?.routing ||
+            "Orbit Core uses Nano to choose planets and response tier (Nano / Super / Ultra).",
         });
       })
       .catch(() => {});
@@ -408,7 +412,7 @@ export default function OrbitHome() {
           <div
             title={
               runtimeLive?.nebius
-                ? `Live NVIDIA Nemotron on Nebius Token Factory (${runtimeLive.model})`
+                ? `Live NVIDIA Nemotron on Nebius Token Factory — ${runtimeLive.routing || runtimeLive.model}`
                 : "Server NEBIUS_API_KEY missing — open credentials to paste a Token Factory key"
             }
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono backdrop-blur-2xl shadow-zen-dock ${
