@@ -104,8 +104,8 @@ export function CosmicAwakeningModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-      <div className="w-full max-w-lg p-6 rounded-2xl bg-[#090b0e] border border-white/[0.1] shadow-zen-dock text-slate-100 relative font-sans">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md pointer-events-auto">
+      <div className="w-full max-w-lg p-6 rounded-2xl bg-[#090b0e] border border-white/[0.1] shadow-zen-dock text-slate-100 relative font-sans pointer-events-auto isolate">
         {/* Header Badge */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
           <div className="flex items-center gap-2.5">
