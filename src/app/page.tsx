@@ -57,9 +57,15 @@ export default function OrbitHome() {
     DEFAULT_NEBULA_CUSTOMIZATION
   );
 
-  // Credentials & Mode
+  // Credentials & Mode (optional client overrides; production uses server NEBIUS_API_KEY)
   const [nebiusKey, setNebiusKey] = useState<string>("");
   const [tavilyKey, setTavilyKey] = useState<string>("");
+  const [runtimeLive, setRuntimeLive] = useState<{
+    nebius: boolean;
+    tavily: boolean;
+    model: string;
+  } | null>(null);
+
   // Zen Ambient Audio State
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
   const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
@@ -166,6 +172,18 @@ export default function OrbitHome() {
     fetch("/api/brief")
       .then((res) => res.json())
       .then((data) => setBrief(data))
+      .catch(() => {});
+
+    // Probe server-side Token Factory / Tavily so judges need no keys
+    fetch("/api/runtime")
+      .then((res) => res.json())
+      .then((data) => {
+        setRuntimeLive({
+          nebius: Boolean(data?.inference?.live),
+          tavily: Boolean(data?.search?.live),
+          model: data?.inference?.model || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+        });
+      })
       .catch(() => {});
   }, []);
 
@@ -386,13 +404,43 @@ export default function OrbitHome() {
             <Brain size={15} weight="duotone" />
           </button>
 
+          {/* Live Token Factory status (server key) + optional client override */}
+          <div
+            title={
+              runtimeLive?.nebius
+                ? `Live NVIDIA Nemotron on Nebius Token Factory (${runtimeLive.model})`
+                : "Server NEBIUS_API_KEY missing — open credentials to paste a Token Factory key"
+            }
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono backdrop-blur-2xl shadow-zen-dock ${
+              runtimeLive?.nebius || nebiusKey
+                ? "bg-amber-500/10 border-amber-400/40 text-amber-200"
+                : "bg-[rgba(10,10,20,0.45)] border-white/10 text-zinc-400"
+            }`}
+          >
+            <Sparkle
+              size={12}
+              weight="fill"
+              className={runtimeLive?.nebius || nebiusKey ? "text-amber-400" : "text-zinc-500"}
+            />
+            <span>
+              {runtimeLive?.nebius || nebiusKey
+                ? "Live Nebius Token Factory"
+                : "Awaiting Token Factory key"}
+            </span>
+            {runtimeLive?.tavily && (
+              <span className="hidden sm:inline text-emerald-300/90 border-l border-white/10 pl-1.5 ml-0.5">
+                + Tavily
+              </span>
+            )}
+          </div>
+
           {/* Credentials Gate */}
           <button
             onClick={() => {
               cosmicAudio.playClick();
               setShowApiKeyGate(true);
             }}
-            title="Configure Nebius & Tavily Keys"
+            title="Optional: override Nebius & Tavily keys in this browser"
             className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 text-zinc-300 hover:text-white backdrop-blur-2xl flex items-center justify-center transition active:scale-[0.96] shadow-zen-dock"
           >
             <Key size={15} weight="duotone" />
@@ -668,6 +716,9 @@ export default function OrbitHome() {
           onActiveTargetsChange={setActiveConstellationTargets}
           onOpenCustomizer={handleOpenCustomizer}
           apiKey={nebiusKey}
+          serverInferenceLive={Boolean(runtimeLive?.nebius || nebiusKey)}
+          serverModel={runtimeLive?.model}
+          tavilyLive={Boolean(runtimeLive?.tavily || tavilyKey)}
         />
       )}
 
