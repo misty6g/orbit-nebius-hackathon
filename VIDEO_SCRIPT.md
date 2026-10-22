@@ -11,7 +11,7 @@
 **On screen:** Solar system overview → top-right badge **Live Nebius Token Factory (+ Tavily)**.
 
 **Say:**
-> Orbit is a sovereign personal student OS. Inference runs on **Nebius Token Factory** with **NVIDIA Nemotron** — model `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` — so judges do not need to bring API keys.
+> Orbit is a sovereign personal student OS. Inference runs on **Nebius Token Factory** with **NVIDIA Nemotron 3** — Core uses **Nano** to choose planets and whether the answer needs **Nano**, **Super**, or **Ultra** — so judges do not need to bring API keys.
 
 Click **Orbit Core** (the sun).
 
@@ -37,7 +37,7 @@ Best time to fly home ROC to BOS and not fall behind or overspend
 ```
 
 **Say (while streaming):**
-> Core routes across **Travel**, **Schedule**, **Study**, and **Wallet** — one plan from the Shared Brain, not five siloed bots.
+> Core's Nano decision picks **Travel**, **Schedule**, **Study**, and **Wallet**, and escalates this cross-domain plan to **Nemotron 3 Ultra** — one plan from the Shared Brain, not five siloed bots. Open the routing trace to show planets + tier.
 
 If an authorization card appears for a calendar hold: **Approve** it and call out confirm-before-write.
 

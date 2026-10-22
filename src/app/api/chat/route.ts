@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SPECIALISTS } from "@/lib/specialists";
 import { ActionApproval, ConnectorCitation, SpecialistId } from "@/types/orbit";
-import { createNebiusCompletion, resolveNebiusModel } from "@/lib/nebius";
+import { createNebiusCompletion } from "@/lib/nebius";
 import { searchTavily } from "@/lib/tavily";
 import {
   assembleConnectorContext,
@@ -12,6 +12,17 @@ import {
   searchConnectors,
   stripOrbitSearchMarker,
 } from "@/lib/connectors";
+import {
+  buildOrbitDecisionSystemPrompt,
+  buildOrbitDecisionUserPrompt,
+  heuristicRoutingDecision,
+  isModelMissingError,
+  parseOrbitRoutingDecision,
+  resolveTierEndpoint,
+  resolveTierModels,
+  withCheaperTierFallback,
+  type OrbitRoutingDecision,
+} from "@/lib/orbitCoreRouter";
 
 function defaultHoldWindow() {
   const start = new Date();
@@ -21,6 +32,91 @@ function defaultHoldWindow() {
   }
   const end = new Date(start.getTime() + 90 * 60 * 1000);
   return { start: start.toISOString(), end: end.toISOString() };
+}
+
+async function runOrbitCoreDecision(opts: {
+  apiKey: string;
+  message: string;
+  specialistId: SpecialistId;
+  room?: string;
+  studentBlurb: string;
+  hasExternalContext: boolean;
+  historyTurns: number;
+}): Promise<OrbitRoutingDecision> {
+  const fallbackInput = {
+    message: opts.message,
+    specialistId: opts.specialistId,
+    hasExternalContext: opts.hasExternalContext,
+    historyTurns: opts.historyTurns,
+  };
+
+  try {
+    const models = resolveTierModels();
+    const nanoEndpoint = resolveTierEndpoint("nano");
+    const decisionRes = await createNebiusCompletion({
+      apiKey: opts.apiKey,
+      model: models.decision,
+      baseUrl: nanoEndpoint.baseUrl,
+      messages: [
+        {
+          role: "system",
+          content: buildOrbitDecisionSystemPrompt(opts.specialistId, opts.room),
+        },
+        {
+          role: "user",
+          content: buildOrbitDecisionUserPrompt(opts.message, opts.studentBlurb),
+        },
+      ],
+      temperature: 0.1,
+      maxTokens: 200,
+    });
+    const decisionData = await decisionRes.json();
+    const raw = decisionData.choices?.[0]?.message?.content || "";
+    return parseOrbitRoutingDecision(raw, fallbackInput);
+  } catch (err) {
+    console.error("Orbit Core Nano decision error:", err);
+    return heuristicRoutingDecision(fallbackInput);
+  }
+}
+
+async function completeWithTierFallback(opts: {
+  apiKey: string;
+  decision: OrbitRoutingDecision;
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+}): Promise<{ content: string; decision: OrbitRoutingDecision }> {
+  let current = opts.decision;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await createNebiusCompletion({
+        apiKey: opts.apiKey,
+        model: current.modelId,
+        baseUrl: current.baseUrl,
+        messages: opts.messages,
+        temperature: 0.6,
+        maxTokens: current.maxTokens,
+      });
+      const data = await res.json();
+      return {
+        content: data.choices?.[0]?.message?.content || "",
+        decision: current,
+      };
+    } catch (err) {
+      lastError = err;
+      if (!isModelMissingError(err)) {
+        throw err;
+      }
+      const cheaper = withCheaperTierFallback(current);
+      if (!cheaper) throw err;
+      console.warn(
+        `Orbit response model unavailable (${current.modelId}); falling back to ${cheaper.tier}`
+      );
+      current = cheaper;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 export async function POST(req: NextRequest) {
@@ -34,7 +130,8 @@ export async function POST(req: NextRequest) {
       room,
     } = await req.json();
 
-    const activeSpecialist = SPECIALISTS[specialistId as SpecialistId] || SPECIALISTS.core;
+    const activeSpecialistId = (specialistId as SpecialistId) || "core";
+    const activeSpecialist = SPECIALISTS[activeSpecialistId] || SPECIALISTS.core;
     const student = brain?.student || {
       name: "Student",
       university: "University",
@@ -42,91 +139,8 @@ export async function POST(req: NextRequest) {
       homeAirport: "BOS",
     };
 
-    const isCore = specialistId === "core";
     const lowerMsg = (message || "").toLowerCase();
-
-    const detectedTargets: SpecialistId[] = [];
-    if (
-      lowerMsg.includes("fly") ||
-      lowerMsg.includes("flight") ||
-      lowerMsg.includes("travel") ||
-      lowerMsg.includes("home")
-    ) {
-      detectedTargets.push("travel");
-    }
-    if (
-      lowerMsg.includes("study") ||
-      lowerMsg.includes("exam") ||
-      lowerMsg.includes("slide") ||
-      lowerMsg.includes("quiz") ||
-      lowerMsg.includes("class")
-    ) {
-      detectedTargets.push("study");
-    }
-    if (
-      lowerMsg.includes("calendar") ||
-      lowerMsg.includes("schedule") ||
-      lowerMsg.includes("free time") ||
-      lowerMsg.includes("hold")
-    ) {
-      detectedTargets.push("schedule");
-    }
-    if (
-      lowerMsg.includes("spend") ||
-      lowerMsg.includes("budget") ||
-      lowerMsg.includes("wallet") ||
-      lowerMsg.includes("cost") ||
-      lowerMsg.includes("money") ||
-      lowerMsg.includes("$")
-    ) {
-      detectedTargets.push("wallet");
-    }
-    if (
-      lowerMsg.includes("eat") ||
-      lowerMsg.includes("food") ||
-      lowerMsg.includes("meal") ||
-      lowerMsg.includes("macro") ||
-      lowerMsg.includes("calorie") ||
-      lowerMsg.includes("protein") ||
-      lowerMsg.includes("bulk")
-    ) {
-      detectedTargets.push("health");
-    }
-    if (
-      lowerMsg.includes("workout") ||
-      lowerMsg.includes("lift") ||
-      lowerMsg.includes("volleyball") ||
-      lowerMsg.includes("exercise") ||
-      lowerMsg.includes("gym")
-    ) {
-      detectedTargets.push("move");
-    }
-    if (
-      lowerMsg.includes("job") ||
-      lowerMsg.includes("intern") ||
-      lowerMsg.includes("resume") ||
-      lowerMsg.includes("apply") ||
-      lowerMsg.includes("career")
-    ) {
-      detectedTargets.push("career");
-    }
-    if (
-      lowerMsg.includes("build") ||
-      lowerMsg.includes("portfolio") ||
-      lowerMsg.includes("project spec") ||
-      lowerMsg.includes("github")
-    ) {
-      detectedTargets.push("build");
-    }
-    if (lowerMsg.includes("deal") || lowerMsg.includes("discount") || lowerMsg.includes(".edu")) {
-      detectedTargets.push("deals");
-    }
-    if (lowerMsg.includes("event") || lowerMsg.includes("meetup") || lowerMsg.includes("rochester")) {
-      detectedTargets.push("explore");
-    }
-
-    const finalTargets =
-      detectedTargets.length > 0 ? detectedTargets : [specialistId as SpecialistId];
+    const studentBlurb = `${student.name} at ${student.university}, ${student.degree}, home ${student.homeAirport || "BOS"}`;
 
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
@@ -145,7 +159,7 @@ export async function POST(req: NextRequest) {
         const snapshot = await assembleConnectorContext(session);
         connectorSnapshotBlock = formatSnapshotForPrompt(snapshot);
 
-        const intent = detectSearchIntent(message || "", specialistId as SpecialistId);
+        const intent = detectSearchIntent(message || "", activeSpecialistId);
         if (intent.shouldSearch && intent.sources.length > 0) {
           const searchResult = await searchConnectors({
             session,
@@ -162,12 +176,42 @@ export async function POST(req: NextRequest) {
       console.error("Connector context error:", err);
     }
 
+    const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
+
+    if (!keyToUse) {
+      return NextResponse.json(
+        {
+          error: "NEBIUS_API_KEY_REQUIRED",
+          message:
+            "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
+        },
+        { status: 401 }
+      );
+    }
+
+    const historyTurns = Array.isArray(history) ? history.length : 0;
+    const provisionalHasExternal =
+      Boolean(connectorSnapshotBlock) || Boolean(connectorSearchBlock);
+
+    // Orbit Core dual decision: planets + response tier (always one Nano call per turn).
+    let routing = await runOrbitCoreDecision({
+      apiKey: keyToUse,
+      message: message || "",
+      specialistId: activeSpecialistId,
+      room,
+      studentBlurb,
+      hasExternalContext: provisionalHasExternal,
+      historyTurns,
+    });
+
+    const finalTargets = routing.targetSpecialists;
+
     let tavilySources: Array<{ title: string; url: string; snippet: string }> | undefined =
       undefined;
     const isWebQuery =
-      specialistId === "deals" ||
-      specialistId === "travel" ||
-      specialistId === "explore" ||
+      activeSpecialistId === "deals" ||
+      activeSpecialistId === "travel" ||
+      activeSpecialistId === "explore" ||
       finalTargets.includes("deals") ||
       finalTargets.includes("travel") ||
       finalTargets.includes("explore") ||
@@ -189,20 +233,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
-
-    if (!keyToUse) {
-      return NextResponse.json(
-        {
-          error: "NEBIUS_API_KEY_REQUIRED",
-          message:
-            "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
-        },
-        { status: 401 }
-      );
+    // If live context arrived after the decision and we stayed on nano for a
+    // web/connector-heavy turn, bump everyday synthesis to Super (not Ultra).
+    const hasExternalContext =
+      provisionalHasExternal || Boolean(tavilySources && tavilySources.length > 0);
+    if (hasExternalContext && routing.tier === "nano" && routing.routedBy === "nano") {
+      const bumped = resolveTierEndpoint("super");
+      routing = {
+        ...routing,
+        tier: "super",
+        reason: `${routing.reason}; upgraded to Super for live context`,
+        modelId: bumped.modelId,
+        baseUrl: bumped.baseUrl,
+        maxTokens: bumped.maxTokens,
+      };
     }
-
-    const modelId = resolveNebiusModel(process.env.NEBIUS_MODEL_REASONING);
 
     const systemPrompt = `You are ${activeSpecialist.name}, part of Orbit - the Sovereign Personal Student OS.
 Student Profile:
@@ -218,10 +263,16 @@ Student Profile:
 Specialist Persona:
 ${activeSpecialist.tagline}
 ${
-  specialistId === "core" && room
+  activeSpecialistId === "core" && room
     ? `Active Core Room: ${room}. Bias answers toward that room's focus while still using shared brain context.`
     : ""
 }
+Orbit Core routing for this turn:
+- Intent: ${routing.intent}
+- Active planets: ${finalTargets.join(", ")}
+- Response tier: ${routing.tier} (${routing.reason})
+Coordinate across those domains when relevant.
+
 Rules:
 1. Always maintain sovereign privacy. Data stays with the student.
 2. Confirm before external writes: NEVER finalize calendar events, emails, flight bookings, or applications without proposing an authorization step.
@@ -250,7 +301,7 @@ Rules:
       .filter(
         (m: any) =>
           m.content &&
-          (m.sender === "user" || m.sender === specialistId || m.sender === "core")
+          (m.sender === "user" || m.sender === activeSpecialistId || m.sender === "core")
       )
       .map((m: any) => ({
         role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
@@ -258,20 +309,17 @@ Rules:
       }));
 
     try {
-      const completionRes = await createNebiusCompletion({
+      const first = await completeWithTierFallback({
         apiKey: keyToUse,
-        model: modelId,
+        decision: routing,
         messages: [
           { role: "system", content: systemPrompt },
           ...historyMessages,
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.6,
-        maxTokens: 1200,
       });
-
-      const data = await completionRes.json();
-      aiContent = data.choices?.[0]?.message?.content || "";
+      aiContent = first.content;
+      routing = first.decision;
 
       const followUp = parseOrbitSearchMarker(aiContent);
       if (followUp) {
@@ -287,9 +335,9 @@ Rules:
             ...searchResult.citations,
           ].slice(0, 24);
 
-          const secondRes = await createNebiusCompletion({
+          const second = await completeWithTierFallback({
             apiKey: keyToUse,
-            model: modelId,
+            decision: routing,
             messages: [
               { role: "system", content: systemPrompt },
               ...historyMessages,
@@ -303,12 +351,9 @@ Rules:
                 content: `${searchResult.formatted}\nSynthesize these additional connected-source results. Do not emit another orbit-search marker.`,
               },
             ],
-            temperature: 0.6,
-            maxTokens: 1200,
           });
-          const secondData = await secondRes.json();
-          aiContent =
-            secondData.choices?.[0]?.message?.content || stripOrbitSearchMarker(aiContent);
+          aiContent = second.content || stripOrbitSearchMarker(aiContent);
+          routing = second.decision;
         } catch (followErr) {
           console.error("Connector follow-up search error:", followErr);
           aiContent = stripOrbitSearchMarker(aiContent);
@@ -342,7 +387,7 @@ Rules:
       if (lowerMsg.includes("draft email") || lowerMsg.includes("email draft")) {
         approvalRequest = {
           id: `auth-${Date.now()}`,
-          specialistId: (detectedTargets[0] as SpecialistId) || "career",
+          specialistId: finalTargets[0] || "career",
           title: "Authorize Gmail Draft",
           description:
             "Orbit staged a Gmail draft for your review. Nothing is sent until you open Gmail and send it yourself.",
@@ -404,7 +449,7 @@ Rules:
       } else {
         approvalRequest = {
           id: `auth-${Date.now()}`,
-          specialistId: (detectedTargets[0] as SpecialistId) || "schedule",
+          specialistId: finalTargets[0] || "schedule",
           title: "Authorize Calendar Mutation",
           description: `${activeSpecialist.name} requested adding a confirmed time block to your primary calendar.`,
           service: "Google Calendar",
@@ -426,21 +471,23 @@ Rules:
     return NextResponse.json({
       message: {
         id: `msg-${Date.now()}`,
-        sender: specialistId,
+        sender: activeSpecialistId,
         senderName: activeSpecialist.name,
         content: aiContent,
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        routingTrace: isCore
-          ? {
-              intent: lowerMsg.slice(0, 45),
-              targetSpecialists: finalTargets,
-              modelUsed: modelId,
-              confidence: 0.96,
-            }
-          : undefined,
+        routingTrace: {
+          intent: routing.intent,
+          targetSpecialists: finalTargets,
+          modelUsed: routing.modelId,
+          confidence: routing.confidence,
+          tier: routing.tier,
+          tierReason: routing.reason,
+          decisionModel: routing.decisionModel,
+          routedBy: routing.routedBy,
+        },
         approvalRequest,
         tavilySources,
         connectorSources,

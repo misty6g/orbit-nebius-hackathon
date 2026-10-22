@@ -447,6 +447,12 @@ export interface ChatMessage {
     targetSpecialists: SpecialistId[];
     modelUsed: string;
     confidence: number;
+    /** Response model tier chosen by Orbit Core. */
+    tier?: "nano" | "super" | "ultra";
+    tierReason?: string;
+    /** Nano decision model id used for routing. */
+    decisionModel?: string;
+    routedBy?: "nano" | "heuristic";
   };
   approvalRequest?: ActionApproval;
   tavilySources?: Array<{

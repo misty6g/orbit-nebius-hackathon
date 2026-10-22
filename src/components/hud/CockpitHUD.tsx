@@ -530,8 +530,8 @@ export function CockpitHUD({
             <div
               title={
                 serverInferenceLive
-                  ? `Live NVIDIA Nemotron via Nebius Token Factory${
-                      serverModel ? ` · ${serverModel}` : ""
+                  ? `Live NVIDIA Nemotron via Nebius Token Factory — Core routes with Nano; answers use Nano / Super / Ultra${
+                      serverModel ? ` · decision ${serverModel}` : ""
                     }${tavilyLive ? " · Tavily search live" : ""}`
                   : "Server NEBIUS_API_KEY missing — paste a Token Factory key to go live"
               }

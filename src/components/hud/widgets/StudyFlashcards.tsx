@@ -126,7 +126,7 @@ export function StudyFlashcards({ brain, onGenerateDeck }: StudyFlashcardsProps)
             Drop course slides, exam reviews, or syllabus PDFs
           </div>
           <div className="text-[10px] font-mono text-slate-500 mt-1">
-            Nemotron 70B extracts key concepts and generates flashcard decks automatically
+            Nemotron 3 Ultra extracts key concepts and generates flashcard decks automatically
           </div>
         </div>
       </div>

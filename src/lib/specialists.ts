@@ -12,7 +12,7 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     orbitSpeed: 0,
     size: 2.5,
     features: [
-      "Multi-agent intent routing via NVIDIA Nemotron",
+      "Nano dual routing: specialist planets + Nano/Super/Ultra response tier",
       "Sovereign external action authorization gates",
       "Solar Dawn morning brief projection",
       "Unified Shared Brain profile access",
@@ -81,7 +81,7 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
     size: 1.15,
     features: [
       "Slide and PDF document synthesis",
-      "AI flashcard generation via Nemotron-70B",
+      "AI flashcard generation via Nemotron 3 Ultra",
       "Spaced review and weak topic tracking",
       "Helps you learn; will not submit graded work",
     ],
