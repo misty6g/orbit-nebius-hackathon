@@ -97,7 +97,7 @@ export function BrainInspectorModal({
               <div>
                 <span className="text-slate-500">Athletics: </span>
                 <span className="text-slate-200">
-                  {brain.goals.workout.split} + {brain.goals.workout.sports.join(", ")}
+                  {brain.goals.workout.split} + {(brain.goals.workout.sports || []).join(", ")}
                 </span>
               </div>
               <div>

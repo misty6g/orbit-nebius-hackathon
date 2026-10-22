@@ -62,6 +62,8 @@ export function SolarSystemCanvas({
   const overlayContainerRef = useRef<HTMLDivElement>(null);
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  /** Stagger planet mounts so procedural textures never block one giant longtask. */
+  const [visiblePlanetCount, setVisiblePlanetCount] = useState(0);
 
   useEffect(() => {
     setWebglOk(supportsWebGL());
@@ -69,6 +71,29 @@ export function SolarSystemCanvas({
     const id = window.requestAnimationFrame(() => setCanvasReady(true));
     return () => window.cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (!canvasReady || !webglOk) return;
+    let cancelled = false;
+    let count = 0;
+    const total = Object.values(SPECIALISTS).filter(
+      (s) => s.id !== "core" && !s.parentPlanetId && s.id !== "deals" && s.id !== "build"
+    ).length;
+
+    const pump = () => {
+      if (cancelled) return;
+      count = Math.min(total, count + 1);
+      setVisiblePlanetCount(count);
+      if (count < total) {
+        window.requestAnimationFrame(pump);
+      }
+    };
+    const id = window.requestAnimationFrame(pump);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(id);
+    };
+  }, [canvasReady, webglOk]);
 
   const handlePositionUpdate = useCallback((id: SpecialistId, pos: THREE.Vector3) => {
     planetPositionsRef.current[id] = pos.clone();
@@ -152,7 +177,7 @@ export function SolarSystemCanvas({
                 isSelected={selectedSpecialistId === "core"}
               />
 
-              {planets.map((spec, index) => {
+              {planets.slice(0, visiblePlanetCount).map((spec, index) => {
                 const studio =
                   planetCustomizations[spec.id] || DEFAULT_PLANET_CUSTOMIZATIONS[spec.id];
                 const archetype = studio?.archetype;

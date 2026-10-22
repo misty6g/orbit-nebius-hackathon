@@ -241,8 +241,10 @@ export default function OrbitHome() {
   };
 
   const handleQuickDemoFill = () => {
-    setBrain(INITIAL_DEMO_BRAIN);
-    localStorage.setItem("orbit_brain", JSON.stringify(INITIAL_DEMO_BRAIN));
+    // Clone so later in-place HUD edits never mutate the shared constant.
+    const demoBrain = structuredClone(INITIAL_DEMO_BRAIN) as SharedBrainProfile;
+    setBrain(demoBrain);
+    localStorage.setItem("orbit_brain", JSON.stringify(demoBrain));
     localStorage.setItem("orbit_awakened", "true");
     setShowAwakening(false);
     try {
@@ -330,13 +332,21 @@ export default function OrbitHome() {
 
   const handleSelectSpecialist = (id: SpecialistId) => {
     if (isTouring) return;
-    cosmicAudio.playWarp();
     setSelectedSpecialistId(id);
+    try {
+      cosmicAudio.playWarp();
+    } catch {
+      /* ignore audio policy errors */
+    }
   };
 
   const handleDeselect = () => {
-    cosmicAudio.playClick();
     setSelectedSpecialistId(null);
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
   };
 
   const startMorningTour = () => {
@@ -375,10 +385,11 @@ export default function OrbitHome() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#07080a] font-sans">
-      {/* Always-on soft backdrop so a stalled WebGL mount never looks like a hard crash. */}
+      {/* Always-on soft backdrop so a stalled WebGL mount never looks like a hard crash.
+          pointer-events-none so it can never steal clicks from onboarding or the dock. */}
       <div
         aria-hidden
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           background:
             "radial-gradient(ellipse at 50% 40%, #1a2238 0%, #0a0c14 55%, #050608 100%)",

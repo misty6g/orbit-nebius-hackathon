@@ -170,8 +170,9 @@ export function AlienPlanet({
         archetype === "gas_giant" ||
         archetype === "rocky"));
 
-  // Studio-driven procedural albedo for every specialist (including Move).
-  const textures = useMemo(() => generateExoplanetTextures(custom), [custom]);
+  // Overview-res albedo — full studio res is reserved for Planet Studio so
+  // Demo Fill / first cosmos mount cannot freeze the main thread for minutes.
+  const textures = useMemo(() => generateExoplanetTextures(custom, "overview"), [custom]);
 
   // Single soft-lit pass with analytical sphere normals — no terminator faceting.
   const softLitMaterial = useMemo(
@@ -189,12 +190,13 @@ export function AlienPlanet({
     if (!wantsClouds || cloudCover < 0.05) return null;
     if (typeof window === "undefined") return null;
 
-    const w = 1024;
-    const h = 512;
+    const w = 256;
+    const h = 128;
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
     const img = ctx.createImageData(w, h);
     const d = img.data;
     const tint = new THREE.Color(custom.accentColor || "#d8e0e8");
@@ -236,23 +238,26 @@ export function AlienPlanet({
   const moonTextures = useMemo(
     () =>
       custom.moons.map((moon) =>
-        generateExoplanetTextures({
-          id: config.id,
-          archetype: "rocky",
-          primaryColor: new THREE.Color(moon.color).multiplyScalar(0.5).getStyle(),
-          secondaryColor: moon.color,
-          accentColor: "#d0c8bc",
-          bumpScale: 0.08,
-          roughness: 0.95,
-          atmosphereIntensity: 0.1,
-          cloudCover: 0,
-          chromaMute: 0.5,
-          hasRings: false,
-          ringStyle: "none",
-          ringColor: moon.color,
-          ringTilt: 0,
-          moons: [],
-        })
+        generateExoplanetTextures(
+          {
+            id: config.id,
+            archetype: "rocky",
+            primaryColor: new THREE.Color(moon.color).multiplyScalar(0.5).getStyle(),
+            secondaryColor: moon.color,
+            accentColor: "#d0c8bc",
+            bumpScale: 0.08,
+            roughness: 0.95,
+            atmosphereIntensity: 0.1,
+            cloudCover: 0,
+            chromaMute: 0.5,
+            hasRings: false,
+            ringStyle: "none",
+            ringColor: moon.color,
+            ringTilt: 0,
+            moons: [],
+          },
+          "moon"
+        )
       ),
     [custom.moons, config.id]
   );
@@ -417,7 +422,12 @@ export function AlienPlanet({
       ))}
 
       {(hovered || isSelected) && (
-        <Html position={[0, radius + 1.1, 0]} center zIndexRange={[100, 0]}>
+        <Html
+          position={[0, radius + 1.1, 0]}
+          center
+          pointerEvents="none"
+          zIndexRange={[20, 0]}
+        >
           <div className="pointer-events-none transform -translate-y-2 transition-all duration-150 font-sans">
             <div className="px-3.5 py-2 rounded-xl border border-white/5 bg-[rgba(10,10,20,0.55)] backdrop-blur-2xl shadow-zen-dock text-left">
               <div className="flex items-center gap-2 mb-0.5">
