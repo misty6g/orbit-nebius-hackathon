@@ -82,12 +82,19 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
     const entry = status?.[provider];
     if (entry && !entry.configured) {
       setBanner(
-        `${provider} is not configured. Add OAuth client credentials to .env.local and restart.`
+        `${provider} OAuth is not wired on this deploy. Demo uses your Sovereign Shared Brain instead — connect your own accounts when you self-host.`
       );
       return;
     }
     window.location.href = `/api/connectors/${provider}/start`;
   };
+
+  const anyConfigured = Boolean(
+    status?.google?.configured || status?.notion?.configured || status?.slack?.configured
+  );
+  const anyConnected = Boolean(
+    status?.google?.connected || status?.notion?.connected || status?.slack?.connected
+  );
 
   const disconnect = async (provider: "google" | "notion" | "slack" | "all") => {
     cosmicAudio.playClick();
@@ -173,9 +180,19 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
 
       {!compact && (
         <p className="text-[11px] text-zinc-400 leading-relaxed">
-          Reads use titles and snippets. Agents can search connected sources when you ask.
-          Calendar events and Gmail drafts only write after an in-stream approval.
+          {anyConnected
+            ? "Reads use titles and snippets. Agents can search connected sources when you ask. Calendar events and Gmail drafts only write after an in-stream approval."
+            : anyConfigured
+            ? "Connect Google, Notion, or Slack to ground agents in your accounts. Until then, Orbit routes through your Sovereign Shared Brain with confirm-before-write."
+            : "OAuth apps are not configured on this demo domain. Agents still plan from your Sovereign Shared Brain (Demo Fill). Connect your own accounts when you self-host."}
         </p>
+      )}
+
+      {!compact && !anyConfigured && (
+        <div className="px-2.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/25 text-[11px] font-mono text-emerald-200/90 leading-relaxed">
+          Demo path: Shared Brain + Nebius Token Factory. Say &quot;connect your own accounts&quot;
+          in the video — Google / Notion / Slack light up when you add OAuth env vars.
+        </div>
       )}
 
       {banner && (
@@ -214,7 +231,7 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
                   </div>
                   <div className="text-[10px] font-mono text-zinc-500 truncate">
                     {!configured
-                      ? "OAuth credentials missing"
+                      ? "Demo brain fallback · connect your own later"
                       : connected
                       ? row.detail
                       : row.detail}

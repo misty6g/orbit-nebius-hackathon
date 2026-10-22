@@ -39,6 +39,10 @@ interface CockpitHUDProps {
   onActiveTargetsChange?: (targets: SpecialistId[]) => void;
   onOpenCustomizer?: (id: SpecialistId) => void;
   apiKey?: string;
+  /** True when Vercel/server NEBIUS_API_KEY (or client override) is present */
+  serverInferenceLive?: boolean;
+  serverModel?: string;
+  tavilyLive?: boolean;
 }
 
 export function CockpitHUD({
@@ -53,6 +57,9 @@ export function CockpitHUD({
   onActiveTargetsChange,
   onOpenCustomizer,
   apiKey,
+  serverInferenceLive = false,
+  serverModel,
+  tavilyLive = false,
 }: CockpitHUDProps) {
   const [activeRoom, setActiveRoom] = useState<RoomId>("general");
   const [audioState, setAudioState] = useState<AudioEngineState>(cosmicAudio.getState());
@@ -521,11 +528,29 @@ export function CockpitHUD({
           {/* Action Controls and Telemetry */}
           <div className="flex items-center gap-2">
             <div
-              title="Live NVIDIA Nemotron via Nebius Token Factory"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono bg-zinc-900/90 border-amber-500/40 text-amber-300"
+              title={
+                serverInferenceLive
+                  ? `Live NVIDIA Nemotron via Nebius Token Factory${
+                      serverModel ? ` · ${serverModel}` : ""
+                    }${tavilyLive ? " · Tavily search live" : ""}`
+                  : "Server NEBIUS_API_KEY missing — paste a Token Factory key to go live"
+              }
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono ${
+                serverInferenceLive
+                  ? "bg-zinc-900/90 border-amber-500/40 text-amber-300"
+                  : "bg-zinc-900/90 border-white/10 text-zinc-400"
+              }`}
             >
-              <Sparkle size={12} weight="fill" className="text-amber-400" />
-              <span>NVIDIA Nemotron via Nebius</span>
+              <Sparkle
+                size={12}
+                weight="fill"
+                className={serverInferenceLive ? "text-amber-400" : "text-zinc-500"}
+              />
+              <span>
+                {serverInferenceLive
+                  ? "Live Nebius Token Factory"
+                  : "Token Factory key required"}
+              </span>
             </div>
 
             {/* Customize Planet Button */}

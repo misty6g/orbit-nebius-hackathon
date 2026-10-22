@@ -52,6 +52,11 @@ export function ApiKeyGateModal({
         </div>
 
         <form onSubmit={handleSave} className="space-y-4 text-xs">
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Production demos should already have <span className="font-mono text-amber-300">NEBIUS_API_KEY</span> on
+            the server (and ideally <span className="font-mono text-amber-300">TAVILY_API_KEY</span>). Judges do not
+            need to bring keys. Fields below are optional browser overrides for local testing.
+          </p>
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="font-mono text-[11px] text-slate-300 flex items-center gap-1">
