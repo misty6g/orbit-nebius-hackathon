@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SPECIALISTS } from "@/lib/specialists";
 import { ActionApproval, ConnectorCitation, SpecialistId } from "@/types/orbit";
-import { createNebiusCompletion } from "@/lib/nebius";
-import { generateMockResponse } from "@/lib/mockAi";
+import { createNebiusCompletion, resolveNebiusModel } from "@/lib/nebius";
 import { searchTavily } from "@/lib/tavily";
 import {
   assembleConnectorContext,
@@ -26,8 +25,14 @@ function defaultHoldWindow() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, specialistId = "core", brain, apiKey, mockMode = false, history = [] } =
-      await req.json();
+    const {
+      message,
+      specialistId = "core",
+      brain,
+      apiKey,
+      history = [],
+      room,
+    } = await req.json();
 
     const activeSpecialist = SPECIALISTS[specialistId as SpecialistId] || SPECIALISTS.core;
     const student = brain?.student || {
@@ -123,17 +128,10 @@ export async function POST(req: NextRequest) {
     const finalTargets =
       detectedTargets.length > 0 ? detectedTargets : [specialistId as SpecialistId];
 
-    const isMock =
-      mockMode === true ||
-      process.env.MOCK_NEBIUS === "true" ||
-      process.env.NEXT_PUBLIC_MOCK_AI === "true" ||
-      (!apiKey && !process.env.NEBIUS_API_KEY);
-
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
     let connectorSources: ConnectorCitation[] | undefined = undefined;
 
-    // Connected account snapshot + optional on-demand search
     let connectorSnapshotBlock = "";
     let connectorSearchBlock = "";
     try {
@@ -191,35 +189,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (isMock) {
-      const mockResult = generateMockResponse({
-        specialistId: specialistId as SpecialistId,
-        message,
-        brain,
-      });
-      aiContent = mockResult.content;
-      if (connectorSearchBlock) {
-        aiContent += `\n\n_Connected source search was available for this turn. Connect live Nebius mode for full grounded synthesis._`;
-      }
-      approvalRequest = mockResult.approvalRequest;
-      if (mockResult.tavilySources) {
-        tavilySources = mockResult.tavilySources;
-      }
-    } else {
-      const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
+    const keyToUse = apiKey || process.env.NEBIUS_API_KEY;
 
-      if (!keyToUse) {
-        return NextResponse.json(
-          {
-            error: "NEBIUS_API_KEY_REQUIRED",
-            message:
-              "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
-          },
-          { status: 401 }
-        );
-      }
+    if (!keyToUse) {
+      return NextResponse.json(
+        {
+          error: "NEBIUS_API_KEY_REQUIRED",
+          message:
+            "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
+        },
+        { status: 401 }
+      );
+    }
 
-      const systemPrompt = `You are ${activeSpecialist.name}, part of Orbit - the Sovereign Personal Student OS.
+    const modelId = resolveNebiusModel(process.env.NEBIUS_MODEL_REASONING);
+
+    const systemPrompt = `You are ${activeSpecialist.name}, part of Orbit - the Sovereign Personal Student OS.
 Student Profile:
 - Name: ${student.name}
 - School: ${student.university} (${student.campus || "Campus"})
@@ -232,6 +217,11 @@ Student Profile:
 
 Specialist Persona:
 ${activeSpecialist.tagline}
+${
+  specialistId === "core" && room
+    ? `Active Core Room: ${room}. Bias answers toward that room's focus while still using shared brain context.`
+    : ""
+}
 Rules:
 1. Always maintain sovereign privacy. Data stays with the student.
 2. Confirm before external writes: NEVER finalize calendar events, emails, flight bookings, or applications without proposing an authorization step.
@@ -241,201 +231,195 @@ Rules:
 6. When connected account snapshot or search results are provided, ground your answer in them and cite titles.
 7. If you need one extra lookup, you may append a single marker: <!--orbit-search:{"sources":["gmail"],"query":"..."}-->`;
 
-      let userPrompt = message as string;
-      const contextBlocks: string[] = [];
-      if (connectorSnapshotBlock) contextBlocks.push(connectorSnapshotBlock);
-      if (connectorSearchBlock) contextBlocks.push(connectorSearchBlock);
-      if (tavilySources && tavilySources.length > 0) {
-        contextBlocks.push(
-          `[Live Web Results from Tavily Search]:\n${tavilySources
-            .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
-            .join("\n")}\nSynthesize these live verified results directly in your response.`
-        );
-      }
-      if (contextBlocks.length) {
-        userPrompt = `${message}\n\n${contextBlocks.join("\n\n")}`;
-      }
+    let userPrompt = message as string;
+    const contextBlocks: string[] = [];
+    if (connectorSnapshotBlock) contextBlocks.push(connectorSnapshotBlock);
+    if (connectorSearchBlock) contextBlocks.push(connectorSearchBlock);
+    if (tavilySources && tavilySources.length > 0) {
+      contextBlocks.push(
+        `[Live Web Results from Tavily Search]:\n${tavilySources
+          .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
+          .join("\n")}\nSynthesize these live verified results directly in your response.`
+      );
+    }
+    if (contextBlocks.length) {
+      userPrompt = `${message}\n\n${contextBlocks.join("\n\n")}`;
+    }
 
-      const historyMessages = (history || [])
-        .filter(
-          (m: any) =>
-            m.content &&
-            (m.sender === "user" || m.sender === specialistId || m.sender === "core")
-        )
-        .map((m: any) => ({
-          role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
-          content: m.content as string,
-        }));
+    const historyMessages = (history || [])
+      .filter(
+        (m: any) =>
+          m.content &&
+          (m.sender === "user" || m.sender === specialistId || m.sender === "core")
+      )
+      .map((m: any) => ({
+        role: (m.sender === "user" ? "user" : "assistant") as "user" | "assistant",
+        content: m.content as string,
+      }));
 
-      try {
-        const completionRes = await createNebiusCompletion({
-          apiKey: keyToUse,
-          model:
-            process.env.NEBIUS_MODEL_REASONING || "nvidia/llama-3.1-nemotron-70b-instruct",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...historyMessages,
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.6,
-          maxTokens: 1200,
-        });
+    try {
+      const completionRes = await createNebiusCompletion({
+        apiKey: keyToUse,
+        model: modelId,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...historyMessages,
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.6,
+        maxTokens: 1200,
+      });
 
-        const data = await completionRes.json();
-        aiContent = data.choices?.[0]?.message?.content || "";
+      const data = await completionRes.json();
+      aiContent = data.choices?.[0]?.message?.content || "";
 
-        // Optional one follow-up connector search if the model requests it
-        const followUp = parseOrbitSearchMarker(aiContent);
-        if (followUp) {
-          try {
-            const session = readConnectorSession();
-            const searchResult = await searchConnectors({
-              session,
-              query: followUp.query,
-              sources: followUp.sources,
-            });
-            connectorSources = [
-              ...(connectorSources || []),
-              ...searchResult.citations,
-            ].slice(0, 24);
+      const followUp = parseOrbitSearchMarker(aiContent);
+      if (followUp) {
+        try {
+          const session = readConnectorSession();
+          const searchResult = await searchConnectors({
+            session,
+            query: followUp.query,
+            sources: followUp.sources,
+          });
+          connectorSources = [
+            ...(connectorSources || []),
+            ...searchResult.citations,
+          ].slice(0, 24);
 
-            const secondRes = await createNebiusCompletion({
-              apiKey: keyToUse,
-              model:
-                process.env.NEBIUS_MODEL_REASONING ||
-                "nvidia/llama-3.1-nemotron-70b-instruct",
-              messages: [
-                { role: "system", content: systemPrompt },
-                ...historyMessages,
-                { role: "user", content: userPrompt },
-                {
-                  role: "assistant",
-                  content: stripOrbitSearchMarker(aiContent),
-                },
-                {
-                  role: "user",
-                  content: `${searchResult.formatted}\nSynthesize these additional connected-source results. Do not emit another orbit-search marker.`,
-                },
-              ],
-              temperature: 0.6,
-              maxTokens: 1200,
-            });
-            const secondData = await secondRes.json();
-            aiContent =
-              secondData.choices?.[0]?.message?.content ||
-              stripOrbitSearchMarker(aiContent);
-          } catch (followErr) {
-            console.error("Connector follow-up search error:", followErr);
-            aiContent = stripOrbitSearchMarker(aiContent);
-          }
-        } else {
+          const secondRes = await createNebiusCompletion({
+            apiKey: keyToUse,
+            model: modelId,
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...historyMessages,
+              { role: "user", content: userPrompt },
+              {
+                role: "assistant",
+                content: stripOrbitSearchMarker(aiContent),
+              },
+              {
+                role: "user",
+                content: `${searchResult.formatted}\nSynthesize these additional connected-source results. Do not emit another orbit-search marker.`,
+              },
+            ],
+            temperature: 0.6,
+            maxTokens: 1200,
+          });
+          const secondData = await secondRes.json();
+          aiContent =
+            secondData.choices?.[0]?.message?.content || stripOrbitSearchMarker(aiContent);
+        } catch (followErr) {
+          console.error("Connector follow-up search error:", followErr);
           aiContent = stripOrbitSearchMarker(aiContent);
         }
-      } catch (err: any) {
-        console.error("Nebius API execution error:", err);
-        return NextResponse.json(
-          {
-            error: "NEBIUS_API_ERROR",
-            details: err.message,
-          },
-          { status: 502 }
-        );
+      } else {
+        aiContent = stripOrbitSearchMarker(aiContent);
       }
+    } catch (err: any) {
+      console.error("Nebius API execution error:", err);
+      return NextResponse.json(
+        {
+          error: "NEBIUS_API_ERROR",
+          details: err.message,
+        },
+        { status: 502 }
+      );
+    }
 
-      if (
-        lowerMsg.includes("hold") ||
-        lowerMsg.includes("schedule") ||
-        lowerMsg.includes("book") ||
+    if (
+      lowerMsg.includes("hold") ||
+      lowerMsg.includes("schedule") ||
+      lowerMsg.includes("book") ||
+      lowerMsg.includes("fly") ||
+      lowerMsg.includes("apply") ||
+      lowerMsg.includes("calendar") ||
+      lowerMsg.includes("commit") ||
+      lowerMsg.includes("draft email") ||
+      lowerMsg.includes("email draft")
+    ) {
+      const hold = defaultHoldWindow();
+      if (lowerMsg.includes("draft email") || lowerMsg.includes("email draft")) {
+        approvalRequest = {
+          id: `auth-${Date.now()}`,
+          specialistId: (detectedTargets[0] as SpecialistId) || "career",
+          title: "Authorize Gmail Draft",
+          description:
+            "Orbit staged a Gmail draft for your review. Nothing is sent until you open Gmail and send it yourself.",
+          service: "Gmail",
+          payload: {
+            to: student.name ? `${student.name.toLowerCase()}@rit.edu` : "me@example.com",
+            subject: "Orbit draft follow-up",
+            body: "Draft prepared by Orbit for your review.",
+          },
+          status: "pending",
+          safetyCheck: "Draft only. Zero send. User must review in Gmail.",
+          timestamp: "Just now",
+        };
+      } else if (
         lowerMsg.includes("fly") ||
-        lowerMsg.includes("apply") ||
-        lowerMsg.includes("calendar") ||
-        lowerMsg.includes("commit") ||
-        lowerMsg.includes("draft email") ||
-        lowerMsg.includes("email draft")
+        lowerMsg.includes("flight") ||
+        lowerMsg.includes("home")
       ) {
-        const hold = defaultHoldWindow();
-        if (lowerMsg.includes("draft email") || lowerMsg.includes("email draft")) {
-          approvalRequest = {
-            id: `auth-${Date.now()}`,
-            specialistId: (detectedTargets[0] as SpecialistId) || "career",
-            title: "Authorize Gmail Draft",
-            description:
-              "Orbit staged a Gmail draft for your review. Nothing is sent until you open Gmail and send it yourself.",
-            service: "Gmail",
-            payload: {
-              to: student.name ? `${student.name.toLowerCase()}@rit.edu` : "me@example.com",
-              subject: "Orbit draft follow-up",
-              body: "Draft prepared by Orbit for your review.",
-            },
-            status: "pending",
-            safetyCheck: "Draft only. Zero send. User must review in Gmail.",
-            timestamp: "Just now",
-          };
-        } else if (
-          lowerMsg.includes("fly") ||
-          lowerMsg.includes("flight") ||
-          lowerMsg.includes("home")
-        ) {
-          approvalRequest = {
-            id: `auth-${Date.now()}`,
-            specialistId: "travel",
-            title: "Hold Calendar for Break Travel: ROC to BOS",
-            description:
-              "Staged non-stop flight window (Dec 19 - Jan 3). Fits within $800 monthly cap and clears finals schedule.",
-            service: "Google Calendar",
-            payload: {
-              title: "Confirmed Hold: ROC -> BOS Break Travel",
-              description: "Orbit Travel provisional break window",
-              start: "2026-12-19",
-              end: "2026-12-20",
-              route: "ROC -> BOS",
-              dates: "Dec 19 - Jan 3",
-              priceEstimate: "$142",
-            },
-            status: "pending",
-            safetyCheck: "Verified no volleyball game conflicts. Budget buffer remaining: $415.",
-            timestamp: "Just now",
-          };
-        } else if (
-          lowerMsg.includes("apply") ||
-          lowerMsg.includes("resume") ||
-          lowerMsg.includes("job")
-        ) {
-          approvalRequest = {
-            id: `auth-${Date.now()}`,
-            specialistId: "career",
-            title: "Authorize Application Submission",
-            description:
-              "Tailored 1-page ML Engineer application drafted for review. Zero silent submissions.",
-            service: "Job Portal",
-            payload: {
-              role: "SWE / ML Intern Summer 2027",
-              status: "ready_for_review",
-            },
-            status: "pending",
-            safetyCheck: "Sovereign review mandatory. All resume bullets verified.",
-            timestamp: "Just now",
-          };
-        } else {
-          approvalRequest = {
-            id: `auth-${Date.now()}`,
-            specialistId: (detectedTargets[0] as SpecialistId) || "schedule",
-            title: "Authorize Calendar Mutation",
-            description: `${activeSpecialist.name} requested adding a confirmed time block to your primary calendar.`,
-            service: "Google Calendar",
-            payload: {
-              action: "create_event",
-              source: activeSpecialist.name,
-              title: "Confirmed Hold: CSCI 320 Evening Study Block",
-              description: `Study hold proposed by ${activeSpecialist.name}`,
-              start: hold.start,
-              end: hold.end,
-            },
-            status: "pending",
-            safetyCheck: "Checked for time conflicts with classes and athletic practices.",
-            timestamp: "Just now",
-          };
-        }
+        approvalRequest = {
+          id: `auth-${Date.now()}`,
+          specialistId: "travel",
+          title: "Hold Calendar for Break Travel: ROC to BOS",
+          description:
+            "Staged non-stop flight window (Dec 19 - Jan 3). Fits within $800 monthly cap and clears finals schedule.",
+          service: "Google Calendar",
+          payload: {
+            title: "Confirmed Hold: ROC -> BOS Break Travel",
+            description: "Orbit Travel provisional break window",
+            start: "2026-12-19",
+            end: "2026-12-20",
+            route: "ROC -> BOS",
+            dates: "Dec 19 - Jan 3",
+            priceEstimate: "$142",
+          },
+          status: "pending",
+          safetyCheck: "Verified no volleyball game conflicts. Budget buffer remaining: $415.",
+          timestamp: "Just now",
+        };
+      } else if (
+        lowerMsg.includes("apply") ||
+        lowerMsg.includes("resume") ||
+        lowerMsg.includes("job")
+      ) {
+        approvalRequest = {
+          id: `auth-${Date.now()}`,
+          specialistId: "career",
+          title: "Authorize Application Submission",
+          description:
+            "Tailored 1-page ML Engineer application drafted for review. Zero silent submissions.",
+          service: "Job Portal",
+          payload: {
+            role: "SWE / ML Intern Summer 2027",
+            status: "ready_for_review",
+          },
+          status: "pending",
+          safetyCheck: "Sovereign review mandatory. All resume bullets verified.",
+          timestamp: "Just now",
+        };
+      } else {
+        approvalRequest = {
+          id: `auth-${Date.now()}`,
+          specialistId: (detectedTargets[0] as SpecialistId) || "schedule",
+          title: "Authorize Calendar Mutation",
+          description: `${activeSpecialist.name} requested adding a confirmed time block to your primary calendar.`,
+          service: "Google Calendar",
+          payload: {
+            action: "create_event",
+            source: activeSpecialist.name,
+            title: "Confirmed Hold: CSCI 320 Evening Study Block",
+            description: `Study hold proposed by ${activeSpecialist.name}`,
+            start: hold.start,
+            end: hold.end,
+          },
+          status: "pending",
+          safetyCheck: "Checked for time conflicts with classes and athletic practices.",
+          timestamp: "Just now",
+        };
       }
     }
 
@@ -453,10 +437,7 @@ Rules:
           ? {
               intent: lowerMsg.slice(0, 45),
               targetSpecialists: finalTargets,
-              modelUsed: isMock
-                ? "nvidia/llama-3.1-nemotron-70b-instruct (Mock / Zero Credits)"
-                : process.env.NEBIUS_MODEL_REASONING ||
-                  "nvidia/llama-3.1-nemotron-70b-instruct",
+              modelUsed: modelId,
               confidence: 0.96,
             }
           : undefined,
