@@ -125,7 +125,19 @@ const textureCache = new Map<string, ExoplanetMaterialTextures>();
 const ringTextureCache = new Map<string, THREE.CanvasTexture>();
 // Bump whenever the generator algorithm changes so stale in-memory or
 // persisted canvases from an older build can never be reused.
-const TEXTURE_GEN_VERSION = "v8f-ico-dither";
+const TEXTURE_GEN_VERSION = "v8g-demo-fill-perf";
+
+/** Procedural albedo resolution. Overview must stay cheap — Demo Fill mounts
+ *  every planet at once; 2048×1024 sync gen froze the UI for ~60s+. */
+export type ExoplanetTextureQuality = "moon" | "overview" | "studio";
+
+const TEXTURE_SIZE: Record<ExoplanetTextureQuality, { width: number; height: number }> = {
+  moon: { width: 128, height: 64 },
+  // Overview planets are small on-screen; keep this tiny so Demo Fill cannot
+  // monopolize the main thread. Planet Studio uses the higher "studio" tier.
+  overview: { width: 256, height: 128 },
+  studio: { width: 1024, height: 512 },
+};
 
 /**
  * Procedural fictional exoplanet textures — Zen soft-lit cinematic look.
@@ -133,7 +145,8 @@ const TEXTURE_GEN_VERSION = "v8f-ico-dither";
  * baked into the albedo so the MeshBasic soft-lit path stays driven live.
  */
 export function generateExoplanetTextures(
-  customization: PlanetCustomization
+  customization: PlanetCustomization,
+  quality: ExoplanetTextureQuality = "overview"
 ): ExoplanetMaterialTextures {
   const chromaMute = customization.chromaMute ?? 0.4;
   const bumpScale = customization.bumpScale ?? 0.15;
@@ -142,6 +155,7 @@ export function generateExoplanetTextures(
 
   const cacheKey = [
     TEXTURE_GEN_VERSION,
+    quality,
     customization.id,
     customization.archetype,
     customization.primaryColor,
@@ -161,28 +175,28 @@ export function generateExoplanetTextures(
     return { colorMap: dummy, bumpMap: dummy, roughnessMap: dummy };
   }
 
-  // Higher res reduces texel stair-steps at Studio zoom / grazing terminator.
-  const width = 2048;
-  const height = 1024;
+  const { width, height } = TEXTURE_SIZE[quality] || TEXTURE_SIZE.overview;
 
   const colorCanvas = document.createElement("canvas");
   colorCanvas.width = width;
   colorCanvas.height = height;
-  const colorCtx = colorCanvas.getContext("2d")!;
-  const colorImg = colorCtx.createImageData(width, height);
-  const cData = colorImg.data;
-
+  const colorCtx = colorCanvas.getContext("2d");
   const bumpCanvas = document.createElement("canvas");
   bumpCanvas.width = width;
   bumpCanvas.height = height;
-  const bumpCtx = bumpCanvas.getContext("2d")!;
-  const bumpImg = bumpCtx.createImageData(width, height);
-  const bData = bumpImg.data;
-
+  const bumpCtx = bumpCanvas.getContext("2d");
   const roughCanvas = document.createElement("canvas");
   roughCanvas.width = width;
   roughCanvas.height = height;
-  const roughCtx = roughCanvas.getContext("2d")!;
+  const roughCtx = roughCanvas.getContext("2d");
+  if (!colorCtx || !bumpCtx || !roughCtx) {
+    const dummy = new THREE.CanvasTexture(document.createElement("canvas"));
+    return { colorMap: dummy, bumpMap: dummy, roughnessMap: dummy };
+  }
+  const colorImg = colorCtx.createImageData(width, height);
+  const cData = colorImg.data;
+  const bumpImg = bumpCtx.createImageData(width, height);
+  const bData = bumpImg.data;
   const roughImg = roughCtx.createImageData(width, height);
   const rData = roughImg.data;
 

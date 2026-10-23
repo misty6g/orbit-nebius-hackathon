@@ -98,7 +98,7 @@ export function PlanetBody({
 
   // Fictional procedural surface: archetype + Studio palette + relief/roughness.
   const textures = useMemo(() => {
-    return generateExoplanetTextures(custom);
+    return generateExoplanetTextures(custom, "overview");
   }, [custom]);
 
   const softLitMaterial = useMemo(
@@ -124,23 +124,26 @@ export function PlanetBody({
   const moonTextures = useMemo(
     () =>
       custom.moons.map((moon) =>
-        generateExoplanetTextures({
-          id: config.id,
-          archetype: "rocky",
-          primaryColor: new THREE.Color(moon.color).multiplyScalar(0.45).getStyle(),
-          secondaryColor: moon.color,
-          accentColor: "#d0c8bc",
-          bumpScale: 0.05,
-          roughness: 1.0,
-          atmosphereIntensity: 0.1,
-          cloudCover: 0,
-          chromaMute: 0.5,
-          hasRings: false,
-          ringStyle: "none",
-          ringColor: moon.color,
-          ringTilt: 0,
-          moons: [],
-        })
+        generateExoplanetTextures(
+          {
+            id: config.id,
+            archetype: "rocky",
+            primaryColor: new THREE.Color(moon.color).multiplyScalar(0.45).getStyle(),
+            secondaryColor: moon.color,
+            accentColor: "#d0c8bc",
+            bumpScale: 0.05,
+            roughness: 1.0,
+            atmosphereIntensity: 0.1,
+            cloudCover: 0,
+            chromaMute: 0.5,
+            hasRings: false,
+            ringStyle: "none",
+            ringColor: moon.color,
+            ringTilt: 0,
+            moons: [],
+          },
+          "moon"
+        )
       ),
     [custom.moons, config.id]
   );
@@ -309,7 +312,12 @@ export function PlanetBody({
 
       {/* Zen Minimalist Telemetry Badge on Hover */}
       {(hovered || isSelected) && (
-        <Html position={[0, config.size + 1.1, 0]} center zIndexRange={[100, 0]}>
+        <Html
+          position={[0, config.size + 1.1, 0]}
+          center
+          pointerEvents="none"
+          zIndexRange={[20, 0]}
+        >
           <div className="pointer-events-none transform -translate-y-2 transition-all duration-150 font-sans">
             <div className="px-3.5 py-2 rounded-xl border border-white/5 bg-[rgba(10,10,20,0.6)] backdrop-blur-2xl shadow-zen-dock text-left">
               <div className="flex items-center gap-2 mb-0.5">

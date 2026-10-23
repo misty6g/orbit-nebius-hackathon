@@ -85,7 +85,9 @@ export function CareerPipelineBoard({
               </div>
               <div className="text-[11px] text-slate-400 mb-1">{item.role}</div>
               <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span className="capitalize text-slate-400">Status: {item.stage.replace("-", " ")}</span>
+                <span className="capitalize text-slate-400">
+                  Status: {(item.stage || "scouted").replace("-", " ")}
+                </span>
                 <span>Summer 2027</span>
               </div>
             </div>

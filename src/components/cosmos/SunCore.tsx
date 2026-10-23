@@ -368,7 +368,12 @@ export function SunCore({ onSelect, isSelected }: SunCoreProps) {
       </mesh>
 
       {(hovered || isSelected) && (
-        <Html position={[0, R + 1.2, 0]} center zIndexRange={[100, 0]}>
+        <Html
+          position={[0, R + 1.2, 0]}
+          center
+          pointerEvents="none"
+          zIndexRange={[20, 0]}
+        >
           <div className="pointer-events-none transform -translate-y-2 transition-all duration-150 font-sans">
             <div className="px-3.5 py-2.5 rounded-xl border border-white/5 bg-[rgba(10,10,20,0.6)] backdrop-blur-2xl shadow-zen-dock text-left">
               <div className="flex items-center gap-2 mb-0.5">

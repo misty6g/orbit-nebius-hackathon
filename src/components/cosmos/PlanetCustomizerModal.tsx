@@ -62,7 +62,7 @@ function CustomizerPreviewMesh({
   const moonRefs = useRef<Array<THREE.Group | null>>([]);
   const moonAngles = useRef<number[]>([0, 2, 4]);
 
-  const textures = useMemo(() => generateExoplanetTextures(custom), [custom]);
+  const textures = useMemo(() => generateExoplanetTextures(custom, "studio"), [custom]);
 
   const softLitMaterial = useMemo(
     () =>
@@ -89,23 +89,26 @@ function CustomizerPreviewMesh({
   const moonTextures = useMemo(
     () =>
       custom.moons.map((moon) =>
-        generateExoplanetTextures({
-          id: planetId,
-          archetype: "rocky",
-          primaryColor: new THREE.Color(moon.color).multiplyScalar(0.5).getStyle(),
-          secondaryColor: moon.color,
-          accentColor: "#d0c8bc",
-          bumpScale: 0.08,
-          roughness: 0.95,
-          atmosphereIntensity: 0.1,
-          cloudCover: 0,
-          chromaMute: 0.5,
-          hasRings: false,
-          ringStyle: "none",
-          ringColor: moon.color,
-          ringTilt: 0,
-          moons: [],
-        })
+        generateExoplanetTextures(
+          {
+            id: planetId,
+            archetype: "rocky",
+            primaryColor: new THREE.Color(moon.color).multiplyScalar(0.5).getStyle(),
+            secondaryColor: moon.color,
+            accentColor: "#d0c8bc",
+            bumpScale: 0.08,
+            roughness: 0.95,
+            atmosphereIntensity: 0.1,
+            cloudCover: 0,
+            chromaMute: 0.5,
+            hasRings: false,
+            ringStyle: "none",
+            ringColor: moon.color,
+            ringTilt: 0,
+            moons: [],
+          },
+          "moon"
+        )
       ),
     [custom.moons, planetId]
   );
