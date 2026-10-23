@@ -1,4 +1,4 @@
-import { isGoogleConfigured, isNotionConfigured, isSlackConfigured } from "./config";
+import { isGoogleConfigured, isNotionConfigured, isSlackConfigured } from "./session";
 import {
   getValidGoogleTokens,
   searchCalendarEvents,

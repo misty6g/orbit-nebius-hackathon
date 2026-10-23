@@ -1,29 +1,37 @@
-import { getAppUrl, isSlackConfigured, SLACK_USER_SCOPES } from "./config";
+import { getRedirectUri, SLACK_USER_SCOPES } from "./config";
+import { resolveOAuthApp } from "./session";
 import { SlackMessageItem, SlackTokens } from "./types";
 
 const SLACK_AUTH = "https://slack.com/oauth/v2/authorize";
 const SLACK_TOKEN = "https://slack.com/api/oauth.v2.access";
 
-export function slackAuthUrl(state: string): string | null {
-  if (!isSlackConfigured()) return null;
+export function slackAuthUrl(
+  state: string,
+  app = resolveOAuthApp("slack")
+): string | null {
+  if (!app) return null;
   const params = new URLSearchParams({
-    client_id: process.env.SLACK_CLIENT_ID!,
+    client_id: app.clientId,
     user_scope: SLACK_USER_SCOPES,
-    redirect_uri: `${getAppUrl()}/api/connectors/slack/callback`,
+    redirect_uri: getRedirectUri("slack"),
     state,
   });
   return `${SLACK_AUTH}?${params.toString()}`;
 }
 
 export async function exchangeSlackCode(code: string): Promise<SlackTokens> {
+  const app = resolveOAuthApp("slack");
+  if (!app) {
+    throw new Error("SLACK_NOT_CONFIGURED");
+  }
   const res = await fetch(SLACK_TOKEN, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.SLACK_CLIENT_ID!,
-      client_secret: process.env.SLACK_CLIENT_SECRET!,
+      client_id: app.clientId,
+      client_secret: app.clientSecret,
       code,
-      redirect_uri: `${getAppUrl()}/api/connectors/slack/callback`,
+      redirect_uri: getRedirectUri("slack"),
     }),
   });
   if (!res.ok) {

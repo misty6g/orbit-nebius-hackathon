@@ -1,4 +1,5 @@
-import { getAppUrl, GOOGLE_SCOPES, isGoogleConfigured } from "./config";
+import { getRedirectUri, GOOGLE_SCOPES } from "./config";
+import { isGoogleConfigured, resolveOAuthApp } from "./session";
 import {
   CalendarEventItem,
   ConnectorSession,
@@ -10,11 +11,14 @@ const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO = "https://www.googleapis.com/oauth2/v2/userinfo";
 
-export function googleAuthUrl(state: string): string | null {
-  if (!isGoogleConfigured()) return null;
+export function googleAuthUrl(
+  state: string,
+  app = resolveOAuthApp("google")
+): string | null {
+  if (!app) return null;
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    redirect_uri: `${getAppUrl()}/api/connectors/google/callback`,
+    client_id: app.clientId,
+    redirect_uri: getRedirectUri("google"),
     response_type: "code",
     scope: GOOGLE_SCOPES,
     access_type: "offline",
@@ -25,14 +29,18 @@ export function googleAuthUrl(state: string): string | null {
 }
 
 export async function exchangeGoogleCode(code: string): Promise<GoogleTokens> {
+  const app = resolveOAuthApp("google");
+  if (!app) {
+    throw new Error("GOOGLE_NOT_CONFIGURED");
+  }
   const res = await fetch(GOOGLE_TOKEN, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: `${getAppUrl()}/api/connectors/google/callback`,
+      client_id: app.clientId,
+      client_secret: app.clientSecret,
+      redirect_uri: getRedirectUri("google"),
       grant_type: "authorization_code",
     }),
   });
@@ -64,12 +72,16 @@ export async function exchangeGoogleCode(code: string): Promise<GoogleTokens> {
 
 async function refreshGoogleAccess(tokens: GoogleTokens): Promise<GoogleTokens> {
   if (!tokens.refreshToken) return tokens;
+  const app = resolveOAuthApp("google");
+  if (!app) {
+    throw new Error("GOOGLE_NOT_CONFIGURED");
+  }
   const res = await fetch(GOOGLE_TOKEN, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: app.clientId,
+      client_secret: app.clientSecret,
       refresh_token: tokens.refreshToken,
       grant_type: "refresh_token",
     }),

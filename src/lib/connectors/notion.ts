@@ -1,26 +1,32 @@
-import { getAppUrl, isNotionConfigured } from "./config";
+import { getRedirectUri } from "./config";
+import { resolveOAuthApp } from "./session";
 import { NotionPageItem, NotionTokens } from "./types";
 
 const NOTION_AUTH = "https://api.notion.com/v1/oauth/authorize";
 const NOTION_TOKEN = "https://api.notion.com/v1/oauth/token";
 const NOTION_VERSION = "2022-06-28";
 
-export function notionAuthUrl(state: string): string | null {
-  if (!isNotionConfigured()) return null;
+export function notionAuthUrl(
+  state: string,
+  app = resolveOAuthApp("notion")
+): string | null {
+  if (!app) return null;
   const params = new URLSearchParams({
-    client_id: process.env.NOTION_CLIENT_ID!,
+    client_id: app.clientId,
     response_type: "code",
     owner: "user",
-    redirect_uri: `${getAppUrl()}/api/connectors/notion/callback`,
+    redirect_uri: getRedirectUri("notion"),
     state,
   });
   return `${NOTION_AUTH}?${params.toString()}`;
 }
 
 export async function exchangeNotionCode(code: string): Promise<NotionTokens> {
-  const basic = Buffer.from(
-    `${process.env.NOTION_CLIENT_ID}:${process.env.NOTION_CLIENT_SECRET}`
-  ).toString("base64");
+  const app = resolveOAuthApp("notion");
+  if (!app) {
+    throw new Error("NOTION_NOT_CONFIGURED");
+  }
+  const basic = Buffer.from(`${app.clientId}:${app.clientSecret}`).toString("base64");
   const res = await fetch(NOTION_TOKEN, {
     method: "POST",
     headers: {
@@ -30,7 +36,7 @@ export async function exchangeNotionCode(code: string): Promise<NotionTokens> {
     body: JSON.stringify({
       grant_type: "authorization_code",
       code,
-      redirect_uri: `${getAppUrl()}/api/connectors/notion/callback`,
+      redirect_uri: getRedirectUri("notion"),
     }),
   });
   if (!res.ok) {

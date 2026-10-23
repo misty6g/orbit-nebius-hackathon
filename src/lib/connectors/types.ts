@@ -33,22 +33,23 @@ export interface ConnectorSession {
   slack?: SlackTokens;
 }
 
+export interface ConnectorProviderStatus {
+  /** True when host env or Advanced cookie stash has client ID + secret. */
+  configured: boolean;
+  /** True when Vercel/host env has the OAuth app (judges only need Connect). */
+  hostConfigured: boolean;
+  connected: boolean;
+  email?: string;
+  workspaceName?: string;
+  teamName?: string;
+  redirectUri: string;
+  credentialSource?: "env" | "cookie";
+}
+
 export interface ConnectorStatus {
-  google: {
-    configured: boolean;
-    connected: boolean;
-    email?: string;
-  };
-  notion: {
-    configured: boolean;
-    connected: boolean;
-    workspaceName?: string;
-  };
-  slack: {
-    configured: boolean;
-    connected: boolean;
-    teamName?: string;
-  };
+  google: ConnectorProviderStatus;
+  notion: ConnectorProviderStatus;
+  slack: ConnectorProviderStatus;
 }
 
 export interface CalendarEventItem {
