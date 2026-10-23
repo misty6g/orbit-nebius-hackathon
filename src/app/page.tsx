@@ -12,6 +12,7 @@ import {
   DEFAULT_NEBULA_CUSTOMIZATION,
 } from "@/types/orbit";
 import { INITIAL_DEMO_BRAIN, SPECIALISTS } from "@/lib/specialists";
+import { SOLAR_DAWN_WAYPOINTS } from "@/lib/solarDawnTour";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
 import { CosmicAwakeningModal } from "@/components/onboarding/CosmicAwakeningModal";
@@ -81,33 +82,7 @@ export default function OrbitHome() {
   // Zen Quick Omnibox
   const [quickInput, setQuickInput] = useState<string>("");
 
-  const tourNarrations = [
-    {
-      title: "Solar Dawn Briefing: Orbit Core",
-      subtitle: "Rochester Institute of Technology • Men's Volleyball & AI BS '28",
-      content: "Good morning, Gyan. Initializing daily unified briefing across your 9 domains.",
-    },
-    {
-      title: "Waypoint 1: Orbit Schedule",
-      subtitle: "Primary Academic & Athletic Sync",
-      content: "CSCI 320 at 10 AM, Computer Vision at 2 PM, and Men's Volleyball Practice at 6 PM. No course conflicts.",
-    },
-    {
-      title: "Waypoint 2: Orbit Health",
-      subtitle: "3,100 kcal Bulk Pacing",
-      content: "Breakfast oats and protein logged (~740 kcal). Pre-practice high-protein snack scheduled for 4:45 PM.",
-    },
-    {
-      title: "Waypoint 3: Orbit Wallet",
-      subtitle: "Sovereign Monthly Cashflow",
-      content: "$540.36 buffer remaining under your $800 monthly cap. Soft limit cleared for break travel look-ahead.",
-    },
-    {
-      title: "Solar Dawn Complete",
-      subtitle: "Orbit Core Ready for Commands",
-      content: "All specialists synchronized in Sovereign Memory. Ready for your daily schedule.",
-    },
-  ];
+  const tourNarrations = SOLAR_DAWN_WAYPOINTS;
 
   // Initial load
   useEffect(() => {
