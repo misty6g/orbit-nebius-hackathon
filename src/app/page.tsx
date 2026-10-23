@@ -11,7 +11,7 @@ import {
   NebulaCustomization,
   DEFAULT_NEBULA_CUSTOMIZATION,
 } from "@/types/orbit";
-import { INITIAL_DEMO_BRAIN, SPECIALISTS } from "@/lib/specialists";
+import { DEFAULT_STUDENT_BRAIN, SPECIALISTS } from "@/lib/specialists";
 import { SOLAR_DAWN_WAYPOINTS } from "@/lib/solarDawnTour";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
@@ -26,7 +26,6 @@ import {
   Key,
   Brain,
   Sparkle,
-  FastForward,
   X,
   PlayCircle,
   Pause,
@@ -42,7 +41,7 @@ import { cosmicAudio, AudioEngineState, CosmicTrackId, COSMIC_TRACKS } from "@/l
 export default function OrbitHome() {
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<SpecialistId | null>(null);
   const [activeConstellationTargets, setActiveConstellationTargets] = useState<SpecialistId[]>([]);
-  const [brain, setBrain] = useState<SharedBrainProfile>(INITIAL_DEMO_BRAIN);
+  const [brain, setBrain] = useState<SharedBrainProfile>(DEFAULT_STUDENT_BRAIN);
   const [brief, setBrief] = useState<MorningBriefData | null>(null);
 
   // Modal States
@@ -60,7 +59,7 @@ export default function OrbitHome() {
     DEFAULT_NEBULA_CUSTOMIZATION
   );
 
-  // Credentials & Mode (optional client overrides; production uses server NEBIUS_API_KEY)
+  // In-app credentials (browser localStorage). Server env is a host default when present.
   const [nebiusKey, setNebiusKey] = useState<string>("");
   const [tavilyKey, setTavilyKey] = useState<string>("");
   const [runtimeLive, setRuntimeLive] = useState<{
@@ -120,6 +119,9 @@ export default function OrbitHome() {
       setShowAwakening(true);
     }
 
+    // If identity already calibrated but no browser Nebius key, open credentials
+    // after runtime probe (see effect below) — in-app keys are the happy path.
+
     // Bump to refresh default palettes (vibrant Zen defaults).
     const PLANET_CUSTOM_VERSION = "v8c-vibrant-defaults";
     const savedCustomVersion = localStorage.getItem("orbit_planet_custom_version");
@@ -167,18 +169,31 @@ export default function OrbitHome() {
       .then((data) => setBrief(data))
       .catch(() => {});
 
-    // Probe server-side Token Factory / Tavily so judges need no keys
+    // Probe host Token Factory / Tavily (defaults). In-app keys still win when set.
     fetch("/api/runtime")
       .then((res) => res.json())
       .then((data) => {
+        const serverNebius = Boolean(data?.inference?.live || data?.credentials?.serverNebius);
+        const serverTavily = Boolean(data?.search?.live || data?.credentials?.serverTavily);
         setRuntimeLive({
-          nebius: Boolean(data?.inference?.live),
-          tavily: Boolean(data?.search?.live),
+          nebius: serverNebius,
+          tavily: serverTavily,
           model: data?.inference?.model || "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           routing:
             data?.inference?.routing ||
             "Orbit Core uses Nano to choose planets and response tier (Nano / Super / Ultra).",
         });
+
+        const hasClientNebius = Boolean(
+          (localStorage.getItem("orbit_nebius_key") || "").trim()
+        );
+        const awakened =
+          localStorage.getItem("orbit_awakened") === "true" ||
+          Boolean(localStorage.getItem("orbit_brain"));
+        // Prompt for in-app keys when neither host nor browser has Nebius.
+        if (awakened && !serverNebius && !hasClientNebius && !forceAwaken) {
+          setShowApiKeyGate(true);
+        }
       })
       .catch(() => {});
 
@@ -213,27 +228,25 @@ export default function OrbitHome() {
     } catch {
       /* ignore audio policy errors */
     }
-  };
-
-  const handleQuickDemoFill = () => {
-    // Clone so later in-place HUD edits never mutate the shared constant.
-    const demoBrain = structuredClone(INITIAL_DEMO_BRAIN) as SharedBrainProfile;
-    setBrain(demoBrain);
-    localStorage.setItem("orbit_brain", JSON.stringify(demoBrain));
-    localStorage.setItem("orbit_awakened", "true");
-    setShowAwakening(false);
-    try {
-      cosmicAudio.playChime();
-    } catch {
-      /* ignore audio policy errors */
+    // Primary setup: if host has no Nebius and browser has none, open credentials.
+    if (!runtimeLive?.nebius && !nebiusKey.trim()) {
+      setShowApiKeyGate(true);
     }
   };
 
   const handleSaveKeys = (newNebius: string, newTavily: string) => {
     setNebiusKey(newNebius);
     setTavilyKey(newTavily);
-    localStorage.setItem("orbit_nebius_key", newNebius);
-    localStorage.setItem("orbit_tavily_key", newTavily);
+    if (newNebius) {
+      localStorage.setItem("orbit_nebius_key", newNebius);
+    } else {
+      localStorage.removeItem("orbit_nebius_key");
+    }
+    if (newTavily) {
+      localStorage.setItem("orbit_tavily_key", newTavily);
+    } else {
+      localStorage.removeItem("orbit_tavily_key");
+    }
   };
 
   useEffect(() => {
@@ -450,12 +463,12 @@ export default function OrbitHome() {
             <Brain size={15} weight="duotone" />
           </button>
 
-          {/* Live Token Factory status (server key) + optional client override */}
+          {/* Live Token Factory status (host default and/or in-app key) */}
           <div
             title={
-              runtimeLive?.nebius
-                ? `Live NVIDIA Nemotron on Nebius Token Factory — ${runtimeLive.routing || runtimeLive.model}`
-                : "Server NEBIUS_API_KEY missing — open credentials to paste a Token Factory key"
+              runtimeLive?.nebius || nebiusKey
+                ? `Live NVIDIA Nemotron on Nebius Token Factory — ${runtimeLive?.routing || runtimeLive?.model || "in-app key"}`
+                : "Open credentials to paste your Nebius Token Factory key"
             }
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono backdrop-blur-2xl shadow-zen-dock ${
               runtimeLive?.nebius || nebiusKey
@@ -471,22 +484,26 @@ export default function OrbitHome() {
             <span>
               {runtimeLive?.nebius || nebiusKey
                 ? "Live Nebius Token Factory"
-                : "Awaiting Token Factory key"}
+                : "Add Token Factory key"}
             </span>
-            {runtimeLive?.tavily && (
+            {(runtimeLive?.tavily || tavilyKey) && (
               <span className="hidden sm:inline text-emerald-300/90 border-l border-white/10 pl-1.5 ml-0.5">
                 + Tavily
               </span>
             )}
           </div>
 
-          {/* Credentials Gate */}
+          {/* In-app credentials (primary setup path) */}
           <button
             onClick={() => {
-              cosmicAudio.playClick();
+              try {
+                cosmicAudio.playClick();
+              } catch {
+                /* ignore */
+              }
               setShowApiKeyGate(true);
             }}
-            title="Optional: override Nebius & Tavily keys in this browser"
+            title="Set Nebius & Tavily API keys in this browser"
             className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 text-zinc-300 hover:text-white backdrop-blur-2xl flex items-center justify-center transition active:scale-[0.96] shadow-zen-dock"
           >
             <Key size={15} weight="duotone" />
@@ -762,6 +779,7 @@ export default function OrbitHome() {
           onActiveTargetsChange={setActiveConstellationTargets}
           onOpenCustomizer={handleOpenCustomizer}
           apiKey={nebiusKey}
+          tavilyKey={tavilyKey}
           serverInferenceLive={Boolean(runtimeLive?.nebius || nebiusKey)}
           serverModel={runtimeLive?.model}
           tavilyLive={Boolean(runtimeLive?.tavily || tavilyKey)}
@@ -770,19 +788,19 @@ export default function OrbitHome() {
 
       {/* Cosmic Awakening Modal */}
       {showAwakening && (
-        <CosmicAwakeningModal
-          onComplete={handleCompleteAwakening}
-          onQuickDemoFill={handleQuickDemoFill}
-        />
+        <CosmicAwakeningModal onComplete={handleCompleteAwakening} />
       )}
 
-      {/* API Key Modal */}
+      {/* In-app API credentials (primary path; host env is optional default) */}
       <ApiKeyGateModal
         isOpen={showApiKeyGate}
         onClose={() => setShowApiKeyGate(false)}
         onSaveKeys={handleSaveKeys}
         currentNebiusKey={nebiusKey}
         currentTavilyKey={tavilyKey}
+        requireNebius={!runtimeLive?.nebius && !nebiusKey.trim()}
+        serverHasNebius={Boolean(runtimeLive?.nebius)}
+        serverHasTavily={Boolean(runtimeLive?.tavily)}
       />
 
       {/* Shared Brain Inspector Modal */}

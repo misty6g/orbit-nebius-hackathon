@@ -39,7 +39,9 @@ interface CockpitHUDProps {
   onActiveTargetsChange?: (targets: SpecialistId[]) => void;
   onOpenCustomizer?: (id: SpecialistId) => void;
   apiKey?: string;
-  /** True when Vercel/server NEBIUS_API_KEY (or client override) is present */
+  /** Browser-stored Tavily key; falls back to server TAVILY_API_KEY when empty. */
+  tavilyKey?: string;
+  /** True when server NEBIUS_API_KEY or in-app Nebius key is present */
   serverInferenceLive?: boolean;
   serverModel?: string;
   tavilyLive?: boolean;
@@ -57,6 +59,7 @@ export function CockpitHUD({
   onActiveTargetsChange,
   onOpenCustomizer,
   apiKey,
+  tavilyKey,
   serverInferenceLive = false,
   serverModel,
   tavilyLive = false,
@@ -259,6 +262,7 @@ export function CockpitHUD({
           specialistId,
           brain,
           apiKey,
+          tavilyKey,
           room: specialistId === "core" ? activeRoom : undefined,
           history: messages.slice(-6).map((m) => ({ sender: m.sender, content: m.content })),
         }),
@@ -533,7 +537,7 @@ export function CockpitHUD({
                   ? `Live NVIDIA Nemotron via Nebius Token Factory — Core routes with Nano; answers use Nano / Super / Ultra${
                       serverModel ? ` · decision ${serverModel}` : ""
                     }${tavilyLive ? " · Tavily search live" : ""}`
-                  : "Server NEBIUS_API_KEY missing — paste a Token Factory key to go live"
+                  : "Open credentials to paste your Nebius Token Factory key"
               }
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-mono ${
                 serverInferenceLive

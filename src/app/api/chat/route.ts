@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
       specialistId = "core",
       brain,
       apiKey,
+      tavilyKey: clientTavilyKey,
       history = [],
       room,
     } = await req.json();
@@ -190,7 +191,7 @@ export async function POST(req: NextRequest) {
         {
           error: "NEBIUS_API_KEY_REQUIRED",
           message:
-            "Please enter your Nebius Token Factory API Key to activate live NVIDIA Nemotron inference.",
+            "Paste a Nebius Token Factory API key in Orbit's credentials modal (or set NEBIUS_API_KEY on the host) to run live NVIDIA Nemotron inference.",
         },
         { status: 401 }
       );
@@ -230,7 +231,9 @@ export async function POST(req: NextRequest) {
 
     if (isWebQuery) {
       try {
-        const tavilyKey = process.env.TAVILY_API_KEY;
+        const tavilyKey =
+          (typeof clientTavilyKey === "string" && clientTavilyKey.trim()) ||
+          process.env.TAVILY_API_KEY;
         const tavilyRes = await searchTavily(message, tavilyKey);
         if (tavilyRes?.results && tavilyRes.results.length > 0) {
           tavilySources = tavilyRes.results.slice(0, 3);

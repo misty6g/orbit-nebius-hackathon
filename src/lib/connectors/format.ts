@@ -45,7 +45,7 @@ export function formatSnapshotForPrompt(snapshot: ConnectorSnapshot): string {
   }
 
   if (lines.length === 1) {
-    lines.push("- No live connector data available. Use the demo Shared Brain.");
+    lines.push("- No live connector data available. Using Shared Brain profile.");
   }
 
   // Em-dash forbidden in Orbit copy; sanitize accidental ones from upstream snippets

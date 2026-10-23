@@ -19,11 +19,11 @@ Students live across calendars, budgets, workouts, flights home, and internship 
 ## What it does
 
 - **Orbit Core** uses **Nemotron 3 Nano** as a dual decision model: which specialist planets handle the turn, and whether the answer should use **Nano**, **Super**, or **Ultra**.
-- **Sovereign Shared Brain** is the single memory layer every specialist reads and updates (demo profile via Demo Fill; local vault export).
+- **Sovereign Shared Brain** is the single memory layer every specialist reads and updates (identity calibration + local vault export).
 - **Confirm-before-write:** Calendar holds, Gmail drafts, bookings, and applications surface as in-stream authorization cards — never silent mutations.
-- **Live inference:** Chat hits **Nebius Token Factory** with **NVIDIA Nemotron 3** — Nano for routing + everyday calls, Super for synthesis, Ultra for serious multi-constraint reasoning. Production ships with `NEBIUS_API_KEY` so judges do not bring keys.
+- **Live inference:** Chat hits **Nebius Token Factory** with **NVIDIA Nemotron 3**. Judges paste Nebius (and Tavily) in the in-app credentials modal; a host may also ship server defaults. Empty host does not block if keys are in the UI.
 - **Tavily** grounds Deals (.edu discounts), Travel (ROC↔BOS), and Explore (Rochester meetups) with live web sources in the stream.
-- **Connectors (optional):** Google Calendar/Gmail/Drive, Notion, Slack OAuth. If OAuth is not configured on the demo domain, agents use the Shared Brain path — “connect your own accounts” when self-hosting.
+- **Connectors (optional):** Google Calendar/Gmail/Drive, Notion, Slack OAuth. Client ID/secret need a one-time host OAuth app (redirect URI). Per-user Connect stays in the UI; without host OAuth, agents use Shared Brain.
 
 ---
 
@@ -36,22 +36,23 @@ Students live across calendars, budgets, workouts, flights home, and internship 
 | Search | **Tavily Search API** for Deals / Travel / Explore |
 | App | Next.js 14 App Router on Vercel |
 | UX | Three.js / R3F photoreal solar system + glass cockpit HUD |
-| Memory | Shared Brain profile (browser vault for demo; exportable JSON) |
+| Memory | Shared Brain profile (browser vault; exportable JSON) |
+| Credentials | In-app modal → `localStorage`; server env optional default |
 | Tools | Specialist routing + optional Google / Notion / Slack connectors |
 
-No mock-inference fallback in the live demo path: missing `NEBIUS_API_KEY` returns a clear error instead of faking Nemotron.
+No mock-inference fallback: missing Nebius (client and server) returns a clear credentials prompt instead of faking Nemotron.
 
 ---
 
 ## Challenges
 
-Balancing a cinematic 3D home with a trustworthy agent trust model (suggest → confirm → write). Wiring OAuth for three providers on a hackathon demo domain without blocking judges — hence the polished Shared Brain fallback. Keeping Token Factory usage obvious in UI, README, and video.
+Balancing a cinematic 3D home with a trustworthy agent trust model (suggest → confirm → write). Keeping OAuth honest: API keys are fully in-app, but OAuth app registration still needs a host redirect URI — so connectors stay optional with a clear Shared Brain path. Making Token Factory usage obvious in UI, README, and video.
 
 ---
 
 ## Accomplishments
 
-- End-to-end **live Nemotron on Token Factory** with a production server key.
+- End-to-end **live Nemotron on Token Factory** with in-app keys and optional host defaults.
 - Cross-domain planning (e.g. fly home + budget + schedule) from one Core prompt.
 - Confirm-before-write authorization UX.
 - Tavily-backed specialist rooms eligible for Best Use of Tavily.
@@ -67,7 +68,7 @@ Sovereignty and multi-agent routing sell harder than stacking every suggested ru
 
 ## What's next
 
-Durable always-on memory backend, reusable skills packs, deeper Nebius tooling (Serverless / Hermes where it fits), and production OAuth for the demo domain so connectors are live for every judge.
+Durable always-on memory backend, reusable skills packs, deeper Nebius tooling (Serverless / Hermes where it fits), and production OAuth on the public domain so connectors are live for every judge.
 
 ---
 
@@ -83,7 +84,8 @@ Durable always-on memory backend, reusable skills packs, deeper Nebius tooling (
 
 ## Try it
 
-1. Open the production URL — **no keys required** if `NEBIUS_API_KEY` is set on Vercel.
-2. **Demo Fill** → enter Orbit Core → ask the fly-home cross-domain prompt.
-3. Visit Deals / Travel / Explore for Tavily source pills.
-4. Approve any in-stream write card to see confirm-before-write.
+1. Open the production URL.
+2. Calibrate identity → paste Nebius (+ Tavily) in **API Credentials** if the host has no keys.
+3. Enter Orbit Core → ask the fly-home cross-domain prompt.
+4. Visit Deals / Travel / Explore for Tavily source pills.
+5. Approve any in-stream write card to see confirm-before-write.

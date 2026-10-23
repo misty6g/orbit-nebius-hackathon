@@ -8,8 +8,9 @@ import {
 } from "@/lib/connectors/config";
 
 /**
- * Public capability probe for the demo UI and judges.
+ * Public capability probe for the production UI.
  * Never returns secret values — only whether server-side keys are present.
+ * Clients may still supply Nebius / Tavily keys from the in-app credentials modal.
  */
 export async function GET() {
   const nebiusConfigured = Boolean(process.env.NEBIUS_API_KEY?.trim());
@@ -22,7 +23,6 @@ export async function GET() {
     inference: {
       provider: "Nebius Token Factory",
       baseUrl,
-      /** Primary everyday / decision model (Nano). */
       model: models.nano,
       models: {
         nano: models.nano,
@@ -34,11 +34,19 @@ export async function GET() {
       routing:
         "Orbit Core uses Nano to choose specialist planets and response tier (Nano / Super / Ultra).",
       live: nebiusConfigured,
+      acceptsClientKey: true,
       requiresJudgeKey: !nebiusConfigured,
     },
     search: {
       provider: "Tavily",
       live: tavilyConfigured,
+      acceptsClientKey: true,
+    },
+    credentials: {
+      /** Host may ship defaults; empty host still works if the user pastes keys in the UI. */
+      serverNebius: nebiusConfigured,
+      serverTavily: tavilyConfigured,
+      inAppPreferred: true,
     },
     connectors: {
       google: isGoogleConfigured(),
@@ -46,17 +54,8 @@ export async function GET() {
       slack: isSlackConfigured(),
       anyConfigured:
         isGoogleConfigured() || isNotionConfigured() || isSlackConfigured(),
-    },
-    demoMode: {
-      // Sovereign Shared Brain always works from local profile / Demo Fill
-      sharedBrain: true,
-      confirmBeforeWrite: true,
-      // Connectors fall back to demo brain when OAuth is not wired
-      connectorsUseDemoBrainFallback: !(
-        isGoogleConfigured() ||
-        isNotionConfigured() ||
-        isSlackConfigured()
-      ),
+      /** OAuth client ID/secret cannot be fully in-browser; one-time host config. */
+      requiresHostOAuth: true,
     },
   });
 }

@@ -78,11 +78,15 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
   }, [refresh]);
 
   const connect = (provider: "google" | "notion" | "slack") => {
-    cosmicAudio.playClick();
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
     const entry = status?.[provider];
     if (entry && !entry.configured) {
       setBanner(
-        `${provider} OAuth is not wired on this deploy. Demo uses your Sovereign Shared Brain instead — connect your own accounts when you self-host.`
+        `${provider} OAuth is not configured on this host yet. Orbit still runs on your Shared Brain + Nebius/Tavily. Ask the host to add ${provider.toUpperCase()}_CLIENT_ID / _CLIENT_SECRET (and redirect URI) once — then Connect works for everyone.`
       );
       return;
     }
@@ -97,7 +101,11 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
   );
 
   const disconnect = async (provider: "google" | "notion" | "slack" | "all") => {
-    cosmicAudio.playClick();
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
     setBusy(provider);
     try {
       const res = await fetch("/api/connectors/disconnect", {
@@ -183,16 +191,9 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
           {anyConnected
             ? "Reads use titles and snippets. Agents can search connected sources when you ask. Calendar events and Gmail drafts only write after an in-stream approval."
             : anyConfigured
-            ? "Connect Google, Notion, or Slack to ground agents in your accounts. Until then, Orbit routes through your Sovereign Shared Brain with confirm-before-write."
-            : "OAuth apps are not configured on this demo domain. Agents still plan from your Sovereign Shared Brain (Demo Fill). Connect your own accounts when you self-host."}
+              ? "Optional: connect Google, Notion, or Slack to ground agents in your accounts. Until then, Orbit plans from your Shared Brain with confirm-before-write."
+              : "Optional: Google / Notion / Slack need a one-time OAuth app on this host (client ID, secret, redirect URI). Core chat, Shared Brain, and Tavily work without them."}
         </p>
-      )}
-
-      {!compact && !anyConfigured && (
-        <div className="px-2.5 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/25 text-[11px] font-mono text-emerald-200/90 leading-relaxed">
-          Demo path: Shared Brain + Nebius Token Factory. Say &quot;connect your own accounts&quot;
-          in the video — Google / Notion / Slack light up when you add OAuth env vars.
-        </div>
       )}
 
       {banner && (
@@ -222,18 +223,16 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
                         connected
                           ? "text-emerald-300 border-emerald-500/30 bg-emerald-950/30"
                           : configured
-                          ? "text-zinc-400 border-white/10"
-                          : "text-amber-300 border-amber-500/30"
+                            ? "text-zinc-400 border-white/10"
+                            : "text-zinc-500 border-white/10"
                       }`}
                     >
-                      {connected ? "live" : configured ? "off" : "setup"}
+                      {connected ? "live" : configured ? "off" : "optional"}
                     </span>
                   </div>
                   <div className="text-[10px] font-mono text-zinc-500 truncate">
                     {!configured
-                      ? "Demo brain fallback · connect your own later"
-                      : connected
-                      ? row.detail
+                      ? "Host OAuth not configured · Shared Brain still active"
                       : row.detail}
                   </div>
                 </div>
@@ -250,8 +249,7 @@ export function ConnectorDock({ compact = false, onStatusChange }: ConnectorDock
                 ) : (
                   <button
                     onClick={() => connect(row.id)}
-                    disabled={!configured}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-40 disabled:hover:bg-zinc-100 transition"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-40 transition"
                   >
                     <Plugs size={12} weight="bold" />
                     Connect

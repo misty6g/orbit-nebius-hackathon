@@ -2,16 +2,16 @@
 
 **Goal:** Prove live **Nebius Token Factory** (not mock), Shared Brain + privacy + confirm-before-write, one cross-domain plan, and Tavily in Deals/Travel/Explore.
 
-**Prep:** Production URL with `NEBIUS_API_KEY` (+ `TAVILY_API_KEY`) set. Click **Demo Fill (Gyan @ RIT)** on first load. Confirm the amber **Live Nebius Token Factory** badge is on. Do **not** open the credentials modal unless you need a browser override.
+**Prep:** Production URL. Complete identity calibration (or use a saved Shared Brain). If the host has no Nebius key, open the **key** icon and paste Nebius (+ Tavily) in **API Credentials** — no Vercel env edit. Confirm the amber **Live Nebius Token Factory** badge (host default and/or in-app key).
 
 ---
 
 ## 0:00–0:20 · Hook + Token Factory
 
-**On screen:** Solar system overview → top-right badge **Live Nebius Token Factory (+ Tavily)**.
+**On screen:** Solar system overview → top-right badge **Live Nebius Token Factory (+ Tavily)**. Optional: brief flash of the credentials modal if you used in-app keys.
 
 **Say:**
-> Orbit is a sovereign personal student OS. Inference runs on **Nebius Token Factory** with **NVIDIA Nemotron 3** — Core uses **Nano** to choose planets and whether the answer needs **Nano**, **Super**, or **Ultra** — so judges do not need to bring API keys.
+> Orbit is a sovereign personal student OS. Inference runs on **Nebius Token Factory** with **NVIDIA Nemotron 3** — Core uses **Nano** to choose planets and whether the answer needs **Nano**, **Super**, or **Ultra**. Keys go in the app when the host has none — no `.env` for judges.
 
 Click **Orbit Core** (the sun).
 
@@ -24,7 +24,7 @@ Click **Orbit Core** (the sun).
 **Say:**
 > One **Sovereign Shared Brain** — all specialists read the same student profile. Privacy stays with you. External writes never auto-fire: Calendar and Gmail only after an in-stream **confirm** card.
 >
-> Google, Notion, and Slack light up when you connect your own OAuth apps. On this demo domain we use the Shared Brain path — connect your own accounts when you self-host.
+> Google, Notion, and Slack light up after a one-time host OAuth app. Until then we stay on Shared Brain — Connect in the UI is still the per-user step.
 
 ---
 
@@ -78,9 +78,10 @@ If an authorization card appears for a calendar hold: **Approve** it and call ou
 
 | Beat | Visible proof |
 |------|----------------|
-| Token Factory | Amber **Live Nebius Token Factory** badge; chat replies (not mock toggle) |
-| Shared Brain | Brain inspector + Demo Fill profile |
+| Token Factory | Amber **Live Nebius Token Factory** badge; chat replies (not mock) |
+| Credentials | Key modal or host default; no Demo Fill / mock toggle |
+| Shared Brain | Brain inspector after identity calibration |
 | Confirm-before-write | In-stream auth card on calendar/email |
 | Cross-domain | Single Core answer spanning travel + budget + schedule |
 | Tavily | Source pills on Deals / Travel / Explore |
-| Connectors story | Dock shows demo-brain fallback or live OAuth if configured |
+| Connectors story | Dock shows optional / host OAuth or live Connect |
