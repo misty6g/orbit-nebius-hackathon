@@ -190,7 +190,8 @@ export const SPECIALISTS: Record<SpecialistId, SpecialistConfig> = {
   },
 };
 
-export const INITIAL_DEMO_BRAIN: SharedBrainProfile = {
+/** Default Shared Brain seed used until the student calibrates identity. */
+export const DEFAULT_STUDENT_BRAIN: SharedBrainProfile = {
   student: {
     name: "Gyan",
     university: "Rochester Institute of Technology",
@@ -419,3 +420,6 @@ export const INITIAL_DEMO_BRAIN: SharedBrainProfile = {
     },
   ],
 };
+
+/** @deprecated Use DEFAULT_STUDENT_BRAIN — kept as an alias for older imports. */
+export const INITIAL_DEMO_BRAIN = DEFAULT_STUDENT_BRAIN;

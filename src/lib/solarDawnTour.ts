@@ -20,7 +20,7 @@ export const SOLAR_DAWN_WAYPOINTS: SolarDawnWaypoint[] = [
     title: "Solar Dawn Briefing: Orbit Core",
     subtitle: "Rochester Institute of Technology • Men's Volleyball & AI BS '28",
     content:
-      "Good morning, Gyan. Initializing daily unified briefing across your 9 domains.",
+      "Good morning. Initializing daily unified briefing across your domains.",
   },
   {
     id: "health",

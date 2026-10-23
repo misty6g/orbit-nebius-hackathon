@@ -46,7 +46,7 @@ export async function assembleConnectorContext(
   }
 
   if (!session.google && !session.notion && !session.slack) {
-    snapshot.notes.push("No connectors connected. Using demo Shared Brain.");
+    snapshot.notes.push("No connectors connected. Using Shared Brain profile.");
   }
 
   return snapshot;

@@ -2,18 +2,14 @@
 
 import React, { useState } from "react";
 import { SharedBrainProfile } from "@/types/orbit";
-import { Sparkle, Student, RocketLaunch, Check, FastForward } from "@phosphor-icons/react";
+import { Sparkle, RocketLaunch, Check } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
 
 interface CosmicAwakeningModalProps {
   onComplete: (profile: SharedBrainProfile) => void;
-  onQuickDemoFill: () => void;
 }
 
-export function CosmicAwakeningModal({
-  onComplete,
-  onQuickDemoFill,
-}: CosmicAwakeningModalProps) {
+export function CosmicAwakeningModal({ onComplete }: CosmicAwakeningModalProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [university, setUniversity] = useState("");
@@ -27,13 +23,21 @@ export function CosmicAwakeningModal({
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
-    cosmicAudio.playClick();
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
     setStep(2);
   };
 
   const handleFinish = (e: React.FormEvent) => {
     e.preventDefault();
-    cosmicAudio.playChime();
+    try {
+      cosmicAudio.playChime();
+    } catch {
+      /* ignore */
+    }
 
     const profile: SharedBrainProfile = {
       student: {
@@ -106,53 +110,29 @@ export function CosmicAwakeningModal({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md pointer-events-auto">
       <div className="w-full max-w-lg p-6 rounded-2xl bg-[#090b0e] border border-white/[0.1] shadow-zen-dock text-slate-100 relative font-sans pointer-events-auto isolate">
-        {/* Header Badge */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-lg bg-amber-400/10 text-amber-400 border border-amber-400/20">
-              <Sparkle size={16} weight="fill" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold tracking-wide text-slate-100">
-                Orbit Identity Calibration
-              </h3>
-              <p className="text-[11px] font-mono text-slate-400">
-                Personal Student OS Configuration
-              </p>
-            </div>
+        <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-white/[0.08]">
+          <span className="p-2 rounded-lg bg-amber-400/10 text-amber-400 border border-amber-400/20">
+            <Sparkle size={16} weight="fill" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold tracking-wide text-slate-100">
+              Orbit Identity Calibration
+            </h3>
+            <p className="text-[11px] font-mono text-slate-400">
+              Personal Student OS Configuration
+            </p>
           </div>
-
-          {/* Quick Demo Fill for Judges */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Complete first so audio / WebGL jank cannot block onboarding.
-              onQuickDemoFill();
-              try {
-                cosmicAudio.playChime();
-              } catch {
-                /* ignore audio policy errors */
-              }
-            }}
-            className="zen-btn relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-[11px] font-mono transition"
-          >
-            <FastForward size={13} weight="bold" />
-            <span>Demo Fill (Gyan @ RIT)</span>
-          </button>
         </div>
 
         {step === 1 ? (
           <form onSubmit={handleNext} className="space-y-3.5">
             <div className="text-xs text-slate-400 leading-relaxed mb-3">
-              Orbit connects your academics, health, budget, schedule, and career into one sovereign brain powered by NVIDIA Nemotron. Let's calibrate your identity.
+              Orbit connects your academics, health, budget, schedule, and career into one sovereign
+              brain powered by NVIDIA Nemotron. Calibrate your identity to continue.
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono text-slate-400 mb-1">
-                Your Name
-              </label>
+              <label className="block text-[11px] font-mono text-slate-400 mb-1">Your Name</label>
               <input
                 type="text"
                 required
@@ -234,7 +214,8 @@ export function CosmicAwakeningModal({
         ) : (
           <form onSubmit={handleFinish} className="space-y-3.5">
             <div className="text-xs text-slate-400 leading-relaxed mb-3">
-              Configure your primary pacing goals. Orbit will enforce honest macro ranges, schedule holds, and budget caps.
+              Configure your primary pacing goals. Orbit will enforce honest macro ranges, schedule
+              holds, and budget caps.
             </div>
 
             <div className="grid grid-cols-2 gap-3">
