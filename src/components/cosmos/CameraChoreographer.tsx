@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { SpecialistId } from "@/types/orbit";
+import { SOLAR_DAWN_TOUR_TARGETS } from "@/lib/solarDawnTour";
 
 interface CameraChoreographerProps {
   selectedSpecialistId: SpecialistId | null;
@@ -38,8 +39,8 @@ export function CameraChoreographer({
   // Keep planetPositions ref continuously updated without triggering mode-transition effect
   planetPositionsRef.current = planetPositions;
 
-  // Tour waypoints
-  const tourTargets: SpecialistId[] = ["core", "schedule", "health", "wallet", "core"];
+  // Full Solar Dawn path: Core + every primary orbiting planet (see solarDawnTour).
+  const tourTargets = SOLAR_DAWN_TOUR_TARGETS;
 
   useEffect(() => {
     const handleDown = () => {
@@ -66,8 +67,17 @@ export function CameraChoreographer({
         targetCamPos.current.set(0, 3.2, 5.8);
         targetLookAt.current.set(0, 0, 0);
       } else {
-        const pPos = planetPositionsRef.current[activeId] || new THREE.Vector3(8, 0, 8);
-        targetCamPos.current.set(pPos.x + 2.8, pPos.y + 1.4, pPos.z + 3.2);
+        const pPos =
+          planetPositionsRef.current[activeId] || new THREE.Vector3(8, 0, 8);
+        // Sunward framing so each waypoint reads as a lit planet, not a silhouette.
+        const radial =
+          pPos.lengthSq() > 1e-6 ? pPos.clone().normalize() : new THREE.Vector3(1, 0, 0);
+        const tangent = new THREE.Vector3(-radial.z, 0, radial.x).normalize();
+        targetCamPos.current
+          .copy(pPos)
+          .addScaledVector(radial, -3.6)
+          .addScaledVector(tangent, 2.4)
+          .add(new THREE.Vector3(0, 1.7, 0));
         targetLookAt.current.copy(pPos);
       }
       prevSelectedRef.current = "touring";
@@ -139,18 +149,34 @@ export function CameraChoreographer({
       delta
     );
 
-    // 1. Solar Dawn Tour
+    // 1. Solar Dawn Tour — keep chasing live planet positions while flying.
     if (isTouring) {
-      const tourSpeed = 2.6;
+      const activeId = tourTargets[tourStep] || "core";
+      if (activeId !== "core") {
+        const pPos = planetPositionsRef.current[activeId];
+        if (pPos) {
+          const radial =
+            pPos.lengthSq() > 1e-6 ? pPos.clone().normalize() : new THREE.Vector3(1, 0, 0);
+          const tangent = new THREE.Vector3(-radial.z, 0, radial.x).normalize();
+          targetCamPos.current
+            .copy(pPos)
+            .addScaledVector(radial, -3.6)
+            .addScaledVector(tangent, 2.4)
+            .add(new THREE.Vector3(0, 1.7, 0));
+          targetLookAt.current.copy(pPos);
+        }
+      }
+
+      const tourSpeed = 2.4;
       camera.position.x = THREE.MathUtils.damp(
         camera.position.x,
-        targetCamPos.current.x + parallaxOffset.current.x * 0.3,
+        targetCamPos.current.x + parallaxOffset.current.x * 0.25,
         tourSpeed,
         delta
       );
       camera.position.y = THREE.MathUtils.damp(
         camera.position.y,
-        targetCamPos.current.y + parallaxOffset.current.y * 0.2,
+        targetCamPos.current.y + parallaxOffset.current.y * 0.18,
         tourSpeed,
         delta
       );

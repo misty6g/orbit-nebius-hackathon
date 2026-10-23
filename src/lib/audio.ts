@@ -31,7 +31,7 @@ export const COSMIC_TRACKS: CosmicTrack[] = [
   {
     id: "brown-dwarf",
     title: "Brown Dwarf",
-    subtitle: "Astrovia · deep space ambient",
+    subtitle: "Astrovia · soft deep-space hush",
     src: "/audio/zen_ambient.mp3",
     useSynth: true,
     synthProfile: "brown-dwarf",
@@ -39,32 +39,35 @@ export const COSMIC_TRACKS: CosmicTrack[] = [
   {
     id: "nebula-drift",
     title: "Nebula Drift",
-    subtitle: "Soft pads · slow cosmic breath",
+    subtitle: "Warm pads · slow cosmic breath",
     useSynth: true,
     synthProfile: "nebula-drift",
   },
   {
     id: "void-hum",
     title: "Void Hum",
-    subtitle: "Gravitational sub-bass drone",
+    subtitle: "Low gravitational drone",
     useSynth: true,
     synthProfile: "void-hum",
   },
   {
     id: "starlight-choir",
     title: "Starlight Choir",
-    subtitle: "Bright glass · frequent twinkles",
+    subtitle: "Quiet glass · sparse twinkles",
     useSynth: true,
     synthProfile: "starlight-choir",
   },
   {
     id: "ion-wake",
     title: "Ion Wake",
-    subtitle: "Pulse haze · ion-trail shimmer",
+    subtitle: "Soft ion-trail shimmer",
     useSynth: true,
     synthProfile: "ion-wake",
   },
 ];
+
+/** Keep the looping MP3 bed quieter than the soft synth pads. */
+const BG_BED_VOLUME_SCALE = 0.42;
 
 export interface AudioEngineState {
   isPlaying: boolean;
@@ -97,104 +100,103 @@ interface SynthProfileConfig {
 }
 
 const SYNTH_PROFILES: Record<SynthProfileId, SynthProfileConfig> = {
+  // Soft, slow, low-brightness pads — space hush rather than energy.
   "brown-dwarf": {
-    subVol: 0.28,
-    padVolScale: 1,
-    padCutoff: 420,
-    lfoRate: 0.042,
-    lfoDepth: 180,
-    masterSynthGain: 0.24,
-    twinkleMinMs: 4500,
-    twinkleMaxMs: 9000,
-    twinklePeak: 0.02,
-    twinkleFreqs: [880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0],
+    subVol: 0.16,
+    padVolScale: 0.85,
+    padCutoff: 280,
+    lfoRate: 0.022,
+    lfoDepth: 90,
+    masterSynthGain: 0.14,
+    twinkleMinMs: 9000,
+    twinkleMaxMs: 16000,
+    twinklePeak: 0.008,
+    twinkleFreqs: [523.25, 659.25, 783.99, 987.77],
     padVoices: [
-      { freq: 73.42, detune: 0.5, type: "sine", vol: 0.22, pan: 0.0 },
-      { freq: 110.0, detune: -0.6, type: "triangle", vol: 0.18, pan: -0.4 },
-      { freq: 174.61, detune: 0.8, type: "sine", vol: 0.15, pan: 0.4 },
-      { freq: 261.63, detune: -0.7, type: "sine", vol: 0.12, pan: -0.6 },
-      { freq: 329.63, detune: 1.1, type: "sine", vol: 0.1, pan: 0.6 },
-      { freq: 440.0, detune: -0.9, type: "sine", vol: 0.08, pan: 0.0 },
-      { freq: 523.25, detune: 1.3, type: "sine", vol: 0.05, pan: 0.3 },
+      { freq: 55.0, detune: 0.3, type: "sine", vol: 0.2, pan: 0.0 },
+      { freq: 82.41, detune: -0.4, type: "sine", vol: 0.16, pan: -0.35 },
+      { freq: 110.0, detune: 0.5, type: "triangle", vol: 0.12, pan: 0.35 },
+      { freq: 164.81, detune: -0.4, type: "sine", vol: 0.1, pan: -0.5 },
+      { freq: 220.0, detune: 0.6, type: "sine", vol: 0.07, pan: 0.45 },
+      { freq: 329.63, detune: -0.5, type: "sine", vol: 0.04, pan: 0.0 },
     ],
   },
   "nebula-drift": {
-    subVol: 0.14,
-    padVolScale: 1.15,
-    padCutoff: 560,
-    lfoRate: 0.028,
-    lfoDepth: 220,
-    masterSynthGain: 0.22,
-    twinkleMinMs: 6000,
-    twinkleMaxMs: 12000,
-    twinklePeak: 0.014,
-    twinkleFreqs: [698.46, 830.61, 987.77, 1174.66],
+    subVol: 0.1,
+    padVolScale: 0.95,
+    padCutoff: 320,
+    lfoRate: 0.018,
+    lfoDepth: 110,
+    masterSynthGain: 0.13,
+    twinkleMinMs: 10000,
+    twinkleMaxMs: 18000,
+    twinklePeak: 0.007,
+    twinkleFreqs: [392.0, 493.88, 587.33, 698.46],
     padVoices: [
-      { freq: 65.41, detune: 0.3, type: "sine", vol: 0.18, pan: 0.0 },
-      { freq: 98.0, detune: -0.4, type: "sine", vol: 0.16, pan: -0.5 },
-      { freq: 146.83, detune: 0.6, type: "triangle", vol: 0.14, pan: 0.5 },
-      { freq: 196.0, detune: -0.5, type: "sine", vol: 0.12, pan: -0.3 },
-      { freq: 293.66, detune: 0.8, type: "sine", vol: 0.1, pan: 0.35 },
-      { freq: 392.0, detune: -0.7, type: "sine", vol: 0.07, pan: 0.0 },
+      { freq: 49.0, detune: 0.2, type: "sine", vol: 0.16, pan: 0.0 },
+      { freq: 73.42, detune: -0.3, type: "sine", vol: 0.14, pan: -0.45 },
+      { freq: 98.0, detune: 0.4, type: "triangle", vol: 0.12, pan: 0.45 },
+      { freq: 146.83, detune: -0.35, type: "sine", vol: 0.1, pan: -0.25 },
+      { freq: 196.0, detune: 0.5, type: "sine", vol: 0.07, pan: 0.3 },
+      { freq: 293.66, detune: -0.4, type: "sine", vol: 0.04, pan: 0.0 },
     ],
   },
   "void-hum": {
-    subVol: 0.42,
-    padVolScale: 0.35,
-    padCutoff: 180,
-    lfoRate: 0.018,
-    lfoDepth: 60,
-    masterSynthGain: 0.26,
-    twinkleMinMs: 10000,
-    twinkleMaxMs: 18000,
-    twinklePeak: 0.008,
-    twinkleFreqs: [220.0, 277.18, 329.63],
+    subVol: 0.28,
+    padVolScale: 0.28,
+    padCutoff: 140,
+    lfoRate: 0.012,
+    lfoDepth: 40,
+    masterSynthGain: 0.15,
+    twinkleMinMs: 14000,
+    twinkleMaxMs: 24000,
+    twinklePeak: 0.004,
+    twinkleFreqs: [174.61, 220.0, 261.63],
     padVoices: [
-      { freq: 36.71, detune: 0.2, type: "sine", vol: 0.3, pan: 0.0 },
-      { freq: 55.0, detune: -0.3, type: "sine", vol: 0.22, pan: -0.2 },
-      { freq: 82.41, detune: 0.4, type: "triangle", vol: 0.12, pan: 0.25 },
-      { freq: 110.0, detune: -0.2, type: "sine", vol: 0.08, pan: 0.0 },
+      { freq: 32.7, detune: 0.15, type: "sine", vol: 0.26, pan: 0.0 },
+      { freq: 49.0, detune: -0.2, type: "sine", vol: 0.18, pan: -0.15 },
+      { freq: 65.41, detune: 0.25, type: "triangle", vol: 0.1, pan: 0.2 },
+      { freq: 98.0, detune: -0.15, type: "sine", vol: 0.06, pan: 0.0 },
     ],
   },
   "starlight-choir": {
-    subVol: 0.1,
-    padVolScale: 1.05,
-    padCutoff: 900,
-    lfoRate: 0.055,
-    lfoDepth: 260,
-    masterSynthGain: 0.2,
-    twinkleMinMs: 1800,
-    twinkleMaxMs: 4200,
-    twinklePeak: 0.028,
-    twinkleFreqs: [1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0],
+    subVol: 0.08,
+    padVolScale: 0.85,
+    padCutoff: 480,
+    lfoRate: 0.028,
+    lfoDepth: 120,
+    masterSynthGain: 0.12,
+    twinkleMinMs: 7000,
+    twinkleMaxMs: 14000,
+    twinklePeak: 0.01,
+    twinkleFreqs: [659.25, 783.99, 987.77, 1174.66],
     padVoices: [
-      { freq: 130.81, detune: 0.5, type: "sine", vol: 0.14, pan: -0.4 },
-      { freq: 196.0, detune: -0.6, type: "triangle", vol: 0.12, pan: 0.4 },
-      { freq: 261.63, detune: 0.7, type: "sine", vol: 0.14, pan: 0.0 },
-      { freq: 329.63, detune: -0.5, type: "sine", vol: 0.11, pan: -0.55 },
-      { freq: 392.0, detune: 0.9, type: "sine", vol: 0.1, pan: 0.55 },
-      { freq: 523.25, detune: -0.8, type: "sine", vol: 0.08, pan: 0.2 },
-      { freq: 659.25, detune: 1.0, type: "sine", vol: 0.06, pan: -0.2 },
+      { freq: 98.0, detune: 0.35, type: "sine", vol: 0.12, pan: -0.35 },
+      { freq: 146.83, detune: -0.4, type: "triangle", vol: 0.1, pan: 0.35 },
+      { freq: 196.0, detune: 0.45, type: "sine", vol: 0.12, pan: 0.0 },
+      { freq: 246.94, detune: -0.35, type: "sine", vol: 0.08, pan: -0.45 },
+      { freq: 293.66, detune: 0.5, type: "sine", vol: 0.07, pan: 0.45 },
+      { freq: 392.0, detune: -0.4, type: "sine", vol: 0.04, pan: 0.15 },
     ],
   },
   "ion-wake": {
-    subVol: 0.2,
-    padVolScale: 0.95,
-    padCutoff: 680,
-    lfoRate: 0.09,
-    lfoDepth: 320,
-    masterSynthGain: 0.23,
-    twinkleMinMs: 3000,
-    twinkleMaxMs: 6500,
-    twinklePeak: 0.018,
-    twinkleFreqs: [739.99, 987.77, 1244.51, 1479.98],
+    subVol: 0.12,
+    padVolScale: 0.8,
+    padCutoff: 360,
+    lfoRate: 0.035,
+    lfoDepth: 140,
+    masterSynthGain: 0.13,
+    twinkleMinMs: 8000,
+    twinkleMaxMs: 15000,
+    twinklePeak: 0.008,
+    twinkleFreqs: [440.0, 554.37, 659.25, 830.61],
     padVoices: [
-      { freq: 77.78, detune: 1.2, type: "sawtooth", vol: 0.06, pan: -0.3 },
-      { freq: 103.83, detune: -1.0, type: "sine", vol: 0.16, pan: 0.0 },
-      { freq: 155.56, detune: 0.8, type: "triangle", vol: 0.14, pan: 0.45 },
-      { freq: 233.08, detune: -0.9, type: "sine", vol: 0.12, pan: -0.45 },
-      { freq: 311.13, detune: 1.1, type: "sine", vol: 0.1, pan: 0.3 },
-      { freq: 466.16, detune: -0.7, type: "sine", vol: 0.07, pan: 0.0 },
+      { freq: 61.74, detune: 0.5, type: "sine", vol: 0.14, pan: -0.25 },
+      { freq: 92.5, detune: -0.6, type: "sine", vol: 0.14, pan: 0.0 },
+      { freq: 123.47, detune: 0.45, type: "triangle", vol: 0.12, pan: 0.4 },
+      { freq: 185.0, detune: -0.5, type: "sine", vol: 0.1, pan: -0.4 },
+      { freq: 246.94, detune: 0.55, type: "sine", vol: 0.07, pan: 0.25 },
+      { freq: 369.99, detune: -0.4, type: "sine", vol: 0.04, pan: 0.0 },
     ],
   },
 };
@@ -207,7 +209,7 @@ class CosmicAudioEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private isPlaying: boolean = false;
-  private masterVolume: number = 0.8;
+  private masterVolume: number = 0.55;
   private bgAudio: HTMLAudioElement | null = null;
   private listeners: Set<AudioListener> = new Set();
   private currentTrack: CosmicTrack = COSMIC_TRACKS[0];
@@ -303,7 +305,11 @@ class CosmicAudioEngine {
       this.bgAudio.src = src;
     }
     this.bgAudio.setAttribute("data-src", src);
-    this.bgAudio.volume = this.isMuted ? 0 : this.masterVolume;
+    this.bgAudio.volume = this.bedVolume();
+  }
+
+  private bedVolume(): number {
+    return this.isMuted ? 0 : this.masterVolume * BG_BED_VOLUME_SCALE;
   }
 
   private startSynth() {
@@ -501,7 +507,7 @@ class CosmicAudioEngine {
     if (this.currentTrack.src) {
       this.ensureBgAudio(this.currentTrack.src);
       if (this.bgAudio) {
-        this.bgAudio.volume = this.masterVolume;
+        this.bgAudio.volume = this.bedVolume();
         try {
           // Restart from start when switching into a file track
           if (this.bgAudio.paused || this.bgAudio.getAttribute("data-src") === this.currentTrack.src) {
@@ -550,7 +556,7 @@ class CosmicAudioEngine {
     }
 
     if (this.bgAudio) {
-      this.bgAudio.volume = this.isMuted ? 0 : this.masterVolume;
+      this.bgAudio.volume = this.bedVolume();
     }
 
     if (this.synthGain && this.ctx) {
@@ -572,7 +578,7 @@ class CosmicAudioEngine {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (this.bgAudio) {
-      this.bgAudio.volume = muted ? 0 : this.masterVolume;
+      this.bgAudio.volume = this.bedVolume();
     }
     if (this.synthGain && this.ctx) {
       const profile = SYNTH_PROFILES[this.currentTrack.synthProfile];
