@@ -8,32 +8,48 @@ export * from "./assemble";
 export * from "./search";
 export * from "./searchIntent";
 export * from "./format";
+export * from "./startOAuth";
 
 import {
-  isGoogleConfigured,
-  isNotionConfigured,
-  isSlackConfigured,
+  getRedirectUri,
+  isHostOAuthConfigured,
 } from "./config";
-import { readConnectorSession } from "./session";
+import {
+  resolveOAuthApp,
+  readConnectorSession,
+} from "./session";
 import { ConnectorStatus } from "./types";
 
 export function getConnectorStatus(): ConnectorStatus {
   const session = readConnectorSession();
+  const googleApp = resolveOAuthApp("google");
+  const notionApp = resolveOAuthApp("notion");
+  const slackApp = resolveOAuthApp("slack");
+
   return {
     google: {
-      configured: isGoogleConfigured(),
+      configured: Boolean(googleApp),
+      hostConfigured: isHostOAuthConfigured("google"),
       connected: Boolean(session.google?.accessToken),
       email: session.google?.email,
+      redirectUri: getRedirectUri("google"),
+      credentialSource: googleApp?.source,
     },
     notion: {
-      configured: isNotionConfigured(),
+      configured: Boolean(notionApp),
+      hostConfigured: isHostOAuthConfigured("notion"),
       connected: Boolean(session.notion?.accessToken),
       workspaceName: session.notion?.workspaceName,
+      redirectUri: getRedirectUri("notion"),
+      credentialSource: notionApp?.source,
     },
     slack: {
-      configured: isSlackConfigured(),
+      configured: Boolean(slackApp),
+      hostConfigured: isHostOAuthConfigured("slack"),
       connected: Boolean(session.slack?.accessToken),
       teamName: session.slack?.teamName,
+      redirectUri: getRedirectUri("slack"),
+      credentialSource: slackApp?.source,
     },
   };
 }

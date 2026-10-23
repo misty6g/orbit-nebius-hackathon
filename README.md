@@ -20,7 +20,7 @@ At the center sits **Orbit Core** (a radiant star), surrounded by 9 specialized 
 |------|-------------|
 | **Primary (judges)** | Open the key icon → paste **Nebius Token Factory** and **Tavily** keys. Stored in browser `localStorage` only; sent with chat/search requests. |
 | **Optional host default** | Set `NEBIUS_API_KEY` / `TAVILY_API_KEY` on Vercel so the public deploy works with zero pasting. In-app keys override the host for that browser. |
-| **Connectors (optional)** | Google / Notion / Slack need a **one-time host OAuth app** (client ID, secret, redirect URI). Per-user Connect still happens in the UI. Core chat + Shared Brain + Tavily work without connectors. |
+| **Connectors (optional)** | Marketplace-style: **Connect → provider auth → connected**. Host registers OAuth apps once on Vercel for the submit URL so judges only click Connect. Empty host / self-host can use dock **Advanced** (client ID/secret → encrypted cookie). |
 
 | Item | Value |
 |------|--------|
@@ -71,9 +71,9 @@ Sell hard in the video and Devpost: **sovereignty**, **multi-agent routing**, **
 4. **Live Web Intelligence via Tavily**
    - Deals (.edu discounts), Travel (ROC↔BOS), Explore (Rochester tech) with source pills in-stream.
 
-5. **Optional connectors (host OAuth once)**
-   - Google / Notion / Slack when OAuth client ID/secret + redirect URI are configured on the host.
-   - Until then, the dock stays on Shared Brain with clear “optional / host OAuth” status — never a broken redirect.
+5. **Sovereign Connectors (marketplace Connect)**
+   - Google / Notion / Slack: click **Connect**, approve on the provider, return connected.
+   - Prefer one-time host OAuth apps on the public deploy; **Advanced** in the dock is the empty-host fallback.
 
 ---
 
@@ -135,10 +135,12 @@ NEBIUS_MODEL_SUPER=nvidia/nemotron-3-super-120b-a12b
 NEBIUS_MODEL_ULTRA=nvidia/Nemotron-3-Ultra-550b-a55b
 ```
 
-Optional connectors (one-time host OAuth — cannot be fully registered from the browser alone):
+### 4. Sovereign Connectors (host once → judges click Connect)
+
+**Primary (submit deploy):** register OAuth apps once for `https://orbit-nebius-hackathon.vercel.app`, set env on Vercel, redeploy. Judges open **Sovereign Connectors** → **Connect** → authorize on Google / Notion / Slack → return connected. No client-secret pasting.
 
 ```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=https://orbit-nebius-hackathon.vercel.app
 CONNECTOR_SECRET=replace-with-a-long-random-string
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
@@ -148,18 +150,26 @@ SLACK_CLIENT_ID=
 SLACK_CLIENT_SECRET=
 ```
 
-### Connected account context
-
-1. Open **Orbit Core** (or **Orbit Schedule**) → **Sovereign Connectors** dock.
-2. Connect **Google**, **Notion**, and/or **Slack** when host OAuth is configured.
-3. If OAuth is missing, the dock stays optional / Shared Brain — Connect explains the one-time host setup.
-4. Approving an in-stream card can create a real Calendar event or Gmail **draft**. Notion and Slack stay read-only.
-
-Redirect URIs:
+Redirect URIs (must match exactly in each provider console):
 
 - `{NEXT_PUBLIC_APP_URL}/api/connectors/google/callback`
 - `{NEXT_PUBLIC_APP_URL}/api/connectors/notion/callback`
 - `{NEXT_PUBLIC_APP_URL}/api/connectors/slack/callback`
+
+Provider consoles:
+
+- Google: [Cloud Console credentials](https://console.cloud.google.com/apis/credentials) — enable Calendar, Gmail, Drive APIs
+- Notion: [public integration OAuth](https://developers.notion.com/docs/authorization)
+- Slack: app OAuth with user scopes `search:read`, `users:read`
+
+**Fallback (empty host / local):** in the dock, open **Advanced**, paste client ID + secret (stored in encrypted `orbit_oauth_apps` cookie), then **Save & Connect** — same provider auth redirect.
+
+**In the app:**
+
+1. Open **Orbit Core** (or **Orbit Schedule**) → **Sovereign Connectors**.
+2. Click **Connect** on Google / Notion / Slack.
+3. Approve on the provider; Orbit returns with a connected status.
+4. In-stream cards can create a real Calendar event or Gmail **draft**. Notion and Slack stay read-only.
 
 Run `npm run verify:connectors` to exercise the search intent router and prompt formatters.
 
