@@ -1,3 +1,5 @@
+import type { ConnectorProvider } from "./types";
+
 export function getAppUrl(): string {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
@@ -8,16 +10,33 @@ export function getAppUrl(): string {
   return "http://localhost:3000";
 }
 
-export function isGoogleConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+export function getRedirectUri(provider: ConnectorProvider): string {
+  return `${getAppUrl()}/api/connectors/${provider}/callback`;
 }
 
-export function isNotionConfigured(): boolean {
-  return Boolean(process.env.NOTION_CLIENT_ID && process.env.NOTION_CLIENT_SECRET);
+export interface OAuthAppCredentials {
+  clientId: string;
+  clientSecret: string;
 }
 
-export function isSlackConfigured(): boolean {
-  return Boolean(process.env.SLACK_CLIENT_ID && process.env.SLACK_CLIENT_SECRET);
+/** Host env credentials only (no cookie). */
+export function getHostOAuthApp(
+  provider: ConnectorProvider
+): OAuthAppCredentials | null {
+  const pairs: Record<ConnectorProvider, [string | undefined, string | undefined]> = {
+    google: [process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET],
+    notion: [process.env.NOTION_CLIENT_ID, process.env.NOTION_CLIENT_SECRET],
+    slack: [process.env.SLACK_CLIENT_ID, process.env.SLACK_CLIENT_SECRET],
+  };
+  const [id, secret] = pairs[provider];
+  const clientId = id?.trim();
+  const clientSecret = secret?.trim();
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+export function isHostOAuthConfigured(provider: ConnectorProvider): boolean {
+  return Boolean(getHostOAuthApp(provider));
 }
 
 export function getConnectorSecret(): string {

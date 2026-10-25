@@ -1,7 +1,4 @@
-import {
-  isGoogleConfigured,
-  isNotionConfigured,
-} from "./config";
+import { isGoogleConfigured, isNotionConfigured } from "./session";
 import {
   getValidGoogleTokens,
   listRecentDrive,
@@ -34,7 +31,7 @@ export async function assembleConnectorContext(
     snapshot.gmail = gmail;
     snapshot.drive = drive;
   } else if (session.google) {
-    snapshot.notes.push("Google connected but credentials are not configured on the server.");
+    snapshot.notes.push("Google connected but OAuth app credentials are missing.");
   } else if (!isGoogleConfigured()) {
     snapshot.notes.push("Google connector is not configured.");
   }
@@ -42,7 +39,7 @@ export async function assembleConnectorContext(
   if (session.notion?.accessToken && isNotionConfigured()) {
     snapshot.notion = await searchNotion(session.notion, "", 6).catch(() => []);
   } else if (session.notion && !isNotionConfigured()) {
-    snapshot.notes.push("Notion connected but credentials are not configured on the server.");
+    snapshot.notes.push("Notion connected but OAuth app credentials are missing.");
   }
 
   if (!session.google && !session.notion && !session.slack) {

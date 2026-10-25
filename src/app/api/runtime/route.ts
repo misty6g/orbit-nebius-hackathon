@@ -5,7 +5,8 @@ import {
   isGoogleConfigured,
   isNotionConfigured,
   isSlackConfigured,
-} from "@/lib/connectors/config";
+} from "@/lib/connectors/session";
+import { isHostOAuthConfigured } from "@/lib/connectors/config";
 
 /**
  * Public capability probe for the production UI.
@@ -54,8 +55,11 @@ export async function GET() {
       slack: isSlackConfigured(),
       anyConfigured:
         isGoogleConfigured() || isNotionConfigured() || isSlackConfigured(),
-      /** OAuth client ID/secret cannot be fully in-browser; one-time host config. */
-      requiresHostOAuth: true,
+      hostGoogle: isHostOAuthConfigured("google"),
+      hostNotion: isHostOAuthConfigured("notion"),
+      hostSlack: isHostOAuthConfigured("slack"),
+      /** Prefer host OAuth apps so judges only click Connect; Advanced cookie stash is the fallback. */
+      marketplaceConnect: true,
     },
   });
 }
