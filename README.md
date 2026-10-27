@@ -18,7 +18,8 @@ At the center sits **Orbit Core** (a radiant star), surrounded by 9 specialized 
 
 | Path | What you do |
 |------|-------------|
-| **Primary (judges)** | Open the key icon → paste **Nebius Token Factory** and **Tavily** keys. Stored in browser `localStorage` only; sent with chat/search requests. |
+| **Account (required)** | Sign up / sign in with **email** or **Google** (Firebase Auth). New accounts complete **Cosmic Awakening**; Shared Brain is stored in Firestore per user. |
+| **Primary (judges)** | After auth: open the key icon → paste **Nebius Token Factory** and **Tavily** keys. Stored in browser `localStorage` only; sent with chat/search requests. |
 | **Optional host default** | Set `NEBIUS_API_KEY` / `TAVILY_API_KEY` on Vercel so the public deploy works with zero pasting. In-app keys override the host for that browser. |
 | **Connectors (optional)** | Marketplace-style: **Connect → provider auth → connected**. Host registers OAuth apps once on Vercel for the submit URL so judges only click Connect. Empty host / self-host can use dock **Advanced** (client ID/secret → encrypted cookie). |
 
@@ -44,7 +45,7 @@ UI badge **Live Nebius Token Factory** appears when the host has Nebius **or** y
 | Track ask | Orbit sell |
 |-----------|------------|
 | Always-on private assistant | Sovereign Shared Brain + local vault export; privacy-first tool policy |
-| Persistent memory | Unified student profile across all specialists (browser vault) |
+| Persistent memory | Unified student profile across all specialists (Firestore per account) |
 | Reusable skills / chosen tools | 9 specialists + optional Google / Notion / Slack connectors |
 | Daily workflow tasks | Solar Dawn brief, cross-domain plans, confirm-before-write holds |
 | Nebius stack | **Token Factory + Nemotron** first-class (NemoClaw / OpenShell / Hermes / Serverless called out as future work, not required for eligibility) |
@@ -100,6 +101,7 @@ Sell hard in the video and Devpost: **sovereignty**, **multi-agent routing**, **
 ### Prerequisites
 - Node.js 18+ (tested on v26)
 - npm or pnpm
+- A Firebase project (Spark / free) with **Authentication** + **Firestore**
 - A [Nebius Token Factory](https://tokenfactory.nebius.com) API key (and ideally a [Tavily](https://tavily.com) key)
 
 ### 1. Clone and install
@@ -107,23 +109,49 @@ Sell hard in the video and Devpost: **sovereignty**, **multi-agent routing**, **
 git clone https://github.com/misty6g/orbit-nebius-hackathon.git
 cd orbit-nebius-hackathon
 npm install
-npm run dev
 ```
 
-### 2. Happy path (no `.env` required)
-1. Open [http://localhost:3000](http://localhost:3000).
-2. Complete **Orbit Identity Calibration** (your name / school / goals).
+### 2. Account auth (required — no anonymous app access)
+
+Orbit requires **sign up / sign in** (email+password or **Google**) before the solar system unlocks. New accounts must complete **Cosmic Awakening** (identity questionnaire). Shared Brain profiles persist in Firestore per Firebase uid.
+
+```bash
+cp .env.example .env.local
+```
+
+Set these from Firebase → Project settings → Your apps (web):
+
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+```
+
+Firebase console checklist:
+
+1. Create a project (Spark plan is fine).
+2. **Authentication → Sign-in method** → enable **Email/Password** and **Google**.
+3. **Authentication → Settings → Authorized domains** → add `localhost` and `orbit-nebius-hackathon.vercel.app`.
+4. **Firestore Database** → create database (production mode) → publish rules from [`firestore.rules`](./firestore.rules) (owner-only `profiles/{uid}`).
+5. On Vercel: add the same `NEXT_PUBLIC_FIREBASE_*` vars → **redeploy** (public env is baked at build time).
+
+Google provider notes: enabling Google in Firebase Auth auto-wires an OAuth client. Authorized domains above are what the Vercel deploy needs; you do **not** reuse the connector `GOOGLE_CLIENT_*` redirect URIs for login (those are for Calendar/Gmail Connect).
+
+### 3. Happy path
+1. `npm run dev` → [http://localhost:3000](http://localhost:3000).
+2. **Create account** (email or Google) → complete **Cosmic Awakening**.
 3. When prompted (or via the **key** icon), paste **Nebius** and **Tavily** keys in **API Credentials**.
 4. Enter **Orbit Core** and ask:
 
 > Best time to fly home and not fall behind or overspend
 
-### 3. Optional host defaults (self-host / Vercel)
-Copy `.env.example` to `.env.local` only if you want server-side defaults or connectors:
+Returning users with completed onboarding go straight to the cosmos after sign-in. Incomplete onboarding resumes the questionnaire. Use the **sign-out** control (top right) to leave the session.
 
-```bash
-cp .env.example .env.local
-```
+### 4. Optional host defaults (self-host / Vercel)
+Server-side Nebius/Tavily defaults and connectors (in addition to Firebase auth vars):
 
 ```env
 # Optional host defaults — judges can instead paste keys in the UI
@@ -135,7 +163,7 @@ NEBIUS_MODEL_SUPER=nvidia/nemotron-3-super-120b-a12b
 NEBIUS_MODEL_ULTRA=nvidia/Nemotron-3-Ultra-550b-a55b
 ```
 
-### 4. Sovereign Connectors (host once → judges click Connect)
+### 5. Sovereign Connectors (host once → judges click Connect)
 
 **Primary (submit deploy):** register OAuth apps once for `https://orbit-nebius-hackathon.vercel.app`, set env on Vercel, redeploy. Judges open **Sovereign Connectors** → **Connect** → authorize on Google / Notion / Slack → return connected. No client-secret pasting.
 
@@ -187,6 +215,7 @@ Run `npm run verify:connectors` to exercise the search intent router and prompt 
 - **AI Infrastructure:** Nebius Token Factory (`https://api.tokenfactory.nebius.com/v1`)
 - **Foundation Models:** NVIDIA Nemotron 3 Nano (decision + everyday), Super (synthesis), Ultra (serious reasoning)
 - **Live Search:** Tavily Search API
+- **Account auth & profiles:** Firebase Auth (email + Google) + Cloud Firestore
 - **Framework:** Next.js 14 (App Router) + React 18
 - **3D Graphics & Shaders:** Three.js, `@react-three/fiber`, `@react-three/drei`
 - **Styling:** Tailwind CSS, custom GLSL starfield shaders

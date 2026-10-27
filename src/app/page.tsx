@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import type { User } from "firebase/auth";
 import {
   SpecialistId,
   SharedBrainProfile,
@@ -16,6 +17,7 @@ import { SOLAR_DAWN_WAYPOINTS } from "@/lib/solarDawnTour";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
 import { CosmicAwakeningModal } from "@/components/onboarding/CosmicAwakeningModal";
+import { AuthGateModal } from "@/components/auth/AuthGateModal";
 import { ApiKeyGateModal } from "@/components/shared/ApiKeyGateModal";
 import { BrainInspectorModal } from "@/components/shared/BrainInspectorModal";
 import { PlanetCustomizerModal } from "@/components/cosmos/PlanetCustomizerModal";
@@ -26,17 +28,28 @@ import {
   Key,
   Brain,
   Sparkle,
-  X,
   PlayCircle,
   Pause,
   Play,
-  MagnifyingGlass,
   PaperPlaneRight,
   SlidersHorizontal,
   CaretUp,
   Check,
+  SignOut,
 } from "@phosphor-icons/react";
 import { cosmicAudio, AudioEngineState, CosmicTrackId, COSMIC_TRACKS } from "@/lib/audio";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
+import { signOut, subscribeToAuth } from "@/lib/firebase/auth";
+import {
+  completeOnboarding,
+  ensureUserProfile,
+  saveBrainProfile,
+  saveOnboardingDraft,
+} from "@/lib/firebase/profile";
+import { OnboardingDraft } from "@/lib/firebase/types";
+
+/** App access gate — anonymous use of the solar system is not allowed. */
+type AccessPhase = "boot" | "auth" | "onboarding" | "app";
 
 export default function OrbitHome() {
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<SpecialistId | null>(null);
@@ -44,14 +57,22 @@ export default function OrbitHome() {
   const [brain, setBrain] = useState<SharedBrainProfile>(DEFAULT_STUDENT_BRAIN);
   const [brief, setBrief] = useState<MorningBriefData | null>(null);
 
+  // Auth + onboarding gate
+  const [accessPhase, setAccessPhase] = useState<AccessPhase>("boot");
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const profileLoadGen = useRef(0);
+
   // Modal States
-  const [showAwakening, setShowAwakening] = useState<boolean>(false);
-  /** Gate WebGL until localStorage bootstrap finishes so onboarding stays clickable. */
-  const [bootstrapped, setBootstrapped] = useState<boolean>(false);
   const [showApiKeyGate, setShowApiKeyGate] = useState<boolean>(false);
   const [showBrainInspector, setShowBrainInspector] = useState<boolean>(false);
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [customizerPlanetId, setCustomizerPlanetId] = useState<SpecialistId | null>(null);
+
+  const showAwakening = accessPhase === "onboarding";
+  const bootstrapped = authReady && accessPhase === "app";
+  const inApp = accessPhase === "app";
 
   // Exoplanet Customization State
   const [planetCustomizations, setPlanetCustomizations] = useState<Record<string, PlanetCustomization>>(DEFAULT_PLANET_CUSTOMIZATIONS);
@@ -83,46 +104,13 @@ export default function OrbitHome() {
 
   const tourNarrations = SOLAR_DAWN_WAYPOINTS;
 
-  // Initial load
-  useEffect(() => {
-    // Optional hard reset back to Cosmic Awakening (e.g. /?reset=1)
-    const params = new URLSearchParams(window.location.search);
-    const forceAwaken = params.get("reset") === "1" || params.get("awaken") === "1";
-    if (forceAwaken) {
-      localStorage.removeItem("orbit_brain");
-      localStorage.removeItem("orbit_awakened");
-      params.delete("reset");
-      params.delete("awaken");
-      const next = `${window.location.pathname}${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
-      window.history.replaceState({}, "", next);
-    }
-
-    // Check localStorage for brain
-    const savedBrain = localStorage.getItem("orbit_brain");
-    const savedAwakened = localStorage.getItem("orbit_awakened");
+  const loadBrowserPrefs = useCallback(() => {
     const savedNebiusKey = localStorage.getItem("orbit_nebius_key") || "";
     const savedTavilyKey = localStorage.getItem("orbit_tavily_key") || "";
-
     if (savedNebiusKey) setNebiusKey(savedNebiusKey);
     if (savedTavilyKey) setTavilyKey(savedTavilyKey);
     localStorage.removeItem("orbit_mock_mode");
 
-    if (forceAwaken) {
-      setShowAwakening(true);
-    } else if (savedBrain) {
-      try {
-        setBrain(JSON.parse(savedBrain));
-      } catch {}
-    } else if (!savedAwakened) {
-      setShowAwakening(true);
-    }
-
-    // If identity already calibrated but no browser Nebius key, open credentials
-    // after runtime probe (see effect below) — in-app keys are the happy path.
-
-    // Bump to refresh default palettes (vibrant Zen defaults).
     const PLANET_CUSTOM_VERSION = "v8c-vibrant-defaults";
     const savedCustomVersion = localStorage.getItem("orbit_planet_custom_version");
     if (savedCustomVersion !== PLANET_CUSTOM_VERSION) {
@@ -148,7 +136,9 @@ export default function OrbitHome() {
             }
             return next;
           });
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -160,16 +150,113 @@ export default function OrbitHome() {
           ...DEFAULT_NEBULA_CUSTOMIZATION,
           ...parsed,
         });
-      } catch {}
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  const applySignedInProfile = useCallback(
+    async (user: User, forceAwaken: boolean) => {
+      const gen = ++profileLoadGen.current;
+      try {
+        const profile = await ensureUserProfile(user);
+        if (gen !== profileLoadGen.current) return;
+
+        if (forceAwaken || !profile.onboardingCompleted || !profile.brain) {
+          setOnboardingDraft(
+            profile.onboardingDraft || {
+              step: profile.onboardingStep === 2 ? 2 : 1,
+              name: user.displayName || "",
+              university: "",
+              degree: "",
+              gradYear: "2028",
+              homeAirport: "",
+              calTarget: "3100",
+              proteinTarget: "170",
+              budgetCap: "800",
+            }
+          );
+          setAccessPhase("onboarding");
+          return;
+        }
+
+        setBrain(profile.brain);
+        localStorage.setItem("orbit_brain", JSON.stringify(profile.brain));
+        localStorage.setItem("orbit_awakened", "true");
+        setOnboardingDraft(null);
+        setAccessPhase("app");
+      } catch (err) {
+        console.error("Failed to load Orbit profile", err);
+        if (gen !== profileLoadGen.current) return;
+        // Fail closed into onboarding rather than anonymous app access.
+        setOnboardingDraft({
+          step: 1,
+          name: user.displayName || "",
+          university: "",
+          degree: "",
+          gradYear: "2028",
+          homeAirport: "",
+          calTarget: "3100",
+          proteinTarget: "170",
+          budgetCap: "800",
+        });
+        setAccessPhase("onboarding");
+      }
+    },
+    []
+  );
+
+  // Auth session + prefs bootstrap
+  useEffect(() => {
+    loadBrowserPrefs();
+
+    const params = new URLSearchParams(window.location.search);
+    let forceAwakenOnce =
+      params.get("reset") === "1" || params.get("awaken") === "1";
+    if (forceAwakenOnce) {
+      params.delete("reset");
+      params.delete("awaken");
+      const next = `${window.location.pathname}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+      window.history.replaceState({}, "", next);
     }
 
-    // Fetch morning brief
+    if (!isFirebaseConfigured()) {
+      setSessionUser(null);
+      setAccessPhase("auth");
+      setAuthReady(true);
+      return;
+    }
+
+    const unsub = subscribeToAuth((user) => {
+      setSessionUser(user);
+      setAuthReady(true);
+      if (!user) {
+        profileLoadGen.current += 1;
+        setSelectedSpecialistId(null);
+        setOnboardingDraft(null);
+        setAccessPhase("auth");
+        return;
+      }
+      const force = forceAwakenOnce;
+      forceAwakenOnce = false;
+      void applySignedInProfile(user, force);
+    });
+
+    return () => unsub();
+  }, [applySignedInProfile, loadBrowserPrefs]);
+
+  // Host runtime probe (after app unlock)
+  useEffect(() => {
+    if (accessPhase !== "app") return;
+
     fetch("/api/brief")
       .then((res) => res.json())
       .then((data) => setBrief(data))
       .catch(() => {});
 
-    // Probe host Token Factory / Tavily (defaults). In-app keys still win when set.
     fetch("/api/runtime")
       .then((res) => res.json())
       .then((data) => {
@@ -187,25 +274,41 @@ export default function OrbitHome() {
         const hasClientNebius = Boolean(
           (localStorage.getItem("orbit_nebius_key") || "").trim()
         );
-        const awakened =
-          localStorage.getItem("orbit_awakened") === "true" ||
-          Boolean(localStorage.getItem("orbit_brain"));
-        // Prompt for in-app keys when neither host nor browser has Nebius.
-        if (awakened && !serverNebius && !hasClientNebius && !forceAwaken) {
+        if (!serverNebius && !hasClientNebius) {
           setShowApiKeyGate(true);
         }
       })
       .catch(() => {});
-
-    // Allow WebGL only after we know whether onboarding must block it.
-    setBootstrapped(true);
-  }, []);
+  }, [accessPhase]);
 
   const handleRecalibrateIdentity = () => {
+    if (!sessionUser) return;
     localStorage.removeItem("orbit_brain");
     localStorage.removeItem("orbit_awakened");
     setSelectedSpecialistId(null);
-    setShowAwakening(true);
+    setOnboardingDraft({
+      step: 1,
+      name: brain.student.name || sessionUser.displayName || "",
+      university: brain.student.university || "",
+      degree: brain.student.degree || "",
+      gradYear: brain.student.gradYear || "2028",
+      homeAirport: brain.student.homeAirport || "",
+      calTarget: String(brain.goals.nutrition.caloriesTarget || 3100),
+      proteinTarget: String(brain.goals.nutrition.proteinTarget || 170),
+      budgetCap: String(brain.goals.wallet.monthlyBudgetCap || 800),
+    });
+    setAccessPhase("onboarding");
+    void saveOnboardingDraft(sessionUser.uid, {
+      step: 1,
+      name: brain.student.name || sessionUser.displayName || "",
+      university: brain.student.university || "",
+      degree: brain.student.degree || "",
+      gradYear: brain.student.gradYear || "2028",
+      homeAirport: brain.student.homeAirport || "",
+      calTarget: String(brain.goals.nutrition.caloriesTarget || 3100),
+      proteinTarget: String(brain.goals.nutrition.proteinTarget || 170),
+      budgetCap: String(brain.goals.wallet.monthlyBudgetCap || 800),
+    }).catch(() => {});
     try {
       cosmicAudio.playClick();
     } catch {
@@ -213,24 +316,59 @@ export default function OrbitHome() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      cosmicAudio.playClick();
+    } catch {
+      /* ignore */
+    }
+    setSelectedSpecialistId(null);
+    await signOut();
+    setAccessPhase("auth");
+    setSessionUser(null);
+    setOnboardingDraft(null);
+  };
+
   const handleUpdateBrain = (updated: SharedBrainProfile) => {
     setBrain(updated);
     localStorage.setItem("orbit_brain", JSON.stringify(updated));
+    if (sessionUser) {
+      void saveBrainProfile(sessionUser.uid, updated).catch((err) => {
+        console.error("Failed to persist Shared Brain", err);
+      });
+    }
   };
 
   const handleCompleteAwakening = (newProfile: SharedBrainProfile) => {
     setBrain(newProfile);
     localStorage.setItem("orbit_brain", JSON.stringify(newProfile));
     localStorage.setItem("orbit_awakened", "true");
-    setShowAwakening(false);
+    setOnboardingDraft(null);
+    setAccessPhase("app");
+    if (sessionUser) {
+      void completeOnboarding(
+        sessionUser.uid,
+        newProfile,
+        sessionUser.email,
+        sessionUser.displayName
+      ).catch((err) => {
+        console.error("Failed to complete onboarding", err);
+      });
+    }
     try {
       cosmicAudio.playWarp();
     } catch {
       /* ignore audio policy errors */
     }
-    // Primary setup: if host has no Nebius and browser has none, open credentials.
     if (!runtimeLive?.nebius && !nebiusKey.trim()) {
       setShowApiKeyGate(true);
+    }
+  };
+
+  const handleDraftChange = (draft: OnboardingDraft) => {
+    setOnboardingDraft(draft);
+    if (sessionUser) {
+      void saveOnboardingDraft(sessionUser.uid, draft).catch(() => {});
     }
   };
 
@@ -384,10 +522,26 @@ export default function OrbitHome() {
         }}
       />
 
+      {/* Boot / auth splash (no anonymous cosmos) */}
+      {(accessPhase === "boot" || accessPhase === "auth") && (
+        <div className="absolute inset-0 z-[5] flex items-center justify-center pointer-events-none">
+          <div className="text-center space-y-2 px-6">
+            <div className="text-sm font-mono font-semibold tracking-[0.2em] text-amber-300/90">
+              ORBIT
+            </div>
+            <p className="text-[11px] font-mono text-zinc-500">
+              {accessPhase === "boot"
+                ? "Checking account…"
+                : "Sign in required to enter the solar system"}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* 3D Solar System WebGL Canvas — unmount during Cosmic Awakening and
           while Studio is open so onboarding stays interactive and Studio
           keeps a dedicated GL context (dual Canvas blacks out Studio). */}
-      {bootstrapped && !showAwakening && !showCustomizer && (
+      {bootstrapped && !showCustomizer && (
         <SolarSystemCanvas
           selectedSpecialistId={selectedSpecialistId}
           onSelectSpecialist={handleSelectSpecialist}
@@ -401,7 +555,7 @@ export default function OrbitHome() {
       )}
 
       {/* Top Left Zen Brand Glyph */}
-      {!showAwakening && !selectedSpecialistId && !isTouring && (
+      {inApp && !selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 left-6 z-10 flex items-center gap-3">
           <button
             type="button"
@@ -430,7 +584,7 @@ export default function OrbitHome() {
       )}
 
       {/* Top Right Zen Controls */}
-      {!showAwakening && !selectedSpecialistId && !isTouring && (
+      {inApp && !selectedSpecialistId && !isTouring && (
         <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
           {/* Planet Studio Customizer Button */}
           <button
@@ -508,11 +662,26 @@ export default function OrbitHome() {
           >
             <Key size={15} weight="duotone" />
           </button>
+
+          {/* Sign out */}
+          <button
+            onClick={() => {
+              void handleSignOut();
+            }}
+            title={
+              sessionUser?.email
+                ? `Sign out (${sessionUser.email})`
+                : "Sign out"
+            }
+            className="w-8 h-8 rounded-full bg-[rgba(10,10,20,0.5)] hover:bg-[rgba(10,10,20,0.7)] border border-white/5 text-zinc-300 hover:text-white backdrop-blur-2xl flex items-center justify-center transition active:scale-[0.96] shadow-zen-dock"
+          >
+            <SignOut size={15} weight="bold" />
+          </button>
         </div>
       )}
 
       {/* Bottom Left Zen Ambient Music Player with Volume + Track Picker */}
-      {!showAwakening && !selectedSpecialistId && !isTouring && (
+      {inApp && !selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-6 z-10 flex items-end gap-2">
           {/* Circular Play / Pause Button */}
           <button
@@ -679,7 +848,7 @@ export default function OrbitHome() {
       )}
 
       {/* Center Bottom Integrated Zen Command Dock (Perplexity Zen style) */}
-      {!showAwakening && !selectedSpecialistId && !isTouring && (
+      {inApp && !selectedSpecialistId && !isTouring && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-4 flex flex-col items-center">
           <div className="w-full p-2 rounded-2xl bg-[rgba(10,10,20,0.45)] border border-white/5 backdrop-blur-2xl shadow-zen-dock space-y-2">
             {/* Zen Command Bar Input */}
@@ -730,7 +899,7 @@ export default function OrbitHome() {
       )}
 
       {/* Floating Solar Dawn Tour Projection Card */}
-      {isTouring && (
+      {inApp && isTouring && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-md p-5 rounded-2xl bg-zinc-950/95 border border-white/15 backdrop-blur-2xl shadow-glass-lg text-white">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 text-xs font-mono">
             <span className="text-amber-300 font-medium">
@@ -766,7 +935,7 @@ export default function OrbitHome() {
       )}
 
       {/* Cockpit HUD View when Zoomed Into Specialist */}
-      {selectedSpecialistId && !isTouring && (
+      {inApp && selectedSpecialistId && !isTouring && (
         <CockpitHUD
           specialistId={selectedSpecialistId}
           brain={brain}
@@ -786,41 +955,57 @@ export default function OrbitHome() {
         />
       )}
 
-      {/* Cosmic Awakening Modal */}
+      {/* Account gate — must sign in / sign up (email or Google) */}
+      {accessPhase === "auth" && (
+        <AuthGateModal onAuthenticated={() => {/* auth listener advances phase */}} />
+      )}
+
+      {/* Cosmic Awakening — required for new / incomplete accounts */}
       {showAwakening && (
-        <CosmicAwakeningModal onComplete={handleCompleteAwakening} />
+        <CosmicAwakeningModal
+          key={sessionUser?.uid || "awakening"}
+          onComplete={handleCompleteAwakening}
+          initialDraft={onboardingDraft}
+          onDraftChange={handleDraftChange}
+        />
       )}
 
       {/* In-app API credentials (primary path; host env is optional default) */}
-      <ApiKeyGateModal
-        isOpen={showApiKeyGate}
-        onClose={() => setShowApiKeyGate(false)}
-        onSaveKeys={handleSaveKeys}
-        currentNebiusKey={nebiusKey}
-        currentTavilyKey={tavilyKey}
-        requireNebius={!runtimeLive?.nebius && !nebiusKey.trim()}
-        serverHasNebius={Boolean(runtimeLive?.nebius)}
-        serverHasTavily={Boolean(runtimeLive?.tavily)}
-      />
+      {inApp && (
+        <ApiKeyGateModal
+          isOpen={showApiKeyGate}
+          onClose={() => setShowApiKeyGate(false)}
+          onSaveKeys={handleSaveKeys}
+          currentNebiusKey={nebiusKey}
+          currentTavilyKey={tavilyKey}
+          requireNebius={!runtimeLive?.nebius && !nebiusKey.trim()}
+          serverHasNebius={Boolean(runtimeLive?.nebius)}
+          serverHasTavily={Boolean(runtimeLive?.tavily)}
+        />
+      )}
 
       {/* Shared Brain Inspector Modal */}
-      <BrainInspectorModal
-        isOpen={showBrainInspector}
-        onClose={() => setShowBrainInspector(false)}
-        brain={brain}
-      />
+      {inApp && (
+        <BrainInspectorModal
+          isOpen={showBrainInspector}
+          onClose={() => setShowBrainInspector(false)}
+          brain={brain}
+        />
+      )}
 
       {/* Exoplanet Studio Customizer Modal */}
-      <PlanetCustomizerModal
-        isOpen={showCustomizer}
-        onClose={() => setShowCustomizer(false)}
-        customizations={planetCustomizations}
-        onUpdateCustomization={handleUpdateCustomization}
-        onResetAll={handleResetAllCustomizations}
-        initialPlanetId={customizerPlanetId}
-        nebulaCustomization={nebulaCustomization}
-        onUpdateNebula={handleUpdateNebula}
-      />
+      {inApp && (
+        <PlanetCustomizerModal
+          isOpen={showCustomizer}
+          onClose={() => setShowCustomizer(false)}
+          customizations={planetCustomizations}
+          onUpdateCustomization={handleUpdateCustomization}
+          onResetAll={handleResetAllCustomizations}
+          initialPlanetId={customizerPlanetId}
+          nebulaCustomization={nebulaCustomization}
+          onUpdateNebula={handleUpdateNebula}
+        />
+      )}
     </main>
   );
 }
