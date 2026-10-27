@@ -40,7 +40,10 @@ export function CoreBriefWidget({
         </div>
 
         <p className="text-xs text-zinc-300 mb-3.5 leading-relaxed">
-          {brief?.greeting || "Good morning. Here is your daily student OS brief for RIT campus."}
+          {brief?.greeting ||
+            `Good morning${brain.student.name ? `, ${brain.student.name}` : ""}. Here is your daily Orbit briefing${
+              brain.student.campus ? ` for ${brain.student.campus}` : ""
+            }.`}
         </p>
 
         {/* Cinematic 3D Tour Button */}

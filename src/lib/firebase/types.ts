@@ -8,9 +8,14 @@ export interface OnboardingDraft {
   degree: string;
   gradYear: string;
   homeAirport: string;
+  campus: string;
   calTarget: string;
   proteinTarget: string;
   budgetCap: string;
+  workoutSplit: string;
+  sports: string;
+  careerRoles: string;
+  careerSeason: string;
 }
 
 export interface OrbitUserProfile {
@@ -29,9 +34,14 @@ export const EMPTY_ONBOARDING_DRAFT: OnboardingDraft = {
   name: "",
   university: "",
   degree: "",
-  gradYear: "2028",
+  gradYear: "",
   homeAirport: "",
-  calTarget: "3100",
-  proteinTarget: "170",
-  budgetCap: "800",
+  campus: "",
+  calTarget: "2500",
+  proteinTarget: "120",
+  budgetCap: "600",
+  workoutSplit: "",
+  sports: "",
+  careerRoles: "",
+  careerSeason: "",
 };

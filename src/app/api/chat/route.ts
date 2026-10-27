@@ -143,12 +143,22 @@ export async function POST(req: NextRequest) {
     const student = brain?.student || {
       name: "Student",
       university: "University",
-      degree: "Computer Science",
-      homeAirport: "BOS",
+      degree: "",
+      homeAirport: "",
+      campus: "",
+      gradYear: "",
     };
+    const goals = brain?.goals;
 
     const lowerMsg = (message || "").toLowerCase();
-    const studentBlurb = `${student.name} at ${student.university}, ${student.degree}, home ${student.homeAirport || "BOS"}`;
+    const studentBlurb = [
+      student.name,
+      student.university,
+      student.degree,
+      student.homeAirport ? `home ${student.homeAirport}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
     let aiContent = "";
     let approvalRequest: ActionApproval | undefined = undefined;
@@ -259,16 +269,24 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    const calories = goals?.nutrition?.caloriesTarget || 2500;
+    const protein = goals?.nutrition?.proteinTarget || 120;
+    const budget = goals?.wallet?.monthlyBudgetCap || 600;
+    const split = goals?.workout?.split || "custom";
+    const sports = (goals?.workout?.sports || []).filter(Boolean).join(", ") || "none set";
+    const roles = (goals?.career?.targetRoles || []).filter(Boolean).join(", ") || "unset";
+    const season = goals?.career?.targetSeason || "unset";
+
     const systemPrompt = `You are ${activeSpecialist.name}, part of Orbit - the Sovereign Personal Student OS.
-Student Profile:
-- Name: ${student.name}
-- School: ${student.university} (${student.campus || "Campus"})
-- Degree: ${student.degree} (Class of ${student.gradYear || "2028"})
-- Home Airport: ${student.homeAirport || "BOS"}
-- Nutrition Goal: Bulk (~3000-3200 kcal, 160-180g protein). Honest macro ranges always.
-- Workout Split: 4x week lifting + Men's Volleyball club.
-- Wallet Cap: $800/month spending cap strictly respected.
-- Career Target: Summer 2027 SWE / ML Internships.
+Student Profile (from Shared Brain — do not invent demo schools, sports, or companies):
+- Name: ${student.name || "Student"}
+- School: ${student.university || "University"}${student.campus ? ` (${student.campus})` : ""}
+- Degree: ${student.degree || "unset"}${student.gradYear ? ` (Class of ${student.gradYear})` : ""}
+- Home Airport: ${student.homeAirport || "unset"}
+- Nutrition Goal: ${calories} kcal / ${protein}g protein. Honest macro ranges always.
+- Workout Split: ${split}. Sports: ${sports}.
+- Wallet Cap: $${budget}/month spending cap strictly respected.
+- Career Target: ${season} — ${roles}.
 
 Specialist Persona:
 ${activeSpecialist.tagline}
@@ -403,7 +421,7 @@ Rules:
             "Orbit staged a Gmail draft for your review. Nothing is sent until you open Gmail and send it yourself.",
           service: "Gmail",
           payload: {
-            to: student.name ? `${student.name.toLowerCase()}@rit.edu` : "me@example.com",
+            to: "me@example.com",
             subject: "Orbit draft follow-up",
             body: "Draft prepared by Orbit for your review.",
           },
@@ -416,24 +434,21 @@ Rules:
         lowerMsg.includes("flight") ||
         lowerMsg.includes("home")
       ) {
+        const airport = student.homeAirport || "HOME";
         approvalRequest = {
           id: `auth-${Date.now()}`,
           specialistId: "travel",
-          title: "Hold Calendar for Break Travel: ROC to BOS",
-          description:
-            "Staged non-stop flight window (Dec 19 - Jan 3). Fits within $800 monthly cap and clears finals schedule.",
+          title: `Hold Calendar for Break Travel (${airport})`,
+          description: `Staged break travel look-ahead involving ${airport}. Fits within your $${budget}/month cap pending your confirmation.`,
           service: "Google Calendar",
           payload: {
-            title: "Confirmed Hold: ROC -> BOS Break Travel",
+            title: `Confirmed Hold: Break Travel (${airport})`,
             description: "Orbit Travel provisional break window",
-            start: "2026-12-19",
-            end: "2026-12-20",
-            route: "ROC -> BOS",
-            dates: "Dec 19 - Jan 3",
-            priceEstimate: "$142",
+            route: airport,
+            priceEstimate: "TBD",
           },
           status: "pending",
-          safetyCheck: "Verified no volleyball game conflicts. Budget buffer remaining: $415.",
+          safetyCheck: `Budget soft-check against $${budget} monthly cap. No auto-booking.`,
           timestamp: "Just now",
         };
       } else if (
@@ -445,15 +460,15 @@ Rules:
           id: `auth-${Date.now()}`,
           specialistId: "career",
           title: "Authorize Application Submission",
-          description:
-            "Tailored 1-page ML Engineer application drafted for review. Zero silent submissions.",
+          description: `Tailored application draft for ${roles} (${season}). Zero silent submissions.`,
           service: "Job Portal",
           payload: {
-            role: "SWE / ML Intern Summer 2027",
+            role: roles,
+            season,
             status: "ready_for_review",
           },
           status: "pending",
-          safetyCheck: "Sovereign review mandatory. All resume bullets verified.",
+          safetyCheck: "Sovereign review mandatory before any external submit.",
           timestamp: "Just now",
         };
       } else {
@@ -466,7 +481,7 @@ Rules:
           payload: {
             action: "create_event",
             source: activeSpecialist.name,
-            title: "Confirmed Hold: CSCI 320 Evening Study Block",
+            title: "Confirmed Hold: Study Block",
             description: `Study hold proposed by ${activeSpecialist.name}`,
             start: hold.start,
             end: hold.end,

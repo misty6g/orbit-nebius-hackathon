@@ -21,7 +21,7 @@ export function HealthMacroRings({ brain, onUpdateBrain }: HealthMacroRingsProps
   const totalCalsAvg = Math.round((totalCalsMin + totalCalsMax) / 2);
   const totalProtein = meals.reduce((acc, m) => acc + m.proteinGrams, 0);
 
-  const calTarget = brain.goals.nutrition.caloriesTarget || 3100;
+  const calTarget = brain.goals.nutrition.caloriesTarget || 2500;
   const proteinTarget = brain.goals.nutrition.proteinTarget || 170;
 
   const calPct = Math.min(100, Math.round((totalCalsAvg / calTarget) * 100));

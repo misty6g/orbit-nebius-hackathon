@@ -467,6 +467,9 @@ export interface MorningBriefData {
   date: string;
   greeting: string;
   scheduleHighlights: string[];
+  /** Optional athletics / sports callout for the morning brief. */
+  athleticsNotice?: string;
+  /** @deprecated Prefer athleticsNotice */
   volleyballNotice?: string;
   macroPacing: string;
   budgetStatus: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ChatMessage, SpecialistId } from "@/types/orbit";
+import { ChatMessage, SharedBrainProfile, SpecialistId } from "@/types/orbit";
 import { SPECIALISTS } from "@/lib/specialists";
 import { PaperPlaneRight, Cpu, Sparkle, CaretDown, CaretUp, ArrowSquareOut } from "@phosphor-icons/react";
 import { InStreamAuthCard } from "./InStreamAuthCard";
@@ -14,6 +14,73 @@ interface AgentChatStreamProps {
   onRejectAction: (id: string) => void;
   isLoading: boolean;
   activeSpecialistId: SpecialistId;
+  brain: SharedBrainProfile;
+}
+
+function buildQuickPrompts(brain: SharedBrainProfile): Record<SpecialistId, string[]> {
+  const calories = brain.goals.nutrition.caloriesTarget || 2500;
+  const budget = brain.goals.wallet.monthlyBudgetCap || 600;
+  const airport = brain.student.homeAirport?.trim().toUpperCase() || "home";
+  const campus = brain.student.campus?.trim() || "campus";
+  const sports =
+    brain.goals.workout.sports?.filter(Boolean)[0] || "game day";
+  const season = brain.goals.career.targetSeason?.trim() || "this recruiting season";
+  const role =
+    brain.goals.career.targetRoles?.filter(Boolean)[0] || "my target internship";
+
+  return {
+    core: [
+      "Best time to fly home and not fall behind or overspend",
+      "What is my morning brief today?",
+      "Coordinate a study hold tonight",
+      `Check my ${season} internship pipeline`,
+    ],
+    health: [
+      "Log a high-protein lunch with honest calorie ranges",
+      `How are my macros pacing against the ${calories.toLocaleString()} kcal target?`,
+      "Suggest a high-protein snack after training",
+    ],
+    move: [
+      "When did I last train legs?",
+      "Log today's main lifts and sets",
+      `Check recovery readiness for ${sports}`,
+    ],
+    schedule: [
+      "What classes and commitments do I have today?",
+      "Find 2 hours of free study time tonight",
+      "Hold a study block this evening",
+    ],
+    study: [
+      "Explain a tough concept from my last lecture",
+      "Generate a 3-question quiz on my weak topics",
+      "Review flashcards that need spaced practice",
+    ],
+    wallet: [
+      "Log a campus dining purchase",
+      `How much budget is left in my $${budget.toLocaleString()} monthly cap?`,
+      "Can I afford a break flight this month?",
+    ],
+    explore: [
+      `Find local tech meetups near ${campus} this week`,
+      `What student events are happening near ${campus}?`,
+    ],
+    deals: [
+      "Find student discounts for laptops and AI hardware",
+      "Any active .edu deals on cloud compute credits?",
+    ],
+    travel: [
+      `Find break flights involving ${airport} with student pricing`,
+      "What is the look-ahead for the next university break?",
+    ],
+    career: [
+      `Tailor my resume for ${role}`,
+      `Find openings for ${season}`,
+    ],
+    build: [
+      "Generate a portfolio project spec from a job description",
+      "Draft README and architecture for my next project",
+    ],
+  };
 }
 
 export function AgentChatStream({
@@ -23,6 +90,7 @@ export function AgentChatStream({
   onRejectAction,
   isLoading,
   activeSpecialistId,
+  brain,
 }: AgentChatStreamProps) {
   const [input, setInput] = useState("");
   const [openTraceId, setOpenTraceId] = useState<string | null>(null);
@@ -43,60 +111,7 @@ export function AgentChatStream({
     setInput("");
   };
 
-  const quickPrompts: Record<SpecialistId, string[]> = {
-    core: [
-      "Best time to fly home and not fall behind or overspend",
-      "What is my morning brief for RIT today?",
-      "Coordinate study hold tonight for CSCI 320 exam",
-      "Check Summer 2027 SWE internship pipeline",
-    ],
-    health: [
-      "Log double chicken bowl with brown rice and black beans",
-      "How are my macros pacing against the 3,100 kcal bulk target?",
-      "Suggest high-protein post-volleyball snack",
-    ],
-    move: [
-      "When did I last train hamstrings?",
-      "Log bench press: 4 sets of 6 reps at 195 lb",
-      "Check leg recovery for volleyball match day",
-    ],
-    schedule: [
-      "What classes and sports do I have today?",
-      "Find 2 hours of free study time tonight",
-      "Hold study block from 8:30 PM to 10 PM",
-    ],
-    study: [
-      "Explain 1x1 convolutions in modern neural networks",
-      "Generate a 3-question quiz on residual skip connections",
-      "Review weak topics from Computer Vision Lecture 06",
-    ],
-    wallet: [
-      "Log purchase: $38.50 campus dining",
-      "How much budget is left in my $800 monthly cap?",
-      "Can I afford a $140 flight home this month?",
-    ],
-    explore: [
-      "Find local Rochester AI and tech meetups this week",
-      "What events are happening on RIT campus Friday?",
-    ],
-    deals: [
-      "Find student discounts for AI hardware and laptops",
-      "Any active .edu deals on cloud compute credits?",
-    ],
-    travel: [
-      "Find break flights ROC to BOS with student pricing",
-      "What is the look-ahead for Thanksgiving break flights?",
-    ],
-    career: [
-      "Tailor my resume for NVIDIA Deep Learning Systems Intern",
-      "Find target Summer 2027 SWE/ML openings",
-    ],
-    build: [
-      "Generate a portfolio project spec for a distributed KV store",
-      "Draft README and architecture for CUDA embeddings project",
-    ],
-  };
-
+  const quickPrompts = buildQuickPrompts(brain);
   const prompts = quickPrompts[activeSpecialistId] || quickPrompts.core;
 
   return (
