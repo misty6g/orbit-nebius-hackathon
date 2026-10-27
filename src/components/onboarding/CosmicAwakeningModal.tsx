@@ -1,25 +1,71 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SharedBrainProfile } from "@/types/orbit";
 import { Sparkle, RocketLaunch, Check } from "@phosphor-icons/react";
 import { cosmicAudio } from "@/lib/audio";
+import {
+  EMPTY_ONBOARDING_DRAFT,
+  OnboardingDraft,
+} from "@/lib/firebase/types";
 
 interface CosmicAwakeningModalProps {
   onComplete: (profile: SharedBrainProfile) => void;
+  /** Resume incomplete questionnaire */
+  initialDraft?: OnboardingDraft | null;
+  /** Persist draft when step/fields change (Firestore) */
+  onDraftChange?: (draft: OnboardingDraft) => void;
 }
 
-export function CosmicAwakeningModal({ onComplete }: CosmicAwakeningModalProps) {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [name, setName] = useState("");
-  const [university, setUniversity] = useState("");
-  const [degree, setDegree] = useState("");
-  const [gradYear, setGradYear] = useState("2028");
-  const [homeAirport, setHomeAirport] = useState("");
+export function CosmicAwakeningModal({
+  onComplete,
+  initialDraft,
+  onDraftChange,
+}: CosmicAwakeningModalProps) {
+  const seed = initialDraft
+    ? { ...EMPTY_ONBOARDING_DRAFT, ...initialDraft }
+    : EMPTY_ONBOARDING_DRAFT;
 
-  const [calTarget, setCalTarget] = useState("3100");
-  const [proteinTarget, setProteinTarget] = useState("170");
-  const [budgetCap, setBudgetCap] = useState("800");
+  const [step, setStep] = useState<1 | 2>(seed.step === 2 ? 2 : 1);
+  const [name, setName] = useState(seed.name);
+  const [university, setUniversity] = useState(seed.university);
+  const [degree, setDegree] = useState(seed.degree);
+  const [gradYear, setGradYear] = useState(seed.gradYear || "2028");
+  const [homeAirport, setHomeAirport] = useState(seed.homeAirport);
+  const [calTarget, setCalTarget] = useState(seed.calTarget || "3100");
+  const [proteinTarget, setProteinTarget] = useState(seed.proteinTarget || "170");
+  const [budgetCap, setBudgetCap] = useState(seed.budgetCap || "800");
+
+  const buildDraft = (nextStep: 1 | 2 = step): OnboardingDraft => ({
+    step: nextStep,
+    name,
+    university,
+    degree,
+    gradYear,
+    homeAirport,
+    calTarget,
+    proteinTarget,
+    budgetCap,
+  });
+
+  useEffect(() => {
+    if (!onDraftChange) return;
+    const handle = window.setTimeout(() => {
+      onDraftChange(buildDraft(step));
+    }, 400);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    step,
+    name,
+    university,
+    degree,
+    gradYear,
+    homeAirport,
+    calTarget,
+    proteinTarget,
+    budgetCap,
+  ]);
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +75,7 @@ export function CosmicAwakeningModal({ onComplete }: CosmicAwakeningModalProps) 
       /* ignore */
     }
     setStep(2);
+    onDraftChange?.(buildDraft(2));
   };
 
   const handleFinish = (e: React.FormEvent) => {
@@ -116,10 +163,10 @@ export function CosmicAwakeningModal({ onComplete }: CosmicAwakeningModalProps) 
           </span>
           <div>
             <h3 className="text-sm font-semibold tracking-wide text-slate-100">
-              Orbit Identity Calibration
+              Cosmic Awakening
             </h3>
             <p className="text-[11px] font-mono text-slate-400">
-              Personal Student OS Configuration
+              Orbit Identity Calibration · Step {step} of 2
             </p>
           </div>
         </div>
@@ -262,7 +309,10 @@ export function CosmicAwakeningModal({ onComplete }: CosmicAwakeningModalProps) 
             <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setStep(1);
+                  onDraftChange?.(buildDraft(1));
+                }}
                 className="zen-btn px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
               >
                 Back
