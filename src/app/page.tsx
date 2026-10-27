@@ -13,7 +13,7 @@ import {
   DEFAULT_NEBULA_CUSTOMIZATION,
 } from "@/types/orbit";
 import { DEFAULT_STUDENT_BRAIN, SPECIALISTS } from "@/lib/specialists";
-import { SOLAR_DAWN_WAYPOINTS } from "@/lib/solarDawnTour";
+import { buildSolarDawnWaypoints } from "@/lib/solarDawnTour";
 import { SolarSystemCanvas } from "@/components/cosmos/SolarSystemCanvas";
 import { CockpitHUD } from "@/components/hud/CockpitHUD";
 import { CosmicAwakeningModal } from "@/components/onboarding/CosmicAwakeningModal";
@@ -46,7 +46,7 @@ import {
   saveBrainProfile,
   saveOnboardingDraft,
 } from "@/lib/firebase/profile";
-import { OnboardingDraft } from "@/lib/firebase/types";
+import { EMPTY_ONBOARDING_DRAFT, OnboardingDraft } from "@/lib/firebase/types";
 
 /** App access gate — anonymous use of the solar system is not allowed. */
 type AccessPhase = "boot" | "auth" | "onboarding" | "app";
@@ -102,7 +102,7 @@ export default function OrbitHome() {
   // Zen Quick Omnibox
   const [quickInput, setQuickInput] = useState<string>("");
 
-  const tourNarrations = SOLAR_DAWN_WAYPOINTS;
+  const tourNarrations = buildSolarDawnWaypoints(brain);
 
   const loadBrowserPrefs = useCallback(() => {
     const savedNebiusKey = localStorage.getItem("orbit_nebius_key") || "";
@@ -164,19 +164,12 @@ export default function OrbitHome() {
         if (gen !== profileLoadGen.current) return;
 
         if (forceAwaken || !profile.onboardingCompleted || !profile.brain) {
-          setOnboardingDraft(
-            profile.onboardingDraft || {
-              step: profile.onboardingStep === 2 ? 2 : 1,
-              name: user.displayName || "",
-              university: "",
-              degree: "",
-              gradYear: "2028",
-              homeAirport: "",
-              calTarget: "3100",
-              proteinTarget: "170",
-              budgetCap: "800",
-            }
-          );
+          setOnboardingDraft({
+            ...EMPTY_ONBOARDING_DRAFT,
+            ...(profile.onboardingDraft || {}),
+            step: profile.onboardingDraft?.step === 2 || profile.onboardingStep === 2 ? 2 : 1,
+            name: profile.onboardingDraft?.name || user.displayName || "",
+          });
           setAccessPhase("onboarding");
           return;
         }
@@ -191,15 +184,8 @@ export default function OrbitHome() {
         if (gen !== profileLoadGen.current) return;
         // Fail closed into onboarding rather than anonymous app access.
         setOnboardingDraft({
-          step: 1,
+          ...EMPTY_ONBOARDING_DRAFT,
           name: user.displayName || "",
-          university: "",
-          degree: "",
-          gradYear: "2028",
-          homeAirport: "",
-          calTarget: "3100",
-          proteinTarget: "170",
-          budgetCap: "800",
         });
         setAccessPhase("onboarding");
       }
@@ -252,7 +238,11 @@ export default function OrbitHome() {
   useEffect(() => {
     if (accessPhase !== "app") return;
 
-    fetch("/api/brief")
+    fetch("/api/brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brain }),
+    })
       .then((res) => res.json())
       .then((data) => setBrief(data))
       .catch(() => {});
@@ -286,29 +276,26 @@ export default function OrbitHome() {
     localStorage.removeItem("orbit_brain");
     localStorage.removeItem("orbit_awakened");
     setSelectedSpecialistId(null);
-    setOnboardingDraft({
+    const draftFromBrain: OnboardingDraft = {
+      ...EMPTY_ONBOARDING_DRAFT,
       step: 1,
       name: brain.student.name || sessionUser.displayName || "",
       university: brain.student.university || "",
       degree: brain.student.degree || "",
-      gradYear: brain.student.gradYear || "2028",
+      gradYear: brain.student.gradYear || "",
       homeAirport: brain.student.homeAirport || "",
-      calTarget: String(brain.goals.nutrition.caloriesTarget || 3100),
-      proteinTarget: String(brain.goals.nutrition.proteinTarget || 170),
-      budgetCap: String(brain.goals.wallet.monthlyBudgetCap || 800),
-    });
+      campus: brain.student.campus || "",
+      calTarget: String(brain.goals.nutrition.caloriesTarget || 2500),
+      proteinTarget: String(brain.goals.nutrition.proteinTarget || 120),
+      budgetCap: String(brain.goals.wallet.monthlyBudgetCap || 600),
+      workoutSplit: brain.goals.workout.split || "",
+      sports: (brain.goals.workout.sports || []).join(", "),
+      careerRoles: (brain.goals.career.targetRoles || []).join(", "),
+      careerSeason: brain.goals.career.targetSeason || "",
+    };
+    setOnboardingDraft(draftFromBrain);
     setAccessPhase("onboarding");
-    void saveOnboardingDraft(sessionUser.uid, {
-      step: 1,
-      name: brain.student.name || sessionUser.displayName || "",
-      university: brain.student.university || "",
-      degree: brain.student.degree || "",
-      gradYear: brain.student.gradYear || "2028",
-      homeAirport: brain.student.homeAirport || "",
-      calTarget: String(brain.goals.nutrition.caloriesTarget || 3100),
-      proteinTarget: String(brain.goals.nutrition.proteinTarget || 170),
-      budgetCap: String(brain.goals.wallet.monthlyBudgetCap || 800),
-    }).catch(() => {});
+    void saveOnboardingDraft(sessionUser.uid, draftFromBrain).catch(() => {});
     try {
       cosmicAudio.playClick();
     } catch {

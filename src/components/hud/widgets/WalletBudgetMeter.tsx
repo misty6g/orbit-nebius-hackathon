@@ -56,7 +56,7 @@ export function WalletBudgetMeter({ brain, onUpdateBrain }: WalletBudgetMeterPro
           <div className="flex items-center gap-2">
             <Wallet size={18} weight="duotone" className="text-amber-400" />
             <h4 className="text-xs font-mono font-medium text-amber-300">
-              Monthly Spend Meter ($800 Cap)
+              Monthly Spend Meter (${brain.goals.wallet.monthlyBudgetCap || 600} Cap)
             </h4>
           </div>
           <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-lg bg-zinc-900 text-zinc-300 border border-white/10">

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { MorningBriefData } from "@/types/orbit";
+import { NextRequest, NextResponse } from "next/server";
+import { MorningBriefData, SharedBrainProfile } from "@/types/orbit";
 import {
   assembleConnectorContext,
   readConnectorSession,
@@ -20,37 +20,52 @@ function formatEventLine(title: string, start: string): string {
   return `${start} - ${title}`;
 }
 
-export async function GET() {
-  const fallback: MorningBriefData = {
+function buildGenericBrief(brain?: SharedBrainProfile | null): MorningBriefData {
+  const name = brain?.student?.name?.trim();
+  const campus = brain?.student?.campus?.trim();
+  const calories = brain?.goals?.nutrition?.caloriesTarget || 2500;
+  const protein = brain?.goals?.nutrition?.proteinTarget || 120;
+  const budget = brain?.goals?.wallet?.monthlyBudgetCap || 600;
+  const sports = brain?.goals?.workout?.sports?.filter(Boolean) || [];
+  const spent =
+    brain?.activity?.expenses?.reduce((sum, e) => sum + (e.cost || 0), 0) || 0;
+  const remaining = Math.max(0, budget - spent);
+
+  const scheduleFromBrain =
+    brain?.activity?.calendar?.slice(0, 6).map((c) => `${c.time} - ${c.title}`) || [];
+
+  return {
     date: new Date().toLocaleDateString("en-US", {
       weekday: "long",
       month: "short",
       day: "numeric",
     }),
-    greeting: "Good morning, Gyan. Here is your daily Orbit briefing for RIT campus.",
-    scheduleHighlights: [
-      "10:00 AM - CSCI 320: Principles of Data Mining (Golisano Hall)",
-      "02:00 PM - CSCI 431: Computer Vision Lecture",
-      "06:00 PM - RIT Men's Volleyball Practice (Clark Gym)",
-    ],
-    volleyballNotice:
-      "Practice tonight at 6:00 PM. High-load leg exercises kept clear of today's workout split.",
-    macroPacing:
-      "Target: 3,100 kcal / 170g protein. Pace: ~750 kcal breakfast + whey shake logged.",
-    budgetStatus: "$540.36 remaining in your $800 monthly cap. On track (Day 21).",
-    actionableEmails: [
-      "Professor Mohan: CSCI 431 project submission guidelines released.",
-      "NVIDIA University Recruiting: Fall technical workshop registration link.",
-    ],
+    greeting: `Good morning${name ? `, ${name}` : ""}. Here is your daily Orbit briefing${
+      campus ? ` for ${campus}` : ""
+    }.`,
+    scheduleHighlights: scheduleFromBrain.length
+      ? scheduleFromBrain
+      : ["No schedule items yet — connect Google Calendar or add events via chat."],
+    athleticsNotice: sports.length
+      ? `Sports on profile: ${sports.join(", ")}. Keep high-load training off game days when possible.`
+      : undefined,
+    volleyballNotice: undefined,
+    macroPacing: `Target: ${calories.toLocaleString()} kcal / ${protein}g protein. Log meals with honest ranges.`,
+    budgetStatus: `$${remaining.toFixed(2)} remaining under your $${budget.toLocaleString()} monthly cap.`,
+    actionableEmails: ["Connect Gmail via Sovereign Connectors to surface priority mail here."],
     recommendedHolds: [
-      "8:30 PM - 10:00 PM: Proposed Study Block for CSCI 320 Paper Review.",
+      "Ask Orbit Schedule for a study hold when you want a confirm-before-write block.",
     ],
   };
+}
+
+async function resolveBrief(brain?: SharedBrainProfile | null) {
+  const fallback = buildGenericBrief(brain);
 
   try {
     const session = readConnectorSession();
     if (!session.google?.accessToken) {
-      return NextResponse.json(fallback);
+      return fallback;
     }
 
     const snapshot = await assembleConnectorContext(session);
@@ -76,24 +91,43 @@ export async function GET() {
             .map((m) => `${m.from.split("<")[0].trim()}: ${m.subject}`)
         : fallback.actionableEmails;
 
-    const volleyball = snapshot.calendar.find((evt) =>
-      evt.title.toLowerCase().includes("volleyball")
-    );
+    const sports = brain?.goals?.workout?.sports?.filter(Boolean) || [];
+    const sportNeedle = sports.map((s) => s.toLowerCase());
+    const athleticsEvent = snapshot.calendar.find((evt) => {
+      const title = evt.title.toLowerCase();
+      if (sportNeedle.some((s) => title.includes(s.toLowerCase()))) return true;
+      return /\b(practice|match|game|training)\b/i.test(evt.title);
+    });
 
     const brief: MorningBriefData = {
       ...fallback,
       scheduleHighlights:
         scheduleHighlights.length > 0 ? scheduleHighlights : fallback.scheduleHighlights,
       actionableEmails,
-      volleyballNotice: volleyball
-        ? `${formatEventLine(volleyball.title, volleyball.start)}. High-load legs kept clear of today's workout split.`
-        : fallback.volleyballNotice,
+      athleticsNotice: athleticsEvent
+        ? `${formatEventLine(athleticsEvent.title, athleticsEvent.start)}. Keep high-load training mindful of competition readiness.`
+        : fallback.athleticsNotice,
       recommendedHolds: fallback.recommendedHolds,
     };
 
-    return NextResponse.json(brief);
+    return brief;
   } catch (err) {
     console.error("Brief connector enrichment failed:", err);
-    return NextResponse.json(fallback);
+    return fallback;
   }
+}
+
+export async function GET() {
+  return NextResponse.json(await resolveBrief(null));
+}
+
+export async function POST(req: NextRequest) {
+  let brain: SharedBrainProfile | null = null;
+  try {
+    const body = await req.json();
+    brain = (body?.brain as SharedBrainProfile) || null;
+  } catch {
+    /* empty body is fine */
+  }
+  return NextResponse.json(await resolveBrief(brain));
 }

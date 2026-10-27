@@ -110,7 +110,9 @@ export function ScheduleTimeline({ brain, onRequestHold }: ScheduleTimelineProps
           <div className="flex items-center gap-2">
             <Calendar size={18} weight="duotone" className="text-cyan-400" />
             <h4 className="text-xs font-mono font-medium text-cyan-300">
-              {usingLive ? "Live Google Calendar Feed" : "Primary Academic and Volleyball Feed"}
+              {usingLive
+                ? "Live Google Calendar Feed"
+                : brain.student.primaryCalendar || "Shared Brain Calendar"}
             </h4>
           </div>
           <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-lg bg-zinc-900 text-zinc-300 border border-white/10">
@@ -122,7 +124,9 @@ export function ScheduleTimeline({ brain, onRequestHold }: ScheduleTimelineProps
         <p className="text-xs text-zinc-300 mb-3.5 leading-relaxed">
           {usingLive
             ? "Synced from your connected Google Calendar. Free block detection still requires your authorization before any write."
-            : "Demo schedule until Google is connected. Free block detection automatically coordinates study holds."}
+            : brain.activity.calendar.length
+              ? "Showing events from your Shared Brain until Google is connected."
+              : "No events yet. Connect Google or add schedule items via chat."}
         </p>
 
         <div className="space-y-2">

@@ -19,26 +19,35 @@ export function CareerPipelineBoard({
   const [generatedSpec, setGeneratedSpec] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const season = brain.goals.career.targetSeason?.trim() || "your recruiting season";
+  const roles =
+    brain.goals.career.targetRoles?.filter(Boolean).slice(0, 2).join(" / ") ||
+    "your target roles";
+  const resumeLabel = [brain.student.degree, brain.student.gradYear]
+    .filter(Boolean)
+    .join(" · ") || "Shared Brain resume";
+
   const handleTriggerBuild = () => {
     cosmicAudio.playClick();
     setIsGenerating(true);
+    const targetRole = selectedRole?.role || roles;
     setTimeout(() => {
       setIsGenerating(false);
       setGeneratedSpec(
-        `# Scoped Proof-of-Work Project: Distributed KV Store with GPU-Accelerated Embeddings
-**Target Role:** NVIDIA Deep Learning Systems Intern (Summer 2027)
+        `# Scoped Proof-of-Work Project Spec
+**Target Role:** ${targetRole} (${season})
 
 ### Architecture Highlights:
-- C++20 core engine with zero-copy shared memory buffer
-- CUDA kernel integration for high-throughput batch vector cosine similarity
-- Redis protocol compatibility (RESP3 parser)
-- Benchmark suite targeting < 250 microsecond p99 latency
+- Clear problem statement tied to the job description
+- Modular services with documented interfaces
+- Evaluation harness with reproducible metrics
+- README with setup, demo script, and trade-offs
 
 ### Starter Files Staged:
-1. \`include/orbit_tensor_kv.hpp\`
-2. \`src/kernels/vector_similarity.cu\`
-3. \`benchmarks/throughput_eval.py\`
-4. \`README.md\` (Recruiter walk-through and reproducible Docker environment)`
+1. \`README.md\` (recruiter walk-through)
+2. \`docs/architecture.md\`
+3. \`src/\` scaffold
+4. \`benchmarks/\` evaluation notes`
       );
       cosmicAudio.playChime();
     }, 1200);
@@ -52,20 +61,26 @@ export function CareerPipelineBoard({
           <div className="flex items-center gap-2">
             <Briefcase size={16} weight="duotone" className="text-amber-400" />
             <h4 className="text-xs font-mono font-medium tracking-wide text-slate-200">
-              Summer 2027 SWE and ML Pipeline
+              {season} Pipeline
             </h4>
           </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
-            RIT BS AI '28 Resume
+            {resumeLabel}
           </span>
         </div>
 
         <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-          Orbit Career monitors target companies, tailors 1-page resumes, and passes job specs to Orbit Build for portfolio proof-of-work.
+          Focus: {roles}. Orbit Career monitors targets, tailors 1-page resumes, and passes job
+          specs to Orbit Build for portfolio proof-of-work.
         </p>
 
         {/* Pipeline Cards */}
         <div className="space-y-1.5">
+          {pipeline.length === 0 ? (
+            <p className="text-[11px] font-mono text-slate-500 px-1 py-2">
+              No pipeline entries yet. Ask Orbit Career to scout roles or add companies in chat.
+            </p>
+          ) : null}
           {pipeline.map((item) => (
             <div
               key={item.id}
@@ -88,7 +103,7 @@ export function CareerPipelineBoard({
                 <span className="capitalize text-slate-400">
                   Status: {(item.stage || "scouted").replace("-", " ")}
                 </span>
-                <span>Summer 2027</span>
+                <span>{season}</span>
               </div>
             </div>
           ))}

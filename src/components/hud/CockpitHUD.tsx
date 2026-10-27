@@ -97,14 +97,30 @@ export function CockpitHUD({
 
   const spec = SPECIALISTS[specialistId] || SPECIALISTS.core;
 
-  // Initial greeting messages per specialist
+  const calories = brain.goals.nutrition.caloriesTarget || 2500;
+  const protein = brain.goals.nutrition.proteinTarget || 120;
+  const budget = brain.goals.wallet.monthlyBudgetCap || 600;
+  const split = brain.goals.workout.split?.trim() || "your workout split";
+  const sports =
+    brain.goals.workout.sports?.filter(Boolean).join(" & ") || "your sports";
+  const campus = brain.student.campus?.trim() || "your campus";
+  const airport = brain.student.homeAirport?.trim().toUpperCase() || "your home airport";
+  const season = brain.goals.career.targetSeason?.trim();
+  const roles =
+    brain.goals.career.targetRoles?.filter(Boolean).slice(0, 2).join(" / ") ||
+    "your target roles";
+  const degreeLine = [brain.student.degree, brain.student.gradYear]
+    .filter(Boolean)
+    .join(" · ");
+
+  // Initial greeting messages per specialist (from Shared Brain)
   const initialMessages: Record<SpecialistId, ChatMessage[]> = {
     core: [
       {
         id: "core-init",
         sender: "core",
         senderName: "Orbit Core",
-        content: `Orbit Core active. All 9 domain specialists are synchronized through your Sovereign Shared Brain. Ask me anything across your domains or try: "Best time to fly home and not fall behind or overspend".`,
+        content: `Orbit Core active. All domain specialists are synchronized through your Sovereign Shared Brain. Ask me anything across your domains or try: "Best time to fly home and not fall behind or overspend".`,
         timestamp: "Online",
       },
     ],
@@ -113,7 +129,7 @@ export function CockpitHUD({
         id: "health-init",
         sender: "health",
         senderName: "Orbit Health",
-        content: `Orbit Health ready. Your bulk target is 3,100 kcal with 170g protein. Meals are logged with honest ranges rather than false precision.`,
+        content: `Orbit Health ready. Your targets are ${calories.toLocaleString()} kcal with ${protein}g protein. Meals are logged with honest ranges rather than false precision.`,
         timestamp: "Online",
       },
     ],
@@ -122,7 +138,9 @@ export function CockpitHUD({
         id: "move-init",
         sender: "move",
         senderName: "Orbit Move",
-        content: `Orbit Move online. Your 4x/week lifting split and Men's Volleyball practices are tracked. Heavy legs remain off game day.`,
+        content: `Orbit Move online. Tracking ${split}${
+          sports !== "your sports" ? ` and ${sports}` : ""
+        }. Training load can protect game days when sports are set.`,
         timestamp: "Online",
       },
     ],
@@ -131,7 +149,9 @@ export function CockpitHUD({
         id: "schedule-init",
         sender: "schedule",
         senderName: "Orbit Schedule",
-        content: `Orbit Schedule connected to RIT academic calendar. Any external create or delete strictly requires your authorization.`,
+        content: `Orbit Schedule ready for ${
+          brain.student.primaryCalendar || "your calendar"
+        }. Any external create or delete strictly requires your authorization.`,
         timestamp: "Online",
       },
     ],
@@ -149,7 +169,7 @@ export function CockpitHUD({
         id: "wallet-init",
         sender: "wallet",
         senderName: "Orbit Wallet",
-        content: `Orbit Wallet active. Monitoring your $800/month spending limit. Soft budget context checked before travel proposals.`,
+        content: `Orbit Wallet active. Monitoring your $${budget.toLocaleString()}/month spending limit. Soft budget context checked before travel proposals.`,
         timestamp: "Online",
       },
     ],
@@ -167,7 +187,7 @@ export function CockpitHUD({
         id: "explore-init",
         sender: "explore",
         senderName: "Orbit Explore",
-        content: `Orbit Explore online. Scanning Rochester local tech meetups and RIT campus weekend events.`,
+        content: `Orbit Explore online. Scanning tech meetups and campus events near ${campus}.`,
         timestamp: "Online",
       },
     ],
@@ -176,7 +196,7 @@ export function CockpitHUD({
         id: "travel-init",
         sender: "travel",
         senderName: "Orbit Travel",
-        content: `Orbit Travel ready. Monitoring ROC to Boston flight fares with 3-week break look-ahead. Zero auto-bookings.`,
+        content: `Orbit Travel ready. Break look-ahead focused on ${airport}. Zero auto-bookings — suggest and confirm only.`,
         timestamp: "Online",
       },
     ],
@@ -185,7 +205,9 @@ export function CockpitHUD({
         id: "career-init",
         sender: "career",
         senderName: "Orbit Career",
-        content: `Orbit Career active. Tracking Summer 2027 SWE/ML internship opportunities for your RIT BS AI '28 resume.`,
+        content: `Orbit Career active. Tracking ${
+          season ? `${season} ` : ""
+        }opportunities for ${roles}${degreeLine ? ` (${degreeLine})` : ""}.`,
         timestamp: "Online",
       },
     ],
@@ -462,16 +484,26 @@ export function CockpitHUD({
       case "travel":
         return (
           <TavilySearchWidget
-            defaultQuery="flights ROC to BOS weekend break student deals"
-            domainTitle="Orbit Travel: Rochester to Boston Break Logistics"
+            defaultQuery={`student break flights ${
+              brain.student.homeAirport?.trim().toUpperCase() || "home airport"
+            }`}
+            domainTitle={`Orbit Travel: Break Logistics${
+              brain.student.homeAirport
+                ? ` (${brain.student.homeAirport.trim().toUpperCase()})`
+                : ""
+            }`}
             domainCategory="travel"
           />
         );
       case "explore":
         return (
           <TavilySearchWidget
-            defaultQuery="Rochester NY tech meetups AI hackathons RIT campus events"
-            domainTitle="Orbit Explore: Campus & Local Rochester Events"
+            defaultQuery={`tech meetups hackathons campus events ${
+              brain.student.campus?.trim() || "near me"
+            }`}
+            domainTitle={`Orbit Explore: Campus & Local Events${
+              brain.student.campus ? ` · ${brain.student.campus}` : ""
+            }`}
             domainCategory="explore"
           />
         );
@@ -638,6 +670,7 @@ export function CockpitHUD({
                 onRejectAction={handleRejectAction}
                 isLoading={isLoading}
                 activeSpecialistId={specialistId}
+                brain={brain}
               />
             </div>
           </div>

@@ -50,15 +50,24 @@ export function MoveWorkoutMatrix({ brain, onUpdateBrain }: MoveWorkoutMatrixPro
           <div className="flex items-center gap-2">
             <Barbell size={16} weight="duotone" className="text-amber-400" />
             <h4 className="text-xs font-mono font-medium tracking-wide text-slate-200">
-              4x/Week Split and Volleyball Coordination
+              {brain.goals.workout.split?.trim() || "Workout Split"}
+              {brain.goals.workout.sports?.length
+                ? ` · ${brain.goals.workout.sports.join(", ")}`
+                : ""}
             </h4>
           </div>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20">
-            Game Day Protection Active
-          </span>
+          {brain.goals.workout.sports?.length ? (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-300 border border-amber-400/20">
+              Sports Load Aware
+            </span>
+          ) : null}
         </div>
         <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-          Heavy leg workouts are scheduled off Friday and Saturday to protect match performance for RIT Men's Volleyball.
+          {brain.goals.workout.sports?.length
+            ? `Training load respects readiness for ${brain.goals.workout.sports.join(
+                " & "
+              )}. Log sessions below or ask Orbit Move in chat.`
+            : "Log workouts below or ask Orbit Move in chat. Add sports in Cosmic Awakening to enable game-day protection copy."}
         </p>
 
         {/* Tab Selector */}

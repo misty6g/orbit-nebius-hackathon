@@ -164,7 +164,7 @@ export function AuthGateModal({ onAuthenticated }: AuthGateModalProps) {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Gyan"
+                      placeholder="e.g. Alex"
                       className="w-full pl-9 pr-3.5 py-2 rounded-lg bg-space-900/60 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400/50 transition font-sans"
                     />
                   </div>

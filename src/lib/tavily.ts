@@ -16,19 +16,22 @@ export async function searchTavily(
       answer: `Found curated student listings for: "${query}".`,
       results: [
         {
-          title: "RIT Student Flight Discounts & ROC Break Fares",
-          url: "https://www.rit.edu/travel/discounts",
-          snippet: "BOS to ROC weekend non-stop direct flights starting at $138 roundtrip on JetBlue and Delta with student verified pricing.",
+          title: "Student Break Flight Deals (.edu verified)",
+          url: "https://www.google.com/travel/flights",
+          snippet:
+            "Sample student-oriented break fare listings. Connect Tavily with a live key for real-time results on your home-airport routes.",
         },
         {
-          title: "Apple & NVIDIA Student Developer Hardware Grants",
-          url: "https://developer.nvidia.com/academic-program",
-          snippet: "Eligible .edu students receive exclusive access to NVIDIA Jetson hardware and cloud compute credits for AI coursework.",
+          title: "Student Developer Hardware & Cloud Credits",
+          url: "https://education.github.com/pack",
+          snippet:
+            "Many .edu programs offer hardware discounts and cloud compute credits for coursework — verify eligibility with your school email.",
         },
         {
-          title: "Rochester AI & Tech Meetups (Downtown & Henrietta)",
-          url: "https://meetup.com/rochester-ai",
-          snippet: "Weekly collaborative workshops on open source LLMs, computer vision, and robotics held near RIT campus.",
+          title: "Local Tech Meetups Near Campus",
+          url: "https://www.meetup.com/",
+          snippet:
+            "Placeholder meetup shortlist. With a Tavily key, Orbit Explore searches live events near your campus city.",
         },
       ],
     };
